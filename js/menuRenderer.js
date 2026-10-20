@@ -75,9 +75,10 @@ module.exports = {
         return
       }
 
+      var selectedTask = tasks.getSelected()
       var newTab = tabs.add({
         url: data.url || '',
-        containerId: containers.containerForNewTab(tasks.getSelected().id)
+        containerId: containers.containerForNewTab(selectedTask ? selectedTask.id : null)
       })
 
       browserUI.addTab(newTab, {
