@@ -3,45 +3,70 @@
   <head>
     <meta charset="UTF-8" />
     <title>Containers</title>
+    <link rel="stylesheet" href="../../css/tokens.css" />
     <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
     <link rel="stylesheet" href="containers.css" />
     <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
   </head>
   <body>
-    <div class="containers-hero">
-      <h1 data-string="containersPageTitle"></h1>
-      <p data-string="containersPageDescription"></p>
-    </div>
+    <div class="sea-container">
+      <header class="page-hero">
+        <div class="hero-badge">
+          <i class="i carbon:fingerprint-recognition"></i>
+          <span>Partitioned Workspaces</span>
+        </div>
+        <h1 class="page-title" data-string="containersPageTitle">Containers</h1>
+        <p class="page-desc" data-string="containersPageDescription"></p>
+      </header>
 
-    <div class="containers-main">
-      <div class="containers-toolbar">
-        <button id="new-container-button"></button>
-      </div>
+      <div class="containers-main">
+        <div class="containers-toolbar">
+          <button id="new-container-button" class="btn-jewel">
+            <i class="i carbon:add"></i>
+            <span data-string="containersNewContainer">New Container</span>
+          </button>
+        </div>
 
-      <div id="container-list"></div>
+        <div id="container-editor" class="inline-sheet pebble-card" hidden>
+          <div class="sheet-glass-inner">
+            <div class="sheet-header">
+              <div class="sheet-title-group">
+                <span class="sheet-pebble-dot" id="editor-preview-dot"></span>
+                <h2 id="editor-heading"></h2>
+              </div>
+              <button id="editor-close-btn" class="sheet-close-btn" aria-label="Close" type="button">
+                <i class="i carbon:close"></i>
+              </button>
+            </div>
+            <div class="editor-row name-row">
+              <label for="container-name-input" data-string="containersNameLabel"></label>
+              <div class="input-pebble-wrap">
+                <input id="container-name-input" type="text" maxlength="64" autocomplete="off" spellcheck="false" />
+              </div>
+            </div>
+            <div class="editor-row color-row">
+              <label data-string="containersColorLabel"></label>
+              <div id="color-picker" class="picker color-pebbles"></div>
+            </div>
+            <div class="editor-row icon-row">
+              <label data-string="containersIconLabel"></label>
+              <div id="icon-picker" class="picker icon-chips"></div>
+            </div>
+            <div class="editor-actions">
+              <button id="editor-cancel" class="btn-tonal"></button>
+              <button id="editor-save" class="btn-jewel"></button>
+            </div>
+          </div>
+        </div>
 
-      <div id="container-editor" hidden>
-        <h2 id="editor-heading"></h2>
-        <div class="editor-row">
-          <label for="container-name-input" data-string="containersNameLabel"></label>
-          <input id="container-name-input" type="text" maxlength="64" autocomplete="off" />
-        </div>
-        <div class="editor-row">
-          <label data-string="containersColorLabel"></label>
-          <div id="color-picker" class="picker"></div>
-        </div>
-        <div class="editor-row">
-          <label data-string="containersIconLabel"></label>
-          <div id="icon-picker" class="picker"></div>
-        </div>
-        <div class="editor-actions">
-          <button id="editor-save"></button>
-          <button id="editor-cancel"></button>
-        </div>
+        <div id="container-list"></div>
       </div>
     </div>
 
     <script src="../../dist/localization.build.js"></script>
+    <script src="../../js/util/settings/settingsContent.js"></script>
+    <script src="../../js/util/theme.js"></script>
     <script src="containersPage.js"></script>
   </body>
 </html>

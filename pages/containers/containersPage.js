@@ -72,21 +72,32 @@ function carbonClass (name) {
 /* list */
 
 function render () {
+  var editor = document.getElementById('container-editor')
   var listNode = document.getElementById('container-list')
+  if (editor && editor.parentNode === listNode) {
+    document.querySelector('.containers-main').appendChild(editor)
+  }
   listNode.textContent = ''
 
-  state.containers.forEach(function (container) {
-    listNode.appendChild(buildRow(container))
+  state.containers.forEach(function (container, index) {
+    var row = buildRow(container)
+    row.style.setProperty('--i', index)
+    listNode.appendChild(row)
   })
 }
 
 function buildRow (container) {
   var row = document.createElement('div')
-  row.className = 'container-row' + (state.armedDeleteId === container.id ? ' armed' : '')
+  row.className = 'container-row pebble-card' +
+    (state.armedDeleteId === container.id ? ' armed' : '') +
+    (container.builtIn ? ' is-default' : '')
+  row.dataset.containerId = container.id
+  row.style.setProperty('--container-color', container.color)
 
   var dot = document.createElement('span')
-  dot.className = 'container-dot'
+  dot.className = 'container-dot color-pebble'
   dot.style.backgroundColor = container.color
+  dot.style.setProperty('--container-color', container.color)
   row.appendChild(dot)
 
   var icon = document.createElement('i')
@@ -111,6 +122,7 @@ function buildRow (container) {
   row.appendChild(count)
 
   var editButton = document.createElement('button')
+  editButton.className = 'container-edit-btn btn-tonal'
   editButton.textContent = l('containersEdit')
   editButton.addEventListener('click', function () {
     state.armedDeleteId = null
@@ -120,6 +132,7 @@ function buildRow (container) {
 
   if (!container.builtIn) {
     var deleteButton = document.createElement('button')
+    deleteButton.className = 'container-delete-btn chip-coral' + (state.armedDeleteId === container.id ? ' armed' : '')
     if (state.armedDeleteId === container.id) {
       deleteButton.textContent = l('containersDeleteConfirm')
     } else {
@@ -152,6 +165,14 @@ function selectedEditorContainer () {
   return state.containers.find(c => c.id === state.editing.id) || null
 }
 
+function updateEditorPreviewDot (color) {
+  var dot = document.getElementById('editor-preview-dot')
+  if (dot) {
+    dot.style.backgroundColor = color
+    dot.style.setProperty('--preview-color', color)
+  }
+}
+
 function showEditor (target) {
   state.editing = target
   state.armedDeleteId = null
@@ -164,10 +185,27 @@ function showEditor (target) {
   document.getElementById('editor-save').textContent = l('containersSave')
   document.getElementById('editor-cancel').textContent = l('containersCancel')
 
-  renderColorPicker(container ? container.color : state.colors.blue || '#37adff')
+  var currentColor = container ? container.color : (state.colors.blue || '#37adff')
+  updateEditorPreviewDot(currentColor)
+
+  renderColorPicker(currentColor)
   renderIconPicker(container ? container.icon : 'circle')
 
-  document.getElementById('container-editor').hidden = false
+  var editor = document.getElementById('container-editor')
+  var listNode = document.getElementById('container-list')
+
+  if (target && target.id) {
+    var row = document.querySelector('[data-container-id="' + target.id + '"]')
+    if (row && row.parentNode) {
+      row.after(editor)
+    } else {
+      listNode.before(editor)
+    }
+  } else {
+    listNode.before(editor)
+  }
+
+  editor.hidden = false
   nameInput.focus()
 }
 
@@ -192,16 +230,19 @@ function renderColorPicker (selectedColor) {
   Object.keys(state.colors).forEach(function (name) {
     var color = state.colors[name]
     var button = document.createElement('button')
-    button.className = 'color-choice' + (color === selectedColor ? ' selected' : '')
+    button.type = 'button'
+    button.className = 'color-pebble-choice' + (color === selectedColor ? ' selected' : '')
     button.style.backgroundColor = color
-    button.style.color = color
+    button.style.setProperty('--swatch-color', color)
     button.dataset.color = color
     button.setAttribute('aria-label', name)
+    button.title = name
     button.addEventListener('click', function () {
       picker.querySelectorAll('button').forEach(function (b) {
         b.classList.remove('selected')
       })
       button.classList.add('selected')
+      updateEditorPreviewDot(color)
     })
     picker.appendChild(button)
   })
@@ -213,9 +254,11 @@ function renderIconPicker (selectedIcon) {
 
   state.icons.forEach(function (name) {
     var button = document.createElement('button')
-    button.className = 'icon-choice' + (name === selectedIcon ? ' selected' : '')
+    button.type = 'button'
+    button.className = 'icon-chip-choice' + (name === selectedIcon ? ' selected' : '')
     button.dataset.icon = name
     button.setAttribute('aria-label', name)
+    button.title = name
     var icon = document.createElement('i')
     icon.className = 'i ' + carbonClass(name)
     button.appendChild(icon)
@@ -254,6 +297,10 @@ document.getElementById('new-container-button').addEventListener('click', functi
 })
 document.getElementById('editor-save').addEventListener('click', saveEditor)
 document.getElementById('editor-cancel').addEventListener('click', hideEditor)
+var closeBtn = document.getElementById('editor-close-btn')
+if (closeBtn) {
+  closeBtn.addEventListener('click', hideEditor)
+}
 document.getElementById('container-name-input').addEventListener('keypress', function (e) {
   if (e.key === 'Enter') {
     saveEditor()

@@ -3,42 +3,53 @@
   <head>
     <meta charset="UTF-8" />
     <title>Extensions</title>
+    <link rel="stylesheet" href="../../css/tokens.css" />
     <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
     <link rel="stylesheet" href="extensions.css" />
     <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
   </head>
   <body>
-    <div class="short-hero blue-gradient-background">
-      <div class="container">
-        <h2>Extensions</h2>
+    <div class="sea-container">
+      <header class="page-hero">
+        <div class="hero-badge">
+          <i class="i carbon:box"></i>
+          <span>Extensions &amp; Web Store</span>
+        </div>
+        <h1 class="page-title">Extensions</h1>
+        <p class="page-desc">Extensions run separately within each container. Add extensions directly from the Chrome Web Store.</p>
+      </header>
+
+      <div class="extensions-main" id="extensions-page">
+        <div class="extensions-toolbar">
+          <button id="open-web-store" class="btn-jewel">
+            <i class="i carbon:shopping-cart"></i>
+            <span>Open Chrome Web Store</span>
+          </button>
+          <button id="check-updates" class="btn-tonal">
+            <i class="i carbon:renew"></i>
+            <span>Check for Updates</span>
+          </button>
+          <span id="extensions-status" role="status"></span>
+        </div>
+
+        <div id="extensions-list"></div>
+
+        <div class="extensions-hint-card pebble-card">
+          <i class="i carbon:information hint-icon"></i>
+          <p class="extensions-hint">
+            Install extensions with &ldquo;Add to Chrome&rdquo; on
+            chromewebstore.google.com from any container. Extensions run separately
+            in each container, so their data stays isolated per container. When an
+            extension blocks web requests itself (such as uBlock Origin), xb&rsquo;s
+            built-in content blocking is turned off.
+          </p>
+        </div>
       </div>
-    </div>
-
-    <div class="settings-container" id="extensions-page">
-      <div class="extensions-toolbar">
-        <button id="open-web-store" class="extensions-action primary">
-          <i class="i carbon:shopping-cart"></i>
-          Open Chrome Web Store
-        </button>
-        <button id="check-updates" class="extensions-action">
-          <i class="i carbon:renew"></i>
-          Check for Updates
-        </button>
-        <span id="extensions-status" role="status"></span>
-      </div>
-
-      <div id="extensions-list"></div>
-
-      <p class="extensions-hint">
-        Install extensions with &ldquo;Add to Chrome&rdquo; on
-        chromewebstore.google.com from any container. Extensions run separately
-        in each container, so their data stays isolated per container. When an
-        extension blocks web requests itself (such as uBlock Origin), Min's
-        built-in content blocking is turned off.
-      </p>
     </div>
 
     <script src="../../dist/localization.build.js"></script>
+    <script src="../../js/util/settings/settingsContent.js"></script>
     <script src="../../js/util/theme.js"></script>
     <script src="extensions.js"></script>
   </body>
