@@ -5,7 +5,7 @@ userData/containers.json; the Default container is an alias over the partition
 Min already uses for all tabs (persist:webcontent), so existing logins keep working.
 */
 
-/* global fs, path, ipc, app, session, windows, getWindowWebContents, userDataPath */
+/* global fs, path, ipc, app, session, windows, webContents, getWindowWebContents, userDataPath */
 
 const containersPath = path.join(userDataPath, 'containers.json')
 const pendingContainerRemovalsPath = path.join(userDataPath, 'pending-container-removals.json')
