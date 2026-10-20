@@ -10,7 +10,7 @@ X-focused browser fork for Chef. Min (28k LOC plain-JS Electron browser) reshape
 
 ## Fork base
 
-- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\xb`, branch `feat/buckets`.
+- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it), branch `feat/buckets`. Installed runtime (the packaged zip, separate from this repo): `C:\Users\Chef\Apps\xb` — update it with `C:\Users\Public\xb-update.ps1 <zip>`.
 - Upstream: maintenance mode since 2025-10 but Chromium bumps continue (v1.35.7 = Electron 43.4.1). Engine updates = bump `electronVersion` in package.json; do this monthly-ish.
 
 ## Map (what we touch)
