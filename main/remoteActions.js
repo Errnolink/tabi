@@ -2,6 +2,8 @@
 Wraps APIs that are only available in the main process in IPC messages, so that the BrowserWindow can use them
 */
 
+/* global containerPartitions */
+
 ipc.handle('startFileDrag', function (e, path) {
   app.getFileIcon(path, {}).then(function (icon) {
     e.sender.startDrag({
@@ -42,36 +44,34 @@ ipc.handle('showSaveDialog', async function (e, options) {
 })
 
 ipc.handle('addWordToSpellCheckerDictionary', function (e, word) {
-  session.fromPartition('persist:webcontent').addWordToSpellCheckerDictionary(word)
+  containerPartitions().forEach(function (partition) {
+    session.fromPartition(partition).addWordToSpellCheckerDictionary(word)
+  })
 })
 
 ipc.handle('clearStorageData', function () {
-  return session.fromPartition('persist:webcontent').clearStorageData()
   /* It's important not to delete data from file:// from the default partition, since that would also remove internal browser data (such as bookmarks). However, HTTP data does need to be cleared, as there can be leftover data from loading external resources in the browser UI */
-    .then(function () {
-      return session.defaultSession.clearStorageData({ origin: 'http://' })
-    })
-    .then(function () {
-      return session.defaultSession.clearStorageData({ origin: 'https://' })
-    })
-    .then(function () {
-      return session.fromPartition('persist:webcontent').clearCache()
-    })
-    .then(function () {
-      return session.fromPartition('persist:webcontent').clearHostResolverCache()
-    })
-    .then(function () {
-      return session.fromPartition('persist:webcontent').clearAuthCache()
-    })
-    .then(function () {
-      return session.defaultSession.clearCache()
-    })
-    .then(function () {
-      return session.defaultSession.clearHostResolverCache()
-    })
-    .then(function () {
-      return session.defaultSession.clearAuthCache()
-    })
+  var partitionClears = containerPartitions().map(function (partition) {
+    var ses = session.fromPartition(partition)
+    return ses.clearStorageData()
+      .then(function () {
+        return ses.clearCache()
+      })
+      .then(function () {
+        return ses.clearHostResolverCache()
+      })
+      .then(function () {
+        return ses.clearAuthCache()
+      })
+  })
+
+  return Promise.all(partitionClears.concat([
+    session.defaultSession.clearStorageData({ origin: 'http://' }),
+    session.defaultSession.clearStorageData({ origin: 'https://' }),
+    session.defaultSession.clearCache(),
+    session.defaultSession.clearHostResolverCache(),
+    session.defaultSession.clearAuthCache()
+  ]))
 })
 
 /* window actions */
