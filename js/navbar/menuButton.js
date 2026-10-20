@@ -1,19 +1,12 @@
-const { ipcRenderer } = require('electron')
-
 var keybindings = require('keybindings.js')
 var settings = require('util/settings/settings.js')
+var remoteMenu = require('remoteMenuRenderer.js')
 
 var menuButton = document.getElementById('menu-button')
 
 function showSecondaryMenu () {
-  var navbar = document.getElementById('navbar')
   var rect = menuButton.getBoundingClientRect()
-  var navbarRect = navbar.getBoundingClientRect()
-
-  ipcRenderer.send('showSecondaryMenu', {
-    x: Math.round(rect.left),
-    y: Math.round(navbarRect.bottom)
-  })
+  remoteMenu.openAppMenu(Math.round(rect.right), Math.round(rect.bottom + 6))
 }
 
 function initialize () {

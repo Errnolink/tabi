@@ -1,36 +1,93 @@
-/* global getView, getExtensionContextMenuItems */
-ipc.on('open-context-menu', function (e, data) {
-  var menu = new Menu()
+/* global ipc, windows, getView, getExtensionContextMenuItems, raiseUIView, lowerUIView, buildAppMenu */
 
-  data.template.forEach(function (section) {
-    section.forEach(function (item) {
-      var id = item.click
-      item.click = function () {
-        e.sender.send('context-menu-item-selected', { menuId: data.id, itemId: id })
-      }
-      if (item.submenu) {
-        for (var i = 0; i < item.submenu.length; i++) {
-          (function (id) {
-            item.submenu[i].click = function () {
-              e.sender.send('context-menu-item-selected', { menuId: data.id, itemId: id })
-            }
-          })(item.submenu[i].click)
-        }
-      }
-      menu.append(new MenuItem(item))
-    })
-    menu.append(new MenuItem({ type: 'separator' }))
-  })
-  menu.on('menu-will-close', function () {
-    e.sender.send('context-menu-will-close', { menuId: data.id })
-  })
-  if (data.tabId != null && data.contextMenuParams) {
-    var view = getView(data.tabId)
-    if (view) {
-      getExtensionContextMenuItems(view.webContents, data.contextMenuParams).forEach(function (item) {
-        menu.append(item)
-      })
-    }
+const nativeMenuItems = new Map()
+let nextNativeMenuItemId = 1
+
+function formatAccelerator (accelerator) {
+  if (!accelerator) {
+    return null
   }
-  menu.popup({ x: data.x, y: data.y })
+  const order = ['Ctrl', 'Alt', 'Shift']
+  const parts = String(accelerator).split('+').map(function (part) {
+    const lower = part.toLowerCase()
+    if (/^(cmdorctrl|commandorcontrol|mod|ctrl|control|cmd|command)$/.test(lower)) {
+      return 'Ctrl'
+    }
+    if (lower === 'option' || lower === 'alt') {
+      return 'Alt'
+    }
+    if (lower === 'shift') {
+      return 'Shift'
+    }
+    return part.length === 1 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)
+  })
+  const mods = order.filter(m => parts.includes(m))
+  const keys = parts.filter(p => !order.includes(p))
+  return mods.concat(keys).join('+')
+}
+
+function serializeMenuItems (items) {
+  return items.filter(item => item.visible !== false).map(function (item) {
+    const id = nextNativeMenuItemId++
+    nativeMenuItems.set(id, item)
+    return {
+      nativeId: id,
+      type: item.type === 'separator' ? 'separator' : (item.type === 'checkbox' || item.type === 'radio' ? item.type : 'normal'),
+      label: item.label,
+      enabled: item.enabled !== false,
+      checked: !!item.checked,
+      accelerator: formatAccelerator(item.accelerator),
+      submenu: item.submenu ? serializeMenuItems(item.submenu.items) : null
+    }
+  })
+}
+
+ipc.on('menu-raise', function (e) {
+  const entry = windows.windowFromContents(e.sender)
+  if (entry) {
+    raiseUIView(entry.win)
+    e.sender.focus()
+  }
+})
+
+ipc.on('menu-lower', function (e) {
+  const entry = windows.windowFromContents(e.sender)
+  if (entry) {
+    lowerUIView(entry.win)
+  }
+})
+
+ipc.handle('menu-extension-items', function (e, data) {
+  nativeMenuItems.clear()
+  const view = getView(data.tabId)
+  if (!view) {
+    return []
+  }
+  return serializeMenuItems(getExtensionContextMenuItems(view.webContents, data.contextMenuParams))
+})
+
+let appMenu = null
+ipc.handle('menu-app-items', function () {
+  nativeMenuItems.clear()
+  if (!appMenu) {
+    appMenu = buildAppMenu({ secondary: true })
+  }
+  return serializeMenuItems(appMenu.items)
+})
+
+ipc.on('menu-native-click', function (e, nativeId) {
+  const item = nativeMenuItems.get(nativeId)
+  const entry = windows.windowFromContents(e.sender)
+  if (item && entry) {
+    item.click({ triggeredByAccelerator: false }, entry.win, e.sender)
+  }
+})
+
+const menuRoleMethods = { undo: 'undo', redo: 'redo', cut: 'cut', copy: 'copy', paste: 'paste', pasteandmatchstyle: 'pasteAndMatchStyle', selectall: 'selectAll', delete: 'delete' }
+
+ipc.on('menu-role', function (e, role) {
+  const method = menuRoleMethods[role]
+  if (method) {
+    e.sender[method]()
+  }
 })

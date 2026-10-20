@@ -10,7 +10,9 @@ var readerView = {
     return readerView.readerURL + '?url=' + url
   },
   isReader: function (tabId) {
-    return tabs.get(tabId).url.indexOf(readerView.readerURL) === 0
+    const task = tasks.getTaskContainingTab(tabId)
+    const tab = task && task.tabs.get(tabId)
+    return !!tab && tab.url.indexOf(readerView.readerURL) === 0
   },
   getButton: function (tabId) {
     // TODO better icon
@@ -56,15 +58,17 @@ var readerView = {
     }
   },
   enter: function (tabId, url) {
-    var newURL = readerView.readerURL + '?url=' + encodeURIComponent(url || tabs.get(tabId).url)
-    tabs.update(tabId, { url: newURL })
+    const task = tasks.getTaskContainingTab(tabId)
+    var newURL = readerView.readerURL + '?url=' + encodeURIComponent(url || task.tabs.get(tabId).url)
+    task.tabs.update(tabId, { url: newURL })
     webviews.update(tabId, newURL)
   },
   exit: function (tabId) {
-    var src = urlParser.getSourceURL(tabs.get(tabId).url)
+    const task = tasks.getTaskContainingTab(tabId)
+    var src = urlParser.getSourceURL(task.tabs.get(tabId).url)
     // this page should not be automatically readerable in the future
     readerDecision.setURLStatus(src, false)
-    tabs.update(tabId, { url: src })
+    task.tabs.update(tabId, { url: src })
     webviews.update(tabId, src)
   },
   printArticle: function (tabId) {

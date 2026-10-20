@@ -33,13 +33,17 @@ function hostOf (url) {
   }
 }
 
-function isTallCard (tab) {
-  return /^https:\/\/(x|twitter)\.com\/[^/]+(\/status\/\d+)?\/?$/.test(tab.url || '') && !/\/(home|explore|notifications|messages|search|i)\/?$/.test(tab.url)
+function cardAspect (tab) {
+  const aspect = tab.thumbAspect
+  if (typeof aspect === 'number' && isFinite(aspect) && aspect > 0) {
+    return Math.min(2.4, Math.max(0.5, aspect))
+  }
+  return 16 / 10
 }
 
 function loadThumb (tab, img) {
-  if (tab.previewImage) {
-    img.src = tab.previewImage
+  if (tab.thumbImage) {
+    img.src = tab.thumbImage
     return
   }
   const cached = thumbCache.get(tab.id)
@@ -192,9 +196,10 @@ const overview = {
     card.draggable = true
     card.style.setProperty('--i', Math.min(index, 14))
 
-    const tall = isTallCard(tab)
+    const aspect = cardAspect(tab)
     const thumb = document.createElement('div')
-    thumb.className = 'ov-thumb' + (tall ? ' tall' : '')
+    thumb.className = 'ov-thumb'
+    thumb.style.aspectRatio = String(aspect)
     const img = document.createElement('img')
     img.decoding = 'async'
     img.alt = ''
@@ -261,7 +266,7 @@ const overview = {
       document.body.classList.remove('ov-dragging')
     })
 
-    card._estimate = (tall ? 1.25 : 0.625) + CARD_META / MIN_COLUMN
+    card._estimate = 1 / aspect + CARD_META / MIN_COLUMN
     return card
   },
 
@@ -663,6 +668,14 @@ const overview = {
 
     keybindings.defineShortcut('toggleTasks', overview.toggle)
     keybindings.defineShortcut({ keys: 'mod+shift+o' }, overview.toggle)
+    keybindings.defineShortcut('searchTabs', function () {
+      const focusSearch = () => overview.search.focus()
+      if (overview.isShown) {
+        focusSearch()
+      } else {
+        overview.show().then(focusSearch)
+      }
+    })
     keybindings.defineShortcut('addTask', function () {
       if (modalMode.enabled()) {
         return

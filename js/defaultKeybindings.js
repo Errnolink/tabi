@@ -48,6 +48,12 @@ const defaultKeybindings = {
       }))
     })
 
+    keybindings.defineShortcut('togglePinTab', function () {
+      if (tabs.getSelected()) {
+        require('tabActions.js').togglePin(tabs.getSelected())
+      }
+    })
+
     keybindings.defineShortcut('duplicateTab', function () {
       if (modalMode.enabled()) {
         return

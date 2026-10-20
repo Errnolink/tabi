@@ -277,7 +277,7 @@ function setView (id, senderContents) {
   // see https://github.com/minbrowser/min/issues/1966
   if (windows.getState(win).selectedView !== viewMap[id]) {
     //remove all prior views
-    win.getContentView().children.slice(1).forEach(child => win.getContentView().removeChildView(child))
+    getPageViews(win).forEach(child => win.getContentView().removeChildView(child))
     if (viewStateMap[id].loadedInitialURL) {
       win.getContentView().addChildView(viewMap[id])
     } else {
@@ -453,6 +453,41 @@ ipc.handle('getNavigationHistory', function (e, id) {
   }
 })
 
+/* reads only the on-screen rectangle of the focal post (or the timeline column) so the overview card can be cropped to it */
+const THUMBNAIL_FOCUS_SCRIPT = `(function () {
+  var vw = window.innerWidth
+  var vh = window.innerHeight
+  function clip (r) {
+    var top = Math.max(0, r.top)
+    var bottom = Math.min(vh, r.bottom)
+    if (bottom - top < 80 || r.width < 120) {
+      return null
+    }
+    return { x: Math.max(0, r.left), y: top, width: Math.min(vw, r.right) - Math.max(0, r.left), height: bottom - top }
+  }
+  if (/\\/status\\/\\d+/.test(location.pathname)) {
+    var focal = document.querySelector('article[data-testid="tweet"][tabindex="-1"]') || document.querySelector('main article')
+    if (focal) {
+      return clip(focal.getBoundingClientRect())
+    }
+  }
+  var column = document.querySelector('[data-testid="primaryColumn"]')
+  return column ? clip(column.getBoundingClientRect()) : null
+})()`
+
+function thumbnailFocusRect (view) {
+  if (!/^https:\/\/(x|twitter)\.com\//.test(view.webContents.getURL())) {
+    return Promise.resolve(null)
+  }
+  return view.webContents.executeJavaScript(THUMBNAIL_FOCUS_SCRIPT).then(function (rect) {
+    if (!rect) {
+      return null
+    }
+    var zoom = view.webContents.getZoomFactor()
+    return { x: rect.x * zoom, y: rect.y * zoom, width: rect.width * zoom, height: rect.height * zoom }
+  }).catch(() => null)
+}
+
 ipc.on('getCapture', function (e, data) {
   var view = viewMap[data.id]
   if (!view) {
@@ -460,17 +495,27 @@ ipc.on('getCapture', function (e, data) {
     return
   }
 
-  view.webContents.capturePage().then(function (img) {
+  Promise.all([view.webContents.capturePage(), thumbnailFocusRect(view)]).then(function ([img, focus]) {
     if (!img || img.isEmpty()) {
       return
     }
     var size = img.getSize()
-    if (size.width === 0 && size.height === 0) {
+    if (size.width === 0 || size.height === 0) {
       return
     }
-    var result = thumbnailManager.save(data.id, img)
+    var crop = null
+    if (focus) {
+      var scale = size.width / view.getBounds().width
+      crop = {
+        x: Math.round(focus.x * scale),
+        y: Math.round(focus.y * scale),
+        width: Math.round(focus.width * scale),
+        height: Math.round(focus.height * scale)
+      }
+    }
+    var result = thumbnailManager.save(data.id, img, crop)
     if (result) {
-      e.sender.send('captureData', { id: data.id, url: result.dataUrl })
+      e.sender.send('captureData', { id: data.id, url: result.pageUrl, thumbUrl: result.thumbUrl, aspect: result.aspect })
     }
   }).catch(function (err) {
     console.error('Error capturing page for tab ' + data.id + ':', err)

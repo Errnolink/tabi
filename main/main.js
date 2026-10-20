@@ -75,7 +75,6 @@ if (settings.get('userSelectedLanguage')) {
 const browserPage = 'min://app/index.html'
 
 var mainMenu = null
-var secondaryMenu = null
 var isFocusMode = false
 var appIsReady = false
 
@@ -243,6 +242,7 @@ function createWindowWithBounds (bounds, customArgs) {
       ]
     }
   })
+  uiViews.set(newWin, mainView)
   mainView.webContents.loadURL(browserPage)
   if (isWin11Acrylic) {
     mainView.setBackgroundColor('#00000000')
@@ -463,16 +463,6 @@ ipc.on('focusMainWebContents', function () {
   getWindowWebContents(windows.getCurrent()).focus()
 })
 
-ipc.on('showSecondaryMenu', function (event, data) {
-  if (!secondaryMenu) {
-    secondaryMenu = buildAppMenu({ secondary: true })
-  }
-  secondaryMenu.popup({
-    x: data.x,
-    y: data.y
-  })
-})
-
 ipc.on('handoffUpdate', function(e, data) {
   if (app.setUserActivity && data.url && data.url.startsWith('http')) {
     app.setUserActivity('NSUserActivityTypeBrowsingWeb', {}, data.url)
@@ -547,8 +537,23 @@ ipc.on('places-connect', function (e) {
   }
 })
 
+const uiViews = new WeakMap()
+
 function getWindowWebContents (win) {
-  return win.getContentView().children[0].webContents
+  return uiViews.get(win).webContents
+}
+
+function getPageViews (win) {
+  const ui = uiViews.get(win)
+  return win.getContentView().children.filter(child => child !== ui)
+}
+
+function raiseUIView (win) {
+  win.getContentView().addChildView(uiViews.get(win))
+}
+
+function lowerUIView (win) {
+  win.getContentView().addChildView(uiViews.get(win), 0)
 }
 
 /* translate service */

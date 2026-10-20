@@ -65,8 +65,11 @@ function sanitizeContainerId (id) {
 }
 
 function add (data) {
-  return ipc.invoke('containers:add', data).then(function () {
-    return currentList
+  return ipc.invoke('containers:add', data).then(function (container) {
+    if (!currentList.some(c => c.id === container.id)) {
+      currentList = currentList.concat([container])
+    }
+    return container
   })
 }
 
@@ -159,6 +162,9 @@ function reopenTabInContainer (tabId, containerId) {
     return
   }
 
+  if (tasks.getSelected().id !== containingTask.id) {
+    browserUI.switchToTask(containingTask.id)
+  }
   var wasSelected = tabs.getSelected() === tabId
   var newTabId = tabs.add({
     url: tab.url,

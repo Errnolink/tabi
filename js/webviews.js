@@ -545,7 +545,7 @@ ipc.on('captureData', function (e, data) {
   if (!task) {
     return
   }
-  task.tabs.update(data.id, { previewImage: data.url, thumbnailTime: Date.now() })
+  task.tabs.update(data.id, { previewImage: data.url, thumbImage: data.thumbUrl, thumbAspect: data.aspect })
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
     placeholderImg.src = data.url
     placeholderImg.hidden = false

@@ -322,10 +322,6 @@ body.ov-settled #webviews {
   background: var(--chrome-press);
 }
 
-.ov-thumb.tall {
-  aspect-ratio: 4 / 5;
-}
-
 .ov-thumb img {
   width: 100%;
   height: 100%;

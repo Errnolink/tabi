@@ -64,7 +64,7 @@ const thumbnailManager = {
     }
   },
 
-  save: function (tabId, nativeImg) {
+  save: function (tabId, nativeImg, crop) {
     if (!nativeImg || nativeImg.isEmpty()) {
       return null
     }
@@ -73,8 +73,10 @@ const thumbnailManager = {
       return null
     }
 
-    const jpeg = nativeImg.resize({ width: 560, quality: 'good' }).toJPEG(78)
-    fs.promises.writeFile(this.getFilePath(tabId), jpeg).catch(function (err) {
+    const focused = crop ? nativeImg.crop(crop) : nativeImg
+    const thumbSize = focused.getSize()
+    const thumb = focused.resize({ width: Math.min(560, thumbSize.width), quality: 'good' }).toJPEG(80)
+    fs.promises.writeFile(this.getFilePath(tabId), thumb).catch(function (err) {
       console.error('Failed to save thumbnail for tab ' + tabId + ':', err)
     })
 
@@ -82,7 +84,12 @@ const thumbnailManager = {
     this.lruMap.set(tabId, Date.now())
     this.pruneLRU()
 
-    return { dataUrl: 'data:image/jpeg;base64,' + jpeg.toString('base64') }
+    const page = nativeImg.resize({ width: Math.min(960, size.width), quality: 'good' }).toJPEG(72)
+    return {
+      pageUrl: 'data:image/jpeg;base64,' + page.toString('base64'),
+      thumbUrl: 'data:image/jpeg;base64,' + thumb.toString('base64'),
+      aspect: thumbSize.width / thumbSize.height
+    }
   },
 
   delete: function (tabId) {

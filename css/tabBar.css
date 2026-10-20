@@ -73,11 +73,11 @@ body::after {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
+  right: var(--control-space-right, 0px);
   height: var(--toolbar-height);
   display: flex;
   align-items: center;
-  padding: 0 var(--control-space-right, 0px) 0 10px;
+  padding: 0 0 0 10px;
   background: transparent !important;
   color: var(--chrome-ink) !important;
   -webkit-app-region: drag;
@@ -746,4 +746,50 @@ body.fullscreen #webviews {
   .tab-item.loading .tab-icon::after {
     animation-duration: 3s;
   }
+}
+
+/* pinned tabs */
+
+.tab-pin {
+  display: none;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  place-items: center;
+  font-size: 12px;
+  color: hsl(var(--bucket-hue, 278) 70% 74%);
+}
+
+.tab-item.pinned .tab-pin {
+  display: grid;
+}
+
+.tab-item.pinned .tab-close {
+  display: none;
+}
+
+.tab-item.pinned:hover .tab-pin {
+  display: none;
+}
+
+.tab-item.pinned:hover .tab-close {
+  display: grid;
+}
+
+.tab-item.pinned + .tab-item:not(.pinned) {
+  margin-top: 9px;
+}
+
+.tab-item.pinned + .tab-item:not(.pinned)::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: var(--chrome-line);
+}
+
+body.sidebar-collapsed .tab-pin {
+  display: none !important;
 }

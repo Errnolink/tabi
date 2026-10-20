@@ -1,0 +1,188 @@
+/* sea-glass menus; the UI view is raised above the page while one is open */
+
+body {
+  --menu-fill: rgb(250 248 254 / 0.97);
+  --menu-highlight: hsl(278 70% 72% / 0.22);
+  --menu-shadow: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 0 0 1px rgb(30 20 60 / 0.08), 0 24px 48px -16px rgb(40 30 80 / 0.38), 0 6px 14px -6px rgb(40 30 80 / 0.2);
+}
+
+body.dark-mode {
+  --menu-fill: rgb(28 26 41 / 0.97);
+  --menu-highlight: hsl(278 70% 72% / 0.18);
+  --menu-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset, 0 0 0 1px rgb(255 255 255 / 0.06), 0 28px 56px -18px rgb(0 0 0 / 0.8), 0 8px 18px -8px rgb(0 0 0 / 0.6);
+}
+
+body.ui-raised::before,
+body.ui-raised::after {
+  -webkit-mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000);
+  -webkit-mask-size: 100% 100%, calc(100% - var(--sidebar-width) - var(--gutter)) calc(100% - var(--toolbar-height) - var(--gutter));
+  -webkit-mask-position: 0 0, var(--sidebar-width) var(--toolbar-height);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-composite: xor;
+}
+
+body.ui-raised #webviews {
+  background: transparent;
+}
+
+body.ui-raised #webview-placeholder {
+  visibility: hidden;
+}
+
+#menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.gm {
+  position: fixed;
+  min-width: 228px;
+  max-width: 340px;
+  padding: 6px;
+  border-radius: 16px 18px 16px 17px / 17px 16px 18px 16px;
+  background: var(--menu-fill);
+  box-shadow: var(--menu-shadow);
+  backdrop-filter: blur(22px) saturate(1.5);
+  color: var(--chrome-ink);
+  font-family: var(--font-sans);
+  user-select: none;
+  animation: gm-in var(--dur-spatial-fast) var(--spring-spatial-fast) both;
+}
+
+.gm::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--grain-tile);
+  background-size: 64px 64px;
+  opacity: calc(var(--grain-opacity) * 1.4);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+@keyframes gm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-4px);
+  }
+}
+
+.gm.closing {
+  animation: gm-out 130ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes gm-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.gm.no-motion,
+.gm.no-motion .gm-item {
+  animation: none;
+}
+
+.gm-highlight {
+  position: absolute;
+  top: 0;
+  left: 6px;
+  right: 6px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--menu-highlight);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dur-spatial-fast) var(--spring-spatial-fast),
+    height var(--dur-spatial-fast) var(--spring-spatial-fast),
+    opacity var(--dur-effects-fast) var(--spring-effects);
+}
+
+.gm-highlight.shown {
+  opacity: 1;
+}
+
+.gm-highlight.instant {
+  transition: opacity var(--dur-effects-fast) var(--spring-effects);
+}
+
+.gm-item {
+  position: relative;
+  height: 32px;
+  padding: 0 10px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: default;
+  z-index: 1;
+  animation: gm-item-in var(--dur-spatial) var(--spring-spatial) both;
+  animation-delay: calc(var(--i) * 12ms);
+}
+
+@keyframes gm-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.gm-item.disabled {
+  opacity: 0.38;
+}
+
+.gm-lead {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--chrome-ink-muted);
+}
+
+.gm-swatch::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 46% 54% 42% 58% / 55% 44% 56% 45%;
+  background: var(--swatch);
+  box-shadow: 0 2px 6px -1px var(--swatch);
+}
+
+.gm-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gm-key {
+  margin-left: 18px;
+  font-size: 11.5px;
+  color: var(--chrome-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.gm-arrow {
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--chrome-ink-faint);
+}
+
+.gm-item.focused .gm-arrow,
+.gm-item.focused .gm-lead {
+  color: var(--chrome-ink);
+}
+
+.gm-sep {
+  height: 1px;
+  margin: 5px 10px;
+  background: var(--chrome-line);
+}

@@ -153,3 +153,48 @@
     opacity: 0.6;
   }
 }
+
+#omnibox-container {
+  flex: none;
+  height: 24px;
+  max-width: 140px;
+  padding: 0 10px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--chrome-ink);
+  background: color-mix(in srgb, var(--chip-color) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chip-color) 45%, transparent);
+  animation: chip-in var(--dur-spatial-fast) var(--spring-spatial-fast) both;
+  transition: background-color var(--dur-effects) var(--spring-effects), transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+}
+
+#omnibox-container::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 46% 54% 42% 58% / 55% 44% 56% 45%;
+  background: var(--chip-color);
+}
+
+#omnibox-container:hover {
+  background: color-mix(in srgb, var(--chip-color) 34%, transparent);
+}
+
+#omnibox-container:active {
+  transform: scale(0.94);
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}

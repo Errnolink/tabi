@@ -1,50 +1,48 @@
-/*
-Passes a context menu template to the main process (where the menu is created)
-and listens for click events on it.
-*/
+/* global ipc */
 
-var menuCallbacks = {}
+const glassMenu = require('glassMenu.js')
 
-var nextMenuId = 0
-
-function open (menuTemplate, x, y, extraData) {
-  nextMenuId++
-  menuCallbacks[nextMenuId] = {}
-  var nextItemId = 0
-  function prepareToSend (menuPart) {
-    if (menuPart instanceof Array) {
-      return menuPart.map(item => prepareToSend(item))
-    } else {
-      if (menuPart.submenu) {
-        menuPart.submenu = prepareToSend(menuPart.submenu)
-      }
-      if (typeof menuPart.click === 'function') {
-        menuCallbacks[nextMenuId][nextItemId] = menuPart.click
-        menuPart.click = nextItemId
-        nextItemId++
-      }
-      return menuPart
+function nativeToTemplate (items) {
+  return items.map(function (item) {
+    if (item.type === 'separator') {
+      return { type: 'separator' }
     }
-  }
-
-  ipc.send('open-context-menu', {
-    id: nextMenuId,
-    template: prepareToSend(menuTemplate),
-    x,
-    y,
-    ...extraData
+    return {
+      label: item.label,
+      type: item.type,
+      checked: item.checked,
+      enabled: item.enabled,
+      accelerator: item.accelerator,
+      submenu: item.submenu ? nativeToTemplate(item.submenu) : null,
+      click: item.submenu ? null : () => ipc.send('menu-native-click', item.nativeId)
+    }
   })
 }
 
-ipc.on('context-menu-item-selected', function (e, data) {
-  menuCallbacks[data.menuId][data.itemId]()
-})
+function open (menuTemplate, x, y, extraData) {
+  const sections = menuTemplate.map(section => section.slice())
+  const fromPage = extraData && extraData.tabId != null
+  const options = {
+    x,
+    y,
+    onClose: fromPage ? () => require('webviews.js').focus() : null
+  }
+  if (fromPage && extraData.contextMenuParams) {
+    ipc.invoke('menu-extension-items', { tabId: extraData.tabId, contextMenuParams: extraData.contextMenuParams }).then(function (items) {
+      if (items.length) {
+        sections.push(nativeToTemplate(items))
+      }
+      glassMenu.open(sections, options)
+    })
+    return
+  }
+  glassMenu.open(sections, options)
+}
 
-ipc.on('context-menu-will-close', function (e, data) {
-  // delay close event until after selected event has been received
-  setTimeout(function () {
-    delete menuCallbacks[data.menuId]
-  }, 16)
-})
+function openAppMenu (x, y) {
+  ipc.invoke('menu-app-items').then(function (items) {
+    glassMenu.open(nativeToTemplate(items), { x, y })
+  })
+}
 
-module.exports = { open }
+module.exports = { open, openAppMenu }

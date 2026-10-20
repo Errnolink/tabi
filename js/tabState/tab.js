@@ -6,7 +6,7 @@ class TabList {
 
   //tab properties that shouldn't be saved to disk
 
-  static temporaryProperties = ['hasAudio', 'previewImage', 'loaded', 'hasWebContents']
+  static temporaryProperties = ['hasAudio', 'previewImage', 'thumbImage', 'loaded', 'hasWebContents']
 
   add (tab = {}, options = {}, emit=true) {
     var tabId = String(tab.id || Math.round(Math.random() * 100000000000000000)) // you can pass an id that will be used, or a random one will be generated.
@@ -25,7 +25,10 @@ class TabList {
       scrollPosition: tab.scrollPosition || 0,
       selected: tab.selected || false,
       muted: tab.muted || false,
-      loaded: tab.loaded || false,
+      loaded: tab.loaded || false,
+      pinned: tab.pinned || false,
+      favicon: tab.favicon,
+      thumbAspect: tab.thumbAspect,
       hasAudio: false,
       previewImage: '',
       isFileView: false,
@@ -35,7 +38,9 @@ class TabList {
     if (options.atEnd) {
       this.tabs.push(newTab)
     } else {
-      this.tabs.splice(this.getSelectedIndex() + 1, 0, newTab)
+      const pinnedCount = this.tabs.filter(t => t.pinned).length
+      const index = newTab.pinned ? Math.min(this.getSelectedIndex() + 1, pinnedCount) : Math.max(this.getSelectedIndex() + 1, pinnedCount)
+      this.tabs.splice(index, 0, newTab)
     }
 
     if (emit) {

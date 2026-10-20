@@ -20,7 +20,7 @@ const windows = {
 
     window.on('close', function() {
       // detach WebContentsViews to ensure they aren't destroyed when the window is closed
-      window.getContentView().children.slice(1).forEach(child => window.getContentView().removeChildView(child))
+      getPageViews(window).forEach(child => window.getContentView().removeChildView(child))
       windows.openWindows.find(w => w.win === window).closed = true
     })
 

@@ -119,7 +119,10 @@ const tabBar = {
       tabBar.events.emit('tab-closed', tabId)
     })
 
-    el.append(stripe, icon, permissions, title, audio, close)
+    const pin = document.createElement('span')
+    pin.className = 'tab-pin i carbon:pin-filled'
+
+    el.append(stripe, icon, permissions, title, audio, pin, close)
 
     el.addEventListener('click', function () {
       const found = findTab(tabId)
@@ -187,6 +190,7 @@ const tabBar = {
     row.el.classList.toggle('is-new', isNewTabUrl(tab.url))
     row.el.classList.toggle('loading', webviews.isLoading(tabId))
     row.el.classList.toggle('private', !!tab.private)
+    row.el.classList.toggle('pinned', !!tab.pinned)
 
     const containerId = tab.containerId || 'default'
     row.el.setAttribute('data-container', containerId)
@@ -655,7 +659,7 @@ const tabBar = {
       tabBar.scheduleRender()
     })
     tasks.on('tab-updated', function (id, key) {
-      if (key === 'containerId' || key === 'title' || key === 'url' || key === 'favicon' || key === 'loaded' || key === 'hasAudio' || key === 'muted' || key === 'hasWebContents' || key === 'private') {
+      if (key === 'containerId' || key === 'title' || key === 'url' || key === 'favicon' || key === 'loaded' || key === 'hasAudio' || key === 'muted' || key === 'hasWebContents' || key === 'private' || key === 'pinned') {
         tabBar.updateTab(id)
       }
     })

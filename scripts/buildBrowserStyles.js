@@ -20,7 +20,8 @@ const modules = [
   'css/downloadManager.css',
   'css/passwordManager.css',
   'css/passwordCapture.css',
-  'css/passwordViewer.css'
+  'css/passwordViewer.css',
+  'css/glassMenu.css'
 ]
 
 function buildBrowserStyles () {
