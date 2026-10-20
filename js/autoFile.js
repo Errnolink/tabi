@@ -23,6 +23,7 @@ var defaultRules = [
 var rules = []
 var armed = false
 var pendingMoves = {}
+var youngTabs = {}
 
 function loadRules () {
   try {
@@ -74,6 +75,11 @@ function fileTab (tabId) {
   if (!tab || tab.private) {
     return
   }
+  if (tab.url) {
+    delete youngTabs[tabId]
+  } else {
+    return
+  }
   var rule = ruleFor(tab.url)
   if (!rule) {
     return
@@ -111,10 +117,11 @@ function queueFile (tabId) {
 function initialize () {
   rules = loadRules()
   tasks.on('tab-added', function (tabId) {
+    youngTabs[tabId] = true
     queueFile(tabId)
   })
   tasks.on('tab-updated', function (id, key) {
-    if (key === 'url') {
+    if (key === 'url' && youngTabs[id]) {
       queueFile(id)
     }
   })
