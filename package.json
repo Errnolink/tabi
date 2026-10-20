@@ -73,6 +73,7 @@
     "buildPreload": "node ./scripts/buildPreload.js",
     "build": "npm run buildMain && npm run buildBrowser && npm run buildBrowserStyles && npm run buildPreload",
     "buildWindows": "npm run build && node ./scripts/buildWindows.js",
+    "buildXb": "npm run build && node ./scripts/buildXb.js",
     "buildMacIntel": "npm run build && node ./scripts/buildMac.js --platform=x86",
     "buildMacArm": "npm run build && node ./scripts/buildMac.js --platform=arm64",
     "buildDebian": "npm run build && node ./scripts/buildDebian.js --platform=amd64",

@@ -28,8 +28,8 @@ X-focused browser fork for Chef. Min (28k LOC plain-JS Electron browser) reshape
 ```
 npm install        # downloads Electron 43.4.1 binary
 npm run build      # browserify bundles js/ -> main.build.js etc.
-npm start          # dev run (alt+ctrl+r reloads UI)
-npm run buildWindows
+npm start          # dev run (alt+ctrl+r reloads the UI)
+npm run buildXb    # packages dist/app/xb-v<version>-windows-x64.zip (x64 portable zip, LICENSE included)
 ```
 
 ## Plan (ordered)
