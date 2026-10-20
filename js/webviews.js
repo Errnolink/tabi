@@ -9,9 +9,13 @@ var hasSeparateTitlebar = settings.get('useSeparateTitlebar')
 var windowIsMaximized = false // affects navbar height on Windows
 var windowIsFullscreen = false
 
-function captureCurrentTab (options) {
-  if (tabs.get(tabs.getSelected()).private) {
-    // don't capture placeholders for private tabs
+function captureTab (tabId, options) {
+  if (!tabId) {
+    return
+  }
+  var tab = tabs.get(tabId)
+  if (!tab || tab.private) {
+    // don't capture placeholders or thumbnails for private tabs
     return
   }
 
@@ -21,11 +25,16 @@ function captureCurrentTab (options) {
   }
 
   ipc.send('getCapture', {
-    id: webviews.selectedId,
-    width: Math.round(window.innerWidth / 10),
-    height: Math.round(window.innerHeight / 10)
+    id: tabId,
+    width: 480
   })
 }
+
+function captureCurrentTab (options) {
+  captureTab(tabs.getSelected(), options)
+}
+webviews.captureTab = captureTab
+webviews.captureCurrentTab = captureCurrentTab
 
 // called whenever a new page starts loading, or an in-page navigation occurs
 function onPageURLChange (tab, url) {
@@ -221,6 +230,9 @@ const webviews = {
     })
   },
   setSelected: function (id, options) { // options.focus - whether to focus the view. Defaults to true.
+    if (webviews.selectedId && webviews.selectedId !== id) {
+      captureTab(webviews.selectedId)
+    }
     webviews.emitEvent('view-hidden', webviews.selectedId)
 
     webviews.selectedId = id
@@ -518,11 +530,19 @@ setInterval(function () {
 }, 15000)
 
 ipc.on('captureData', function (e, data) {
-  tabs.update(data.id, { previewImage: data.url })
+  tabs.update(data.id, {
+    previewImage: data.url,
+    thumbnailUrl: data.fileUrl || data.url,
+    thumbnailPath: data.path || null
+  })
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
     placeholderImg.src = data.url
     placeholderImg.hidden = false
   }
+})
+
+tasks.on('tab-destroyed', function (id) {
+  ipc.send('deleteThumbnail', id)
 })
 
 /* focus the view when the window is focused */

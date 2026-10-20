@@ -16,7 +16,14 @@ function sweep () {
         return
       }
       if (webviews.hasViewForTab(tab.id)) {
-        webviews.destroy(tab.id)
+        if (webviews.captureTab) {
+          webviews.captureTab(tab.id)
+        }
+        setTimeout(function () {
+          if (webviews.hasViewForTab(tab.id) && tab.id !== tabs.getSelected()) {
+            webviews.destroy(tab.id)
+          }
+        }, 200)
       }
     })
   })

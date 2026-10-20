@@ -445,12 +445,31 @@ ipc.on('getCapture', function (e, data) {
   }
 
   view.webContents.capturePage().then(function (img) {
+    if (!img || img.isEmpty()) {
+      return
+    }
     var size = img.getSize()
     if (size.width === 0 && size.height === 0) {
       return
     }
-    img = img.resize({ width: data.width, height: data.height })
+    if (typeof thumbnailManager !== 'undefined' && thumbnailManager.save) {
+      var result = thumbnailManager.save(data.id, img)
+      if (result) {
+        e.sender.send('captureData', {
+          id: data.id,
+          url: result.dataUrl,
+          fileUrl: result.fileUrl,
+          path: result.filePath
+        })
+        return
+      }
+    }
+    var previewWidth = data.width || 480
+    var previewHeight = data.height || Math.round((previewWidth * size.height) / size.width)
+    img = img.resize({ width: previewWidth, height: previewHeight, quality: 'good' })
     e.sender.send('captureData', { id: data.id, url: img.toDataURL() })
+  }).catch(function (err) {
+    console.error('Error capturing page for tab ' + data.id + ':', err)
   })
 })
 
