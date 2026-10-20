@@ -89,6 +89,11 @@ function fileTab (tabId) {
     return
   }
 
+  // a moved tab keeps its container, so it can only move into buckets whose default container matches (or that have none)
+  if (target.defaultContainerId && (tab.containerId || 'default') !== target.defaultContainerId) {
+    return
+  }
+
   var wasSelectedTab = containing.id === tasks.getSelected().id && tabId === tabs.getSelected()
 
   containing.tabs.destroy(tabId)

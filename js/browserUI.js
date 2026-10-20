@@ -1,6 +1,7 @@
 var statistics = require('js/statistics.js')
 var searchEngine = require('js/util/searchEngine.js')
 var urlParser = require('js/util/urlParser.js')
+var containers = require('containers.js')
 
 /* common actions that affect different parts of the UI (webviews, tabstrip, etc) */
 
@@ -32,7 +33,12 @@ options
   options.enterEditMode - whether to enter editing mode when the tab is created. Defaults to true.
   options.openInBackground - whether to open the tab without switching to it. Defaults to false.
 */
-function addTab (tabId = tabs.add(), options = {}) {
+function defaultContainerForSelectedTask () {
+  var task = tasks.getSelected()
+  return containers.containerForNewTab(task ? task.id : null)
+}
+
+function addTab (tabId = tabs.add({ containerId: defaultContainerForSelectedTask() }), options = {}) {
   /*
   adding a new tab should destroy the current one if either:
   * The current tab is an empty, non-private tab, and the new tab is private
@@ -240,7 +246,8 @@ webviews.bindEvent('did-create-popup', function (tabId, popupId, initialURL) {
   var popupTab = tabs.add({
     // in most cases, initialURL will be overwritten once the popup loads, but if the URL is a downloaded file, it will remain the same
     url: initialURL,
-    private: tabs.get(tabId).private
+    private: tabs.get(tabId).private,
+    containerId: tabs.get(tabId).containerId
   })
   tabBar.addTab(popupTab)
   webviews.add(popupTab, popupId)
@@ -250,7 +257,8 @@ webviews.bindEvent('did-create-popup', function (tabId, popupId, initialURL) {
 webviews.bindEvent('new-tab', function (tabId, url, openInForeground) {
   var newTab = tabs.add({
     url: url,
-    private: tabs.get(tabId).private // inherit private status from the current tab
+    private: tabs.get(tabId).private, // inherit private status from the current tab
+    containerId: tabs.get(tabId).containerId // and the container
   })
 
   addTab(newTab, {
@@ -280,7 +288,8 @@ searchbar.events.on('url-selected', function (data) {
   if (data.background) {
     var newTab = tabs.add({
       url: data.url,
-      private: tabs.get(tabs.getSelected()).private
+      private: tabs.get(tabs.getSelected()).private,
+      containerId: tabs.get(tabs.getSelected()).containerId
     })
     addTab(newTab, {
       enterEditMode: false,

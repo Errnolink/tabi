@@ -1,0 +1,219 @@
+/*
+Renderer-side container API. The registry is persisted by the main process
+(userData/containers.json); the list is loaded synchronously so that tab views
+are always created with the right partition.
+*/
+
+/* Firefox's container vocabulary (10 colors, 13 icons), mapped to Min's carbon icon font */
+const CONTAINER_COLORS = {
+  blue: '#37adff',
+  cyan: '#00c79a',
+  green: '#51cd00',
+  yellow: '#ffcb00',
+  orange: '#ff9f00',
+  red: '#ff613d',
+  pink: '#ff4bda',
+  purple: '#af51f5',
+  violet: '#764edd',
+  gray: '#7c7c7d'
+}
+
+const CONTAINER_ICONS = ['fingerprint', 'briefcase', 'dollar', 'cart', 'vacation', 'gift', 'food', 'fruit', 'pet', 'tree', 'chill', 'circle', 'fence']
+
+const CONTAINER_CARBON_ICONS = {
+  fingerprint: 'carbon:fingerprint-recognition',
+  briefcase: 'carbon:enterprise',
+  dollar: 'carbon:currency-dollar',
+  cart: 'carbon:shopping-cart',
+  vacation: 'carbon:plane',
+  gift: 'carbon:gift',
+  food: 'carbon:restaurant',
+  fruit: 'carbon:fruit-bowl',
+  pet: 'carbon:dog-walker',
+  tree: 'carbon:tree',
+  chill: 'carbon:face-cool',
+  circle: 'carbon:circle-dash',
+  fence: 'carbon:border-full'
+}
+
+var currentList = ipc.sendSync('containers:list-sync')
+var changeListeners = []
+var tabCountTimeout = null
+
+function emitChanged () {
+  changeListeners.forEach(function (fn) {
+    fn()
+  })
+}
+
+function list () {
+  return currentList
+}
+
+function get (id) {
+  return currentList.find(c => c.id === id) || currentList.find(c => c.id === 'default')
+}
+
+function partitionFor (id) {
+  var container = get(id)
+  return container ? container.partition : 'persist:webcontent'
+}
+
+/* returns the id if the container still exists, 'default' otherwise */
+function sanitizeContainerId (id) {
+  return currentList.some(c => c.id === id) ? id : 'default'
+}
+
+function add (data) {
+  return ipc.invoke('containers:add', data).then(function () {
+    return currentList
+  })
+}
+
+function update (id, data) {
+  return ipc.invoke('containers:update', id, data).then(function () {
+    return currentList
+  })
+}
+
+function remove (id) {
+  var browserUI = require('browserUI.js')
+  var webviews = require('webviews.js')
+
+  var affectedTabIds = []
+  tasks.forEach(function (task) {
+    task.tabs.forEach(function (tab) {
+      if (tab.containerId === id) {
+        affectedTabIds.push(tab.id)
+      }
+    })
+  })
+
+  // re-home the container's tabs before its data is wiped
+  affectedTabIds.forEach(function (tabId) {
+    tasks.getTaskContainingTab(tabId).tabs.update(tabId, {
+      containerId: 'default'
+    })
+  })
+
+  // a view can never switch sessions, so recreate any views that lived in the removed partition
+  var selectedTabId = tabs.getSelected()
+  affectedTabIds.forEach(function (tabId) {
+    if (webviews.hasViewForTab(tabId)) {
+      webviews.destroy(tabId)
+    }
+  })
+  if (affectedTabIds.includes(selectedTabId)) {
+    browserUI.switchToTab(selectedTabId)
+  }
+
+  return ipc.invoke('containers:remove', id)
+}
+
+function on (event, fn) {
+  if (event === 'changed') {
+    changeListeners.push(fn)
+  }
+}
+
+/* the carbon icon class for a container icon name, for sidebar stripes and overview cards */
+function carbonIcon (name) {
+  return CONTAINER_CARBON_ICONS[name] || 'carbon:circle-dash'
+}
+
+function colors () {
+  return Object.assign({}, CONTAINER_COLORS)
+}
+
+function icons () {
+  return CONTAINER_ICONS.slice()
+}
+
+/* the container a plain new tab in the given bucket should open in */
+function containerForNewTab (taskId) {
+  var task = tasks.get(taskId)
+  if (task && task.defaultContainerId && currentList.some(c => c.id === task.defaultContainerId)) {
+    return task.defaultContainerId
+  }
+  return 'default'
+}
+
+/* creates a new tab with the same URL in the target container and closes the old one */
+function reopenTabInContainer (tabId, containerId) {
+  var browserUI = require('browserUI.js')
+
+  var containingTask = tasks.getTaskContainingTab(tabId)
+  if (!containingTask) {
+    return
+  }
+  var tab = containingTask.tabs.get(tabId)
+  if (!tab || tab.private) {
+    return
+  }
+
+  var wasSelected = tabs.getSelected() === tabId
+  var newTabId = tabs.add({
+    url: tab.url,
+    title: tab.title,
+    containerId: sanitizeContainerId(containerId)
+  })
+  browserUI.addTab(newTabId, {
+    enterEditMode: false,
+    openInBackground: !wasSelected
+  })
+  browserUI.closeTab(tabId)
+}
+
+function setBucketDefault (taskId, containerId) {
+  tasks.update(taskId, {
+    defaultContainerId: sanitizeContainerId(containerId)
+  })
+}
+
+/* keep the main process' open-tab counts (shown in the container manager) up to date.
+   Only the focused window reports, since every window has all tasks synced in memory */
+function sendTabCounts () {
+  if (tabCountTimeout) {
+    return
+  }
+  tabCountTimeout = setTimeout(function () {
+    tabCountTimeout = null
+    if (!document.body.classList.contains('focused')) {
+      return
+    }
+    var counts = {}
+    tasks.forEach(function (task) {
+      task.tabs.forEach(function (tab) {
+        var id = sanitizeContainerId(tab.containerId)
+        counts[id] = (counts[id] || 0) + 1
+      })
+    })
+    ipc.send('containers:tabCounts', counts)
+  }, 100)
+}
+
+ipc.on('containers-changed', function (e, newList) {
+  currentList = newList
+  emitChanged()
+})
+
+tasks.on('*', sendTabCounts)
+window.addEventListener('focus', sendTabCounts)
+sendTabCounts()
+
+module.exports = {
+  list,
+  get,
+  partitionFor,
+  sanitizeContainerId,
+  add,
+  update,
+  remove,
+  on,
+  carbonIcon,
+  colors,
+  icons,
+  containerForNewTab,
+  reopenTabInContainer,
+  setBucketDefault
+}

@@ -3,7 +3,8 @@ var webviews = require('webviews.js')
 var tabEditor = require('navbar/tabEditor.js')
 var tabState = require('tabState.js')
 var settings = require('util/settings/settings.js')
-var taskOverlay = require('taskOverlay/taskOverlay.js')
+var overview = require('overview/overview.js')
+var containers = require('containers.js')
 const writeFileAtomic = require('write-file-atomic')
 const statistics = require('js/statistics.js')
 
@@ -106,6 +107,16 @@ const sessionRestore = {
       // add the saved tasks
 
       data.state.tasks.forEach(function (task) {
+        // tabs can reference containers that were deleted since the session was saved
+        if (task.defaultContainerId) {
+          task.defaultContainerId = containers.sanitizeContainerId(task.defaultContainerId)
+        }
+        task.tabs.forEach(function (tab) {
+          if (tab.containerId) {
+            tab.containerId = containers.sanitizeContainerId(tab.containerId)
+          }
+        })
+
         // restore the task item
         tasks.add(task)
 
@@ -225,7 +236,7 @@ const sessionRestore = {
       sessionRestore.syncWithWindow()
     }
     if (settings.get('newWindowOption') === 2 && !Object.hasOwn(window.globalArgs, 'launch-window') && !Object.hasOwn(window.globalArgs, 'initial-task')) {
-      taskOverlay.show()
+      overview.show()
     }
   },
   initialize: function () {

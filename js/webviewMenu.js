@@ -9,6 +9,7 @@ const pageTranslations = require('pageTranslations.js')
 const PasswordManagers = require('passwordManager/passwordManager.js')
 
 const remoteMenu = require('remoteMenuRenderer.js')
+const containers = require('containers.js')
 
 const webviewMenu = {
   menuData: null,
@@ -86,7 +87,7 @@ const webviewMenu = {
         linkActions.push({
           label: l('openInNewTab'),
           click: function () {
-            browserUI.addTab(tabs.add({ url: link }), { enterEditMode: false, openInBackground: openInBackground })
+            browserUI.addTab(tabs.add({ url: link, containerId: currentTab.containerId }), { enterEditMode: false, openInBackground: openInBackground })
           }
         })
       }
@@ -96,6 +97,18 @@ const webviewMenu = {
         click: function () {
           browserUI.addTab(tabs.add({ url: link, private: true }), { enterEditMode: false, openInBackground: openInBackground })
         }
+      })
+
+      linkActions.push({
+        label: l('openInContainer'),
+        submenu: containers.list().map(function (container) {
+          return {
+            label: container.name,
+            click: function () {
+              browserUI.addTab(tabs.add({ url: link, containerId: container.id }), { enterEditMode: false, openInBackground: openInBackground })
+            }
+          }
+        })
       })
 
       linkActions.push({
@@ -132,7 +145,7 @@ const webviewMenu = {
         imageActions.push({
           label: l('openImageInNewTab'),
           click: function () {
-            browserUI.addTab(tabs.add({ url: mediaURL }), { enterEditMode: false, openInBackground: openInBackground })
+            browserUI.addTab(tabs.add({ url: mediaURL, containerId: currentTab.containerId }), { enterEditMode: false, openInBackground: openInBackground })
           }
         })
       }
@@ -165,7 +178,8 @@ const webviewMenu = {
           click: function () {
             var newTab = tabs.add({
               url: searchEngine.getCurrent().searchURL.replace('%s', encodeURIComponent(selection)),
-              private: currentTab.private
+              private: currentTab.private,
+              containerId: currentTab.containerId
             })
             browserUI.addTab(newTab, {
               enterEditMode: false,
@@ -352,7 +366,7 @@ const webviewMenu = {
     // Electron's default menu position is sometimes wrong on Windows with a touchscreen
     // https://github.com/minbrowser/min/issues/903
     var offset = webviews.getViewBounds()
-    remoteMenu.open(menuSections, data.x + offset.x, data.y + offset.y)
+    remoteMenu.open(menuSections, data.x + offset.x, data.y + offset.y, { tabId: tabs.getSelected(), contextMenuParams: data })
   },
   initialize: function () {
     webviews.bindEvent('context-menu', function (tabId, data) {

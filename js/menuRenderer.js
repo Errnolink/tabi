@@ -9,7 +9,8 @@ var findinpage = require('findinpage.js')
 var PDFViewer = require('pdfViewer.js')
 var tabEditor = require('navbar/tabEditor.js')
 var readerView = require('readerView.js')
-var taskOverlay = require('taskOverlay/taskOverlay.js')
+var overview = require('overview/overview.js')
+var containers = require('containers.js')
 
 module.exports = {
   initialize: function () {
@@ -75,7 +76,8 @@ module.exports = {
       }
 
       var newTab = tabs.add({
-        url: data.url || ''
+        url: data.url || '',
+        containerId: containers.containerForNewTab(tasks.getSelected().id)
       })
 
       browserUI.addTab(newTab, {
@@ -132,7 +134,7 @@ module.exports = {
     })
 
     ipc.on('toggleTaskOverlay', function () {
-      taskOverlay.toggle()
+      overview.toggle()
     })
 
     ipc.on('goBack', function () {

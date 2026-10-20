@@ -18,6 +18,7 @@ class TabList {
       lastActivity: tab.lastActivity || Date.now(),
       secure: tab.secure,
       private: tab.private || false,
+      containerId: tab.containerId || 'default',
       readerable: tab.readerable || false,
       themeColor: tab.themeColor,
       backgroundColor: tab.backgroundColor,

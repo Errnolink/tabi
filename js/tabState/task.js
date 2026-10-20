@@ -38,6 +38,7 @@ class TaskList {
       tabs: new TabList(task.tabs, this),
       tabHistory: new TabStack(task.tabHistory),
       collapsed: task.collapsed, // this property must stay undefined if it is already (since there is a difference between "explicitly uncollapsed" and "never collapsed")
+      defaultContainerId: task.defaultContainerId || null,
       id: task.id || String(TaskList.getRandomId()),
       selectedInWindow: task.selectedInWindow || null,
     }
