@@ -229,8 +229,7 @@ const tabBar = {
   },
 
   updateAll: function () {
-    if (!tabBar.containerInner || typeof tabs === 'undefined') {
-      // tabs doesn't exist yet before the session is restored; restore re-renders anyway
+    if (!tabBar.containerInner || typeof tabs === 'undefined' || typeof tasks === 'undefined') {
       return
     }
     tabBar.containerInner.innerHTML = ''
@@ -540,17 +539,33 @@ const tabBar = {
       })
     }
 
-    // Task and tab state events
-    const stateEvents = ['task-added', 'task-removed', 'task-updated', 'tab-added', 'tab-removed', 'tab-updated']
-    stateEvents.forEach(function (eventName) {
-      tasks.on(eventName, function () {
-        tabBar.updateAll()
+    if (typeof tasks !== 'undefined') {
+      const stateEvents = ['task-added', 'task-removed', 'task-updated', 'tab-added', 'tab-removed', 'tab-updated']
+      stateEvents.forEach(function (eventName) {
+        tasks.on(eventName, function () {
+          tabBar.updateAll()
+        })
       })
-    })
 
-    tasks.on('tab-selected', function (tabId) {
-      tabBar.setActiveTab(tabId)
-    })
+      tasks.on('tab-selected', function (tabId) {
+        tabBar.setActiveTab(tabId)
+      })
+    } else {
+      window.addEventListener('load', function () {
+        if (typeof tasks !== 'undefined') {
+          const stateEvents = ['task-added', 'task-removed', 'task-updated', 'tab-added', 'tab-removed', 'tab-updated']
+          stateEvents.forEach(function (eventName) {
+            tasks.on(eventName, function () {
+              tabBar.updateAll()
+            })
+          })
+          tasks.on('tab-selected', function (tabId) {
+            tabBar.setActiveTab(tabId)
+          })
+          tabBar.updateAll()
+        }
+      })
+    }
 
     if (containers && typeof containers.on === 'function') {
       containers.on('changed', function () {
