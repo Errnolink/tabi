@@ -77,26 +77,36 @@ function update (id, data) {
 }
 
 function remove (id) {
+  // re-homing happens in the containers-changed listener so that every
+  // window re-homes its tabs, not just the one that requested the removal
+  return ipc.invoke('containers:remove', id)
+}
+
+/* moves tabs referencing containers that no longer exist to Default and
+   recreates their views, since a view can never switch sessions */
+function rehomeTabsOfRemovedContainers () {
   var browserUI = require('browserUI.js')
   var webviews = require('webviews.js')
 
   var affectedTabIds = []
   tasks.forEach(function (task) {
     task.tabs.forEach(function (tab) {
-      if (tab.containerId === id) {
+      if (tab.containerId && !currentList.some(c => c.id === tab.containerId)) {
         affectedTabIds.push(tab.id)
       }
     })
   })
 
-  // re-home the container's tabs before its data is wiped
+  if (affectedTabIds.length === 0) {
+    return
+  }
+
   affectedTabIds.forEach(function (tabId) {
     tasks.getTaskContainingTab(tabId).tabs.update(tabId, {
       containerId: 'default'
     })
   })
 
-  // a view can never switch sessions, so recreate any views that lived in the removed partition
   var selectedTabId = tabs.getSelected()
   affectedTabIds.forEach(function (tabId) {
     if (webviews.hasViewForTab(tabId)) {
@@ -106,8 +116,6 @@ function remove (id) {
   if (affectedTabIds.includes(selectedTabId)) {
     browserUI.switchToTab(selectedTabId)
   }
-
-  return ipc.invoke('containers:remove', id)
 }
 
 function on (event, fn) {
@@ -194,6 +202,7 @@ function sendTabCounts () {
 
 ipc.on('containers-changed', function (e, newList) {
   currentList = newList
+  rehomeTabsOfRemovedContainers()
   emitChanged()
 })
 
