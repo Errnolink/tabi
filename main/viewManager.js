@@ -1,3 +1,4 @@
+/* global extensionsRegisterView, extensionsUnregisterView, extensionsNotifyViewSelected */
 var viewMap = {} // id: view
 var viewStateMap = {} // id: view state
 
@@ -238,6 +239,10 @@ function createView (existingViewId, id, webPreferences, boundsString, events) {
 
   viewMap[id] = view
 
+  if (viewPrefs.partition) {
+    extensionsRegisterView(view, viewPrefs.partition)
+  }
+
   return view
 }
 
@@ -252,6 +257,7 @@ function destroyView (id) {
       windows.getState(window).selectedView = null
     }
   })
+  extensionsUnregisterView(viewMap[id])
   viewMap[id].webContents.destroy()
 
   delete viewMap[id]
@@ -278,6 +284,7 @@ function setView (id, senderContents) {
       win.getContentView().removeChildView(viewMap[id])
     }
     windows.getState(win).selectedView = id
+    extensionsNotifyViewSelected(viewMap[id])
   }
 }
 

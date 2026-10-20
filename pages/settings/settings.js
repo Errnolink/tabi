@@ -41,6 +41,24 @@ settings.listen('filteringBlockedCount', function (value) {
   blockedRequestCount.textContent = valueStr
 })
 
+/* show when an installed extension takes over request blocking */
+
+var extensionFilterNotice = document.getElementById('extension-filter-notice')
+
+if (extensionFilterNotice) {
+  var extensionFilterRequestId = 'extension-filter-' + Date.now()
+  var extensionFilterListener = function (e) {
+    if (e.data && e.data.message === 'extensionsReply' && e.data.data && e.data.data.replyTo === extensionFilterRequestId) {
+      window.removeEventListener('message', extensionFilterListener)
+      extensionFilterNotice.hidden = !(e.data.data.extensions || []).some(function (ext) {
+        return ext.blocksMinFilter
+      })
+    }
+  }
+  window.addEventListener('message', extensionFilterListener)
+  window.postMessage({ message: 'extensionsRequest', type: 'list', requestId: extensionFilterRequestId }, window.location.toString())
+}
+
 function updateBlockingLevelUI (level) {
   var radio = trackingLevelOptions[level]
   radio.checked = true

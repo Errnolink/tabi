@@ -7,7 +7,7 @@ var menuCallbacks = {}
 
 var nextMenuId = 0
 
-function open (menuTemplate, x, y) {
+function open (menuTemplate, x, y, extraData) {
   nextMenuId++
   menuCallbacks[nextMenuId] = {}
   var nextItemId = 0
@@ -31,7 +31,8 @@ function open (menuTemplate, x, y) {
     id: nextMenuId,
     template: prepareToSend(menuTemplate),
     x,
-    y
+    y,
+    ...extraData
   })
 }
 

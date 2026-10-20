@@ -1,3 +1,4 @@
+/* global getView, getExtensionContextMenuItems */
 ipc.on('open-context-menu', function (e, data) {
   var menu = new Menu()
 
@@ -23,5 +24,13 @@ ipc.on('open-context-menu', function (e, data) {
   menu.on('menu-will-close', function () {
     e.sender.send('context-menu-will-close', { menuId: data.id })
   })
+  if (data.tabId != null && data.contextMenuParams) {
+    var view = getView(data.tabId)
+    if (view) {
+      getExtensionContextMenuItems(view.webContents, data.contextMenuParams).forEach(function (item) {
+        menu.append(item)
+      })
+    }
+  }
   menu.popup({ x: data.x, y: data.y })
 })

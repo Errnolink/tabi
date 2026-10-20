@@ -1,3 +1,4 @@
+/* global sendIPCToWindow */
 function buildAppMenu (options = {}) {
   const keyMap = userKeyMap(settings.get('keyMap'))
 
@@ -108,12 +109,23 @@ function buildAppMenu (options = {}) {
     }
   }
 
+  var extensionsAction = {
+    label: l('appMenuExtensions'),
+    click: function (item, window) {
+      sendIPCToWindow(window, 'addTab', {
+        url: 'min://app/pages/extensions/index.html'
+      })
+    }
+  }
+
   var template = [
     ...(options.secondary ? tabTaskActions : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? personalDataItems : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [containersAction] : []),
+    ...(options.secondary ? [{ type: 'separator' }] : []),
+    ...(options.secondary ? [extensionsAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [preferencesAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
@@ -131,6 +143,7 @@ function buildAppMenu (options = {}) {
             },
             preferencesAction,
             containersAction,
+            extensionsAction,
             {
               label: 'Services',
               role: 'services',

@@ -247,7 +247,29 @@ function setFilteringSettings (settings) {
   enabledFilteringOptions.exceptionDomains = settings.exceptionDomains.map(d => removeWWW(d))
 }
 
+/*
+sessions where an extension with blocking webRequest (e.g. uBlock Origin) is
+loaded; Electron's session.webRequest listeners take precedence over
+extension webRequest handlers, so Min's filter must stay unregistered there
+*/
+var sessionsWithExtensionBlocker = new WeakSet()
+
+function setExtensionWebRequestBlocker (ses, hasBlocker) {
+  if (hasBlocker) {
+    sessionsWithExtensionBlocker.add(ses)
+    ses.webRequest.onBeforeRequest(null)
+  } else if (sessionsWithExtensionBlocker.has(ses)) {
+    sessionsWithExtensionBlocker.delete(ses)
+    registerFiltering(ses)
+  }
+}
+
+global.setExtensionWebRequestBlocker = setExtensionWebRequestBlocker
+
 function registerFiltering (ses) {
+  if (sessionsWithExtensionBlocker.has(ses)) {
+    return
+  }
   ses.webRequest.onBeforeRequest(handleRequest)
 }
 

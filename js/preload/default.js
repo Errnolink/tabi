@@ -61,4 +61,14 @@ window.addEventListener('message', function (e) {
   if (e.data?.message === 'downloadFile') {
     ipc.send('downloadFile', e.data.url)
   }
+
+  if (e.data?.message === 'extensionsRequest') {
+    ipc.send('extensionsRequest', e.data)
+  }
+})
+
+ipc.on('extensionsReply', function (event, data) {
+  if (window.location.toString().startsWith('min://')) {
+    window.postMessage({ message: 'extensionsReply', data: data }, window.location.toString())
+  }
 })
