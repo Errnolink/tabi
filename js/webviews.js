@@ -1,5 +1,6 @@
 var urlParser = require('util/urlParser.js')
 var settings = require('util/settings/settings.js')
+var containers = require('containers.js')
 
 /* implements selecting webviews, switching between them, and creating new ones. */
 
@@ -167,21 +168,32 @@ const webviews = {
         height: window.innerHeight
       }
     } else {
-      if (!hasSeparateTitlebar && (window.platformType === 'linux' || window.platformType === 'windows') && !windowIsMaximized && !windowIsFullscreen) {
-        var navbarHeight = 48
-      } else {
-        var navbarHeight = 36
+      const navbar = document.getElementById('navbar')
+      let navbarHeight = navbar ? navbar.offsetHeight : 44
+      if (!navbar) {
+        if (!hasSeparateTitlebar && (window.platformType === 'linux' || window.platformType === 'windows') && !windowIsMaximized && !windowIsFullscreen) {
+          navbarHeight = 56
+        } else {
+          navbarHeight = 44
+        }
       }
 
       const viewMargins = webviews.viewMargins
 
-      var rail = document.getElementById('bucket-rail')
-      var railWidth = document.body.classList.contains('rail-on') && rail ? rail.offsetWidth : 0
+      const sidebar = document.getElementById('sidebar')
+      let sidebarWidth = 0
+      if (sidebar) {
+        if (sidebar.classList.contains('sidebar-collapsed')) {
+          sidebarWidth = 56
+        } else {
+          sidebarWidth = sidebar.offsetWidth || 260
+        }
+      }
 
-      let position = {
-        x: railWidth + Math.round(viewMargins[3]),
+      const position = {
+        x: sidebarWidth + Math.round(viewMargins[3]),
         y: 0 + Math.round(viewMargins[0]) + navbarHeight,
-        width: window.innerWidth - railWidth - Math.round(viewMargins[1] + viewMargins[3]),
+        width: window.innerWidth - sidebarWidth - Math.round(viewMargins[1] + viewMargins[3]),
         height: window.innerHeight - Math.round(viewMargins[0] + viewMargins[2]) - navbarHeight
       }
 
@@ -202,8 +214,12 @@ const webviews = {
 
     // if the tab is private, we want to partition it. See http://electron.atom.io/docs/v0.34.0/api/web-view-tag/#partition
     // since tab IDs are unique, we can use them as partition names
+    var partition
     if (tabData.private === true) {
-      var partition = tabId.toString() // options.tabId is a number, which remote.session.fromPartition won't accept. It must be converted to a string first
+      partition = tabId.toString() // options.tabId is a number, which remote.session.fromPartition won't accept. It must be converted to a string first
+    } else {
+      // non-private tabs run in their container's persistent partition
+      partition = containers.partitionFor(tabData.containerId)
     }
 
     ipc.send('createView', {

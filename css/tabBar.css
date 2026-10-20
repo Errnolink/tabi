@@ -1,434 +1,492 @@
+/* Sea Glass Navigation Toolbar and Left Sidebar
+ * Material 3 Expressive x Liquid Glass
+ */
+
 #navbar {
   display: flex;
-  height: calc(36px + var(--control-space-top));
-  transition: 0.2s background-color;
+  align-items: center;
+  height: calc(var(--toolbar-height, 44px) + var(--control-space-top, 0px));
   width: 100%;
-  -webkit-user-select: none;
-  position: relative;
-  outline: none;
-  z-index: 2;
-  padding-top: var(--control-space-top);
-  padding-left: var(--control-space-left);
-  padding-right: var(--control-space-right);
-}
-
-/* when the tab-group is white, we need a line to separate it from the webviews */
-
-#navbar:before {
-  content: "";
-  width: 100vw;
-  height: 1px;
-  position: absolute;
-  bottom: 0;
+  position: fixed;
+  top: 0;
   left: 0;
-  background: rgba(0, 0, 0, 0.075);
+  right: 0;
+  z-index: 20;
+  padding-top: var(--control-space-top, 0px);
+  padding-left: calc(var(--control-space-left, 8px) + 8px);
+  padding-right: calc(var(--control-space-right, 8px) + 8px);
+  background: var(--toolbar-acrylic-overlay);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border-bottom: 1px solid var(--rim-border);
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  gap: 6px;
 }
-
-/* dark colors don't need to be darkened as much for contrast */
-
-.dark-theme #navbar:before {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* navbar buttons */
 
 #toolbar-navigation-buttons {
-  width: 2rem;
-  transition: 0.1s width;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-#toolbar-navigation-buttons.can-go-forward:hover {
-  width: 4rem;
-}
-
-body.is-edit-mode #toolbar-navigation-buttons {
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 #back-button,
-#forward-button {
-  opacity: 1;
-  transition: none;
-  padding: 0;
-  width: 2rem;
+#forward-button,
+#reload-button,
+#overview-button,
+#menu-button {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sys-on-surface);
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background var(--dur-effects-fast) var(--spring-effects), transform var(--dur-spatial-fast) var(--spring-spatial-fast);
 }
+
+#back-button:hover,
+#forward-button:hover {
+  background: color-mix(in oklab, var(--pebble-segment) 45%, transparent);
+}
+
+#reload-button:hover {
+  background: color-mix(in oklab, var(--pebble-blue) 45%, transparent);
+}
+
+#overview-button:hover {
+  background: color-mix(in oklab, var(--pebble-chip) 45%, transparent);
+}
+
+#menu-button:hover {
+  background: color-mix(in oklab, var(--pebble-fab) 45%, transparent);
+}
+
+#back-button:active,
+#forward-button:active,
+#reload-button:active,
+#overview-button:active,
+#menu-button:active,
+.is-pressed {
+  transform: scale(0.92);
+}
+
 #back-button:disabled,
 #forward-button:disabled {
-  opacity: 0.2;
+  opacity: 0.3;
+  cursor: default;
+  background: transparent;
+  pointer-events: none;
 }
 
-/* Remove default space from being inline-block */
-#forward-button {
-  margin-left: -0.25rem;
+#toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-#menu-button {
-  width: 36px;
-  padding: 0;
+/* ========================================================
+   Left Vertical Sidebar
+   ======================================================== */
+
+#sidebar {
+  position: fixed;
+  top: calc(var(--toolbar-height, 44px) + var(--control-space-top, 0px));
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width, 260px);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-acrylic-overlay);
+  border-right: 1px solid var(--rim-border);
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  transition: width var(--dur-spatial-fast) var(--spring-spatial-fast);
 }
 
-#menu-button {
+#sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--grain-tile);
+  background-size: 64px 64px;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  z-index: -1;
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 25;
+}
+
+.sidebar-resizer:hover,
+body.is-resizing-sidebar .sidebar-resizer {
+  background: color-mix(in oklab, var(--sys-primary) 50%, transparent);
+}
+
+.sidebar-header {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rim-border) 60%, transparent);
+  flex-shrink: 0;
+}
+
+.sidebar-header-title {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--sys-on-surface-variant);
+}
+
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-action-button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sys-on-surface);
+  font-size: 15px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: background var(--dur-effects-fast) var(--spring-effects), transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+}
+
+.sidebar-action-button:hover {
+  background: color-mix(in oklab, var(--pebble-chip) 40%, transparent);
+}
+
+.sidebar-action-button:active {
+  transform: scale(0.92);
+}
+
+.sidebar-buckets {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar-bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-bucket-header {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-radius: var(--r-s);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-effects-fast) var(--spring-effects);
+}
+
+.sidebar-bucket-header:hover {
+  background: color-mix(in oklab, var(--sys-on-surface) 6%, transparent);
+}
+
+.bucket-collapse-toggle {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--sys-on-surface-variant);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+}
+
+.bucket-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sys-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bucket-count {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--sys-on-surface) 8%, transparent);
+  color: var(--sys-on-surface-variant);
+}
+
+.bucket-add-tab {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--sys-on-surface-variant);
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background var(--dur-effects-fast);
+}
+
+.sidebar-bucket-header:hover .bucket-add-tab {
+  opacity: 1;
+}
+
+.bucket-add-tab:hover {
+  background: color-mix(in oklab, var(--pebble-segment) 40%, transparent);
+  color: var(--sys-on-surface);
+}
+
+.bucket-rename-input {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--sys-surface-container);
+  color: var(--sys-on-surface);
+  border: 1px solid var(--sys-primary);
+  border-radius: var(--r-xs);
+  padding: 2px 6px;
+  outline: none;
+}
+
+.sidebar-bucket.collapsed .sidebar-bucket-tabs {
   display: none;
 }
 
-body.windows #menu-button,
-body.linux #menu-button {
-  display: inline-block;
+.sidebar-bucket.collapsed .bucket-collapse-toggle {
+  transform: rotate(-90deg);
 }
 
-/* tab layout */
-
-#navbar #tabs {
+.sidebar-bucket-tabs {
   display: flex;
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-}
-#tabs #tabs-inner {
-  display: flex;
-  flex: 1;
-  overflow-x: auto;
-  overflow-y: hidden;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 8px;
 }
 
-#tabs #tabs-inner.disable-scroll {
-  overflow-x: hidden;
-}
+/* ========================================================
+   Sidebar Tab Rows & Pebble Highlights
+   ======================================================== */
 
 .tab-item {
-  flex: 1;
-  min-width: 125px;
-  transition: 0.2s transform;
-  line-height: 36px;
-  height: 36px;
-  overflow: hidden;
-  word-break: break-all;
-  position: relative;
+  height: 38px;
   display: flex;
-  align-items: stretch;
-  gap: 0.5rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: var(--r-m);
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-effects-fast) var(--spring-effects),
+              transform var(--dur-spatial-fast) var(--spring-spatial-fast),
+              border-radius var(--dur-spatial-fast) var(--spring-spatial-fast);
 }
+
+.tab-item:hover {
+  background: color-mix(in oklab, var(--sys-on-surface) 5%, transparent);
+}
+
 .tab-item.active {
-  min-width: 168px;
-}
-.tab-item.gu-mirror {
-  top: var(--control-space-top) !important;
-  height: 32px !important;
-  line-height: 32px !important;
-  margin-top: 2px !important;
-  opacity: 1;
-  box-shadow: 0px 0px 7px rgba(0, 0, 0, 0.25);
-  background-color: #fff !important;
-  color: var(--theme-foreground-color);
-  border-radius: 3px;
-}
-.tab-item.gu-mirror:before {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  content: '';
-  background-color: var(--theme-background-color);
-  opacity: 0.7;
-}
-.dark-mode .tab-item.gu-mirror {
-  background: rgb(84, 91, 100) !important;
-  color: white !important;
-}
-.tab-item.gu-transit {
-  opacity: 0 !important;
-}
-.tab-item.gu-mirror .tab-icon-area {
-  display: none;
+  border-radius: var(--r-pebble-active);
+  background: var(--glass-frost);
+  --glass-tint: var(--pebble-segment);
+  box-shadow: inset 0 1.5px 1px var(--rim-top),
+              inset 0 -2px 6px var(--rim-bottom),
+              inset 0 0 0 1px var(--rim-border);
+  font-weight: 500;
 }
 
-#navbar.show-dividers .tab-item:not(:last-child) {
-  border-right: 1px solid rgba(0, 0, 0, 0.15);
-}
-.dark-theme #navbar.show-dividers .tab-item:not(:last-child) {
-  border-right-color: rgba(255, 255, 255, 0.4);
-}
-
-#navbar.show-dividers:before {
-  background: rgba(182, 182, 182, 0.5);
-}
-
-.tab-item:not(.active):hover {
-  background-color: rgba(0, 0, 0, 0.03);
-}
-.dark-theme .tab-item:not(.active):hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-.dark-theme.theme-background-low-contrast .tab-item:not(.active):hover {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-/* icons */
-
-.tab-item .tab-icon-area {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  order: 1;
-}
-body:not(.touch)
-  .tab-item:not(:hover)
-  .tab-icon-area:has(.tab-close-button:only-child) {
-  margin-left: -0.5rem;
-}
-
-.tab-item .tab-icon {
-  position: relative;
-  font-size: 0.875em;
-  box-sizing: border-box;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-}
-.tab-item .tab-icon:not(.permission-request-icon):hover:after {
+.tab-item.active::after {
   content: "";
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.075);
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
   z-index: -1;
-}
-.dark-theme .tab-item .tab-icon:hover:after {
-  background: rgba(255, 255, 255, 0.15);
-}
-.tab-item.active:not(:only-child) {
-  background: rgba(0, 0, 0, 0.06);
-}
-.dark-theme .tab-item.active:not(:only-child) {
-  background: rgba(255, 255, 255, 0.2);
-}
-.dark-theme.theme-background-low-contrast .tab-item.active:not(:only-child) {
-  background: rgba(255, 255, 255, 0.25);
-}
-.tab-item.fade {
-  opacity: 0.55;
-}
-.tab-item.fade:hover {
-  opacity: 1;
-}
-
-.is-edit-mode #navbar #tabs-inner::-webkit-scrollbar {
-  height: 0;
-}
-
-/* hide tabs when tab editor is open */
-
-.is-edit-mode .tab-item {
-  opacity: 0;
-}
-
-/* hide the lock icon unless its the current tab */
-
-.tab-item:not(.active) .icon-tab-not-secure {
-  display: none;
-}
-.tab-item .title-container {
-  display: inline-block;
-  position: relative;
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
-  flex: 1;
-  overflow: hidden;
-}
-.compact-tabs .tab-item .title {
-  font-size: 14px;
-}
-.tab-item .title {
-  display: block;
-  position: absolute;
-  top: 0;
-  font-size: 15px;
-  transform-origin: left 10%;
-  transition: 0.15s transform;
-  white-space: nowrap;
-}
-.tab-item .url-element {
-  display: block;
-  position: absolute;
-  top: 5px;
-  transform-origin: left 90%;
-  transform: translateY(15%);
-  opacity: 0;
-  transition: 0.15s all;
-  font-size: 13px;
-  white-space: nowrap;
-}
-.tab-item.active.has-url:hover .url-element {
-  transform: none;
-  opacity: 1;
-}
-.tab-item.active.has-url:hover .title {
-  transform: scale(0.7333) translateY(-10%);
-  opacity: 0.9;
-}
-.compact-tabs .tab-item.active.has-url:hover .title {
-  transform: scale(0.78571) translateY(-12%);
-}
-
-/* buttons */
-
-.navbar-action-button {
-  padding: 0 1rem;
-  height: 36px;
-  margin-top: -0.5px;
-  font-size: 1.4em !important;
-}
-body.windows .navbar-action-button:not(:disabled):hover {
-  background-color: rgba(0, 0, 0, 0.075);
-}
-body.windows.dark-theme .navbar-action-button:not(:disabled):hover {
-  background: rgba(255, 255, 255, 0.075);
-}
-.navbar-action-button.invisible {
-  visibility: hidden;
-}
-.navbar-action-button + .navbar-action-button {
-  padding-left: 0.5em;
-}
-.navbar-right-actions {
-  margin-right: 2.3em;
-}
-
-.navbar-right-actions #add-tab-button {
-  padding: 0;
-  width: 36px;
-  font-size: 1.6em !important;
-}
-
-/* audio button */
-.tab-item .tab-audio-button {
-  vertical-align: text-bottom;
-  padding: 0;
-  font-size: 1.1em !important;
-}
-
-/* reader button */
-
-.tab-item .reader-button {
-  display: none;
-  vertical-align: text-bottom;
-  font-size: 1.1em !important;
-  order: -1;
-}
-.tab-item.active .reader-button.can-reader {
-  display: inline-flex;
-}
-.tab-item.active .reader-button.is-reader {
-  display: inline-flex;
-}
-
-/* permission request buttons */
-
-.tab-item .tab-icon.permission-request-icon {
-  border: 1px rgba(0, 0, 0, 0.3) solid;
-  border-radius: 0.75rem;
-  height: 70%;
-  margin: auto 0;
-  order: -1;
-  padding-inline: 0.25rem;
-}
-.tab-item .tab-icon.permission-request-icon .i {
-  vertical-align: middle;
-  display: inline-block;
-}
-.dark-theme .tab-item .tab-icon.permission-request-icon {
-  border-color: rgba(255, 255, 255, 0.5);
-}
-.tab-item .tab-icon.permission-request-icon:hover {
-  background-color: rgba(0, 0, 0, 0.075);
-}
-.dark-theme .tab-item .tab-icon.permission-request-icon:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-.tab-item .tab-icon.permission-request-icon.active {
-  background-color: rgba(0, 0, 0, 0.66);
-  border-color: transparent;
-  color: white;
-}
-.dark-theme .tab-item .tab-icon.permission-request-icon.active {
-  background-color: rgba(255, 255, 255, 0.9);
-  border-color: transparent;
-  color: black;
-}
-
-.tab-item:not(.active) .permission-request-icon:not(.active) {
-  display: none;
-}
-
-/* in Carbon, close icon is a bit smaller than other icons, enlarge it in order to match with other icons */
-.tab-item .tab-close-button {
-  font-size: 1.25em;
-  box-sizing: border-box;
-  order: 1;
-}
-.tab-item .tab-close-button:hover:after {
-  font-size: 0.9em;
-}
-
-/* when the tab is hovered, hide info buttons and show the close button */
-
-body:not(.touch) .tab-item:hover .tab-info-icon {
-  display: none;
-}
-body:not(.touch) .tab-item .tab-close-button {
-  display: none;
-}
-body:not(.touch) .tab-item:hover .tab-close-button {
-  display: inline-block;
-}
-
-body.is-focus-mode .navbar-action-button:not(#menu-button) {
-  display: none;
-}
-
-/* progress bar */
-
-.progress-bar-container {
-  height: 2px;
-  width: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  /* margin: 0 0.8em; */
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 2px;
-  width: 100%;
-  background-color: currentColor;
-}
-
-body:not(.dark-theme) .progress-bar {
+  border-radius: inherit;
+  pointer-events: none;
+  filter: blur(var(--shadow-blur));
+  background: var(--shadow-blob-tint);
+  transform: translate(var(--sx), var(--sy)) scale(0.96);
   opacity: 0.8;
 }
 
-.p0 {
-  transform: translateX(-100%);
+.tab-container-stripe {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3.5px;
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
 }
 
-.p25 {
-  transform: translateX(-75%);
-  transition: transform 4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+.tab-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 
-.p100 {
-  transform: translateX(0%);
-  transition: transform 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+.tab-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--sys-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.tab-audio-button {
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sys-on-surface-variant);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tab-close-button {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  border-radius: var(--r-pill);
+  color: var(--sys-on-surface-variant);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s, background var(--dur-effects-fast);
+}
+
+.tab-item:hover .tab-close-button {
+  opacity: 0.7;
+}
+
+.tab-close-button:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--sys-error) 20%, transparent);
+  color: var(--sys-error);
+}
+
+/* ========================================================
+   Sidebar Collapse-to-Icons Mode & Hover Expand
+   ======================================================== */
+
+#sidebar.sidebar-collapsed {
+  width: 56px;
+}
+
+#sidebar.sidebar-collapsed .sidebar-header-title,
+#sidebar.sidebar-collapsed #new-bucket-button,
+#sidebar.sidebar-collapsed .bucket-name,
+#sidebar.sidebar-collapsed .bucket-count,
+#sidebar.sidebar-collapsed .bucket-add-tab,
+#sidebar.sidebar-collapsed .tab-title,
+#sidebar.sidebar-collapsed .tab-close-button,
+#sidebar.sidebar-collapsed .tab-audio-button {
+  display: none;
+}
+
+#sidebar.sidebar-collapsed .sidebar-header {
+  justify-content: center;
+  padding: 0;
+}
+
+#sidebar.sidebar-collapsed .sidebar-bucket-header {
+  padding: 0;
+  justify-content: center;
+}
+
+#sidebar.sidebar-collapsed .tab-item {
+  padding: 0;
+  justify-content: center;
+  width: 40px;
+  margin: 0 auto 3px auto;
+}
+
+#sidebar.sidebar-collapsed:hover {
+  width: var(--sidebar-width, 260px);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+  background: var(--glass-frost);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+#sidebar.sidebar-collapsed:hover .sidebar-header-title,
+#sidebar.sidebar-collapsed:hover #new-bucket-button,
+#sidebar.sidebar-collapsed:hover .bucket-name,
+#sidebar.sidebar-collapsed:hover .bucket-count,
+#sidebar.sidebar-collapsed:hover .bucket-add-tab,
+#sidebar.sidebar-collapsed:hover .tab-title,
+#sidebar.sidebar-collapsed:hover .tab-close-button,
+#sidebar.sidebar-collapsed:hover .tab-audio-button {
+  display: flex;
+}
+
+#sidebar.sidebar-collapsed:hover .bucket-name,
+#sidebar.sidebar-collapsed:hover .tab-title {
+  display: block;
+}
+
+#sidebar.sidebar-collapsed:hover .sidebar-header {
+  justify-content: space-between;
+  padding: 0 14px;
+}
+
+#sidebar.sidebar-collapsed:hover .sidebar-bucket-header {
+  padding: 0 8px;
+  justify-content: flex-start;
+}
+
+#sidebar.sidebar-collapsed:hover .tab-item {
+  width: auto;
+  padding: 0 10px;
+  justify-content: flex-start;
 }
