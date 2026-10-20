@@ -1,27 +1,42 @@
+/* Sea Glass Searchbar Dropdown Suggestions
+ * Material 3 Expressive x Liquid Glass
+ */
+
 #searchbar {
-  z-index: 3;
+  z-index: 50;
   position: fixed;
-  top: calc(var(--control-space-top) + 36px);
-  left: 0;
-  width: 100%;
-  background: #fff;
-  color: #000;
-  padding-left: var(--control-space-left);
-  padding-right: calc(82px + var(--control-space-right));
-  -webkit-user-select: none;
-  max-height: calc(100% - 125px);
+  top: calc(var(--control-space-top, 0px) + var(--toolbar-height, 44px) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
+  border-radius: var(--r-xl);
+  background: var(--glass-frost);
+  --glass-tint: var(--pebble-search);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--rim-border);
+  box-shadow: inset 0 1.5px 1px var(--rim-top),
+              inset 0 -2px 6px var(--rim-bottom),
+              0 12px 40px rgba(0, 0, 0, 0.28);
+  color: var(--sys-on-surface);
+  font-family: var(--font-sans);
+  padding: 8px 10px;
+  box-sizing: border-box;
+  -webkit-user-select: none;
 }
 
-body:not(.is-ntp) #searchbar,
-body.ntp-has-background #searchbar {
-  box-shadow: rgba(0, 0, 0, 0.25) 0px 3px 4px -2px;
-}
-
-/* account for menu button */
-body.windows #searchbar,
-body.linux #searchbar {
-  padding-left: calc(36px + var(--control-space-left));
+#searchbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--grain-tile);
+  background-size: 64px 64px;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  z-index: -1;
 }
 
 .searchbar-plugin-container {
@@ -29,72 +44,57 @@ body.linux #searchbar {
 }
 
 .searchbar-heading {
-  font-weight: normal;
-  padding: 0.9em 0.55em 0.33em 0.55em;
-  opacity: 0.7;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--sys-on-surface-variant);
+  padding: 8px 10px 4px 10px;
   cursor: default;
 }
 
 .searchbar-floating-button {
   position: absolute;
-  right: 0;
-  top: 0.5em;
-  border: 1px #ccc solid;
-  padding: 0.33em 0.5em;
-  border-radius: 3px;
-  opacity: 0.66;
-  z-index: 9;
+  right: 8px;
+  top: 6px;
+  border: 1px solid var(--rim-border);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  color: var(--sys-on-surface);
+  background: color-mix(in srgb, var(--sys-on-surface) 6%, transparent);
+  cursor: pointer;
+  transition: background var(--dur-effects-fast) var(--spring-effects);
 }
 
 .searchbar-floating-button:hover {
-  background-color: rgba(0, 0, 0, 0.05)
+  background: color-mix(in srgb, var(--sys-on-surface) 12%, transparent);
 }
 
-.dark-theme .searchbar-floating-button {
-  border-color: white;
-}
-.dark-theme .searchbar-floating-button:hover {
-  background-color: rgba(255, 255, 255, 0.075)
-}
-
-/* move the icon when there isn't room to the left of the searchbar */
-
-.fullscreen #searchbar .searchbar-item i,
-body:not(.mac) #searchbar .searchbar-item i,
-.fullscreen #searchbar .searchbar-item .icon-image,
-body:not(.mac) #searchbar .searchbar-item .icon-image {
-  left: auto;
-  right: 1.1em;
-}
-
-/* if an action button is visible, the searchbar icon should disappear (if they occupy the same position) */
-
-.fullscreen #searchbar .searchbar-item.has-action-button:hover i,
-body:not(.mac) #searchbar .searchbar-item.has-action-button:hover i,
-.fullscreen #searchbar .searchbar-item.has-action-button:hover .icon-image,
-body:not(.mac) #searchbar .searchbar-item.has-action-button:hover .icon-image {
-  display: none;
+#searchbar .searchbar-item i,
+#searchbar .searchbar-item .icon-image {
+  margin-right: 8px;
+  vertical-align: middle;
+  color: var(--sys-on-surface-variant);
 }
 
 #searchbar .image.color-circle {
-  width: 1.8em;
-  height: 1.8em;
+  width: 1.5em;
+  height: 1.5em;
   border-radius: 50%;
   float: left;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  padding-right: 0.5em;
-}
-.dark-theme #searchbar .image.color-circle {
-  border-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--rim-border);
+  margin-right: 8px;
 }
 
 .search-feedback-link {
   display: block;
   width: 100%;
-  font-size: 0.8em;
+  font-size: 12px;
   opacity: 0.75;
+  color: var(--sys-on-surface-variant);
   text-decoration: underline;
-  padding: 0.5em 0.6875em 0.5em 0.6875em;
+  padding: 6px 10px;
 }
 
 .search-feedback-link:hover {
@@ -103,30 +103,23 @@ body:not(.mac) #searchbar .searchbar-item.has-action-button:hover .icon-image {
 }
 
 .searchbar-shortcut {
-  font-size: 1.05em !important;
-  padding: 0.5em 0.66em;
-  margin: 0.175em 0.4em 0.5em 0.4em;
-  border-radius: 5px;
-  border: 1px rgba(0, 0, 0, 0.15) solid;
-}
-.dark-theme .searchbar-shortcut {
-  border-color: rgba(255, 255, 255, 0.4);
+  display: inline-block;
+  font-size: 13px !important;
+  padding: 6px 12px;
+  margin: 4px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--rim-border);
+  background: color-mix(in srgb, var(--sys-on-surface) 4%, transparent);
+  color: var(--sys-on-surface);
+  cursor: pointer;
+  transition: background var(--dur-effects-fast) var(--spring-effects);
 }
 
 .searchbar-shortcut:hover,
 .searchbar-shortcut:focus {
-  background: rgba(0, 0, 0, 0.075);
-}
-
-.dark-theme .searchbar-shortcut:hover,
-.dark-theme .searchbar-shortcut:focus {
-  background: rgba(255, 255, 255, 0.075);
+  background: color-mix(in srgb, var(--sys-primary) 16%, transparent);
 }
 
 .searchbar-shortcut:active {
-  background: rgba(0, 0, 0, 0.125);
-}
-
-.dark-theme .searchbar-shortcut:active {
-  background: rgba(255, 255, 255, 0.125);
+  transform: scale(0.96);
 }

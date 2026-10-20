@@ -1,144 +1,91 @@
+/* Sea Glass Download Manager Bar
+ * Material 3 Expressive x Liquid Glass
+ */
+
 #download-bar {
   display: flex;
+  position: fixed;
+  bottom: 14px;
+  left: calc(var(--sidebar-width, 260px) + 16px);
+  max-width: calc(100vw - var(--sidebar-width, 260px) - 32px);
+  background: var(--glass-frost);
+  --glass-tint: var(--pebble-peach);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--rim-border);
+  box-shadow: inset 0 1px 1px var(--rim-top),
+              0 8px 28px rgba(0, 0, 0, 0.22);
+  border-radius: var(--r-l);
+  color: var(--sys-on-surface);
+  font-family: var(--font-sans);
+  padding: 0 12px;
+  z-index: 90;
+  align-items: center;
+}
+
+#download-bar::before {
+  content: "";
   position: absolute;
-  bottom: 0px;
-  left: 0px;
-  background: rgb(250, 250, 250);
-  width: 100%;
-  border-top: 1px solid rgb(214, 214, 214);
-  color: black;
-  padding: 0 0.5em;
-  z-index: 9;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--grain-tile);
+  background-size: 64px 64px;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  z-index: -1;
 }
 
-body.task-overlay-is-shown #download-bar {
-  z-index: 1;
-}
-
-.dark-mode #download-bar {
-  background: rgb(41, 44, 52);
-  color: white;
-  border-top-color: rgb(80, 80, 80);
-}
-
-#download-bar button:hover {
-  opacity: 1;
-  background-color: rgba(0, 0, 0, 0.075);
-}
-
-.dark-mode #download-bar button:hover {
-  background-color: rgba(255, 255, 255, 0.075);
+body.sidebar-collapsed #download-bar {
+  left: 72px;
+  max-width: calc(100vw - 88px);
 }
 
 #download-container {
   display: flex;
   flex: 1;
   overflow-x: auto;
-  height: 39px;
+  height: 44px;
+  align-items: center;
+  gap: 8px;
 }
 
 .download-item {
   display: inline-flex;
   align-items: center;
-  padding: 0.66em 0.75em;
-  height: 100%;
-  width: 30%;
-  min-width: 175px;
-  max-width: 300px;
-  line-height: 39px;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--r-m);
+  background: color-mix(in srgb, var(--sys-on-surface) 6%, transparent);
+  font-size: 13px;
+  color: var(--sys-on-surface);
+}
+
+.download-item .download-title {
+  max-width: 160px;
   overflow: hidden;
-  border-right: 1px rgb(230, 230, 230) solid;
-  position: relative;
-  transition: 0.05s background-color;
-}
-
-.dark-mode .download-item {
-  border-right-color: rgb(80, 80, 80);
-}
-
-.download-item:hover,
-.download-item.completed:active {
-  background-color: rgb(238, 238, 238);
-}
-
-.dark-mode .download-item:hover,
-.dark-mode .download-item.completed:active {
-  background-color: rgb(50, 55, 65);
-}
-
-.download-title {
-  font-size: 0.9em;
-  opacity: 0.9;
-  overflow: hidden;
-  white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.download-info {
-  display: inline-block;
-  margin-top: 0.1em;
-  padding-left: 0.75em;
-  font-size: 0.75em;
-  opacity: 0.7;
   white-space: nowrap;
 }
-.download-item:hover .download-info {
-  display: none;
+
+.download-item .download-progress {
+  font-size: 11px;
+  color: var(--sys-on-surface-variant);
 }
 
-.download-info.detailed {
-  display: none;
+#download-bar button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--sys-on-surface);
+  cursor: pointer;
+  transition: background var(--dur-effects-fast) var(--spring-effects);
 }
 
-.download-item:hover .download-info.detailed {
-  display: inline-block;
-}
-
-.download-item.loading .download-info,
-.download-item.completed .download-info {
-  /* leave room for the action buttons */
-  padding-right: 32px;
-}
-
-.download-progress {
-  width: calc(100% - 1em);
-  height: 4px;
-  margin-top: 0.33em;
-  background: rgb(22, 122, 224);
-  border-radius: 2px;
-  position: absolute;
-  top: calc(-0.5em + 2px);
-  transform: scaleX(0.56);
-  transform-origin: top left;
-  transition: 1s transform, 0.2s opacity;
-}
-
-.dark-mode .download-progress {
-  background: lightskyblue;
-}
-
-.download-progress[hidden] {
-  display: block !important;
-  opacity: 0;
-}
-
-.download-action-button {
-  position: absolute;
-  right: 0.7em;
-  opacity: 0.7;
-  margin: auto;
-  padding: 0.2em;
-}
-
-#download-close-button {
-  opacity: 0.66;
-  font-size: 1.2em;
-  margin: auto;
-  margin-left: 0.4em;
-  padding: 0.2em;
-  border-radius: 50%;
-}
-
-.dark-mode #download-close-button {
-  opacity: 0.9;
+#download-bar button:hover {
+  background: color-mix(in oklab, var(--pebble-fab) 40%, transparent);
 }
