@@ -1,0 +1,226 @@
+/* Sea Glass Design System Tokens
+ * Material 3 Expressive x Liquid Glass
+ */
+
+@font-face {
+  font-family: 'Google Sans Flex';
+  src: local('Google Sans Flex'), local('Google Sans'), url('../ext/fonts/GoogleSansFlex.woff2') format('woff2');
+  font-weight: 100 1000;
+  font-stretch: 25% 151%;
+  font-style: oblique 0deg 12deg;
+  font-display: swap;
+}
+
+:root {
+  /* Typography */
+  --font-sans: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+
+  /* Corner Scale (M3E 10 steps) */
+  --r-none: 0px;
+  --r-xs: 4px;
+  --r-s: 8px;
+  --r-m: 12px;
+  --r-l: 16px;
+  --r-l-plus: 20px;
+  --r-xl: 28px;
+  --r-xl-plus: 32px;
+  --r-xxl: 48px;
+  --r-pill: 9999px;
+  --r-pebble: 24px 36px 28px 34px / 34px 26px 36px 28px;
+  --r-pebble-active: 28px 30px 24px 36px / 30px 28px 34px 26px;
+
+  /* Expressive Springs & Durations (FINDINGS.md) */
+  --spring-spatial: linear(0,0.032,0.111,0.216,0.331,0.445,0.552,0.649,0.732,0.802,0.859,0.904,0.939,0.965,0.985,0.998,1.006,1.012,1.014,1.015,1.015,1.014,1.012,1.01,1.009,1.007,1.006,1.004,1.003,1.002,1);
+  --dur-spatial: 421ms;
+
+  --spring-spatial-fast: linear(0,0.048,0.167,0.322,0.487,0.644,0.782,0.894,0.979,1.037,1.074,1.091,1.095,1.088,1.076,1.061,1.046,1.031,1.018,1.008,1.001,0.996,0.993,0.991,0.991,0.992,0.993,0.995,0.996,0.997,1);
+  --dur-spatial-fast: 353ms;
+
+  --spring-spatial-slow: var(--spring-spatial);
+  --dur-spatial-slow: 581ms;
+
+  --spring-effects: linear(0,0.035,0.117,0.219,0.326,0.429,0.523,0.606,0.677,0.738,0.789,0.83,0.865,0.892,0.915,0.933,0.947,0.958,0.967,0.974,0.98,0.985,0.988,0.991,0.993,0.994,0.996,0.997,0.997,0.998,1);
+  --dur-effects: 219ms;
+
+  --spring-effects-fast: var(--spring-effects);
+  --dur-effects-fast: 142ms;
+
+  --spring-effects-slow: var(--spring-effects);
+  --dur-effects-slow: 310ms;
+
+  --stagger-step: 60ms;
+
+  /* Pebble Tints (Light Mode: Tone ~88-90, Pastel Chroma ~38-48) */
+  --pebble-search: hsl(278, 45%, 88%);
+  --pebble-segment: hsl(140, 38%, 86%);
+  --pebble-media: hsl(348, 42%, 88%);
+  --pebble-fab: hsl(38, 55%, 84%);
+  --pebble-chip: hsl(22, 48%, 84%);
+  --pebble-blue: hsl(205, 52%, 88%);
+  --pebble-lavender: hsl(278, 45%, 88%);
+  --pebble-mint: hsl(140, 38%, 86%);
+  --pebble-pink: hsl(348, 42%, 88%);
+  --pebble-peach: hsl(38, 55%, 84%);
+  --pebble-coral: hsl(22, 48%, 84%);
+
+  /* Colour Roles (Light Mode) */
+  --sys-primary: #525a92;
+  --sys-on-primary: #ffffff;
+  --sys-primary-container: #dfe0ff;
+  --sys-on-primary-container: #0c154b;
+  --sys-secondary: #5c5d72;
+  --sys-on-secondary: #ffffff;
+  --sys-secondary-container: #e1e0f9;
+  --sys-on-secondary-container: #191a2c;
+  --sys-tertiary: #78536b;
+  --sys-on-tertiary: #ffffff;
+  --sys-tertiary-container: #ffd7ee;
+  --sys-on-tertiary-container: #2e1126;
+  --sys-error: #ba1a1a;
+  --sys-on-error: #ffffff;
+  --sys-error-container: #ffdad6;
+  --sys-on-error-container: #410002;
+  --sys-surface: #fdf8fd;
+  --sys-on-surface: #1a1b21;
+  --sys-surface-variant: #e3e1ec;
+  --sys-on-surface-variant: #46464f;
+  --sys-outline: #777680;
+  --sys-outline-variant: #c7c5d0;
+  --sys-surface-container-lowest: #ffffff;
+  --sys-surface-container-low: #f7f2f7;
+  --sys-surface-container: #f1edf2;
+  --sys-surface-container-high: #ebe7ec;
+  --sys-surface-container-highest: #e5e1e7;
+
+  /* Glass Variables (Light Mode) */
+  --glass-tint: var(--pebble-search);
+  --glass-frost: color-mix(in oklab, var(--glass-tint, var(--pebble-search)) 38%, white 62%);
+  --glass-jewel: color-mix(in oklab, var(--glass-tint, var(--pebble-search)) 72%, white 28%);
+  --glass-blur: 14px;
+  --glass-saturate: 1.4;
+  --grain-opacity: 0.10;
+  --grain-tile: url("data:image/png;base64,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");
+  --rim-top: rgba(255, 255, 255, 0.75);
+  --rim-bottom: color-mix(in srgb, var(--glass-tint, #888) 25%, transparent);
+  --rim-border: color-mix(in srgb, white 35%, var(--glass-tint, #888) 12%);
+  --shadow-blob-tint: color-mix(in srgb, var(--glass-tint, #888) 45%, rgb(120 110 160 / 0.35));
+  --shadow-blur: 18px;
+  --sidebar-acrylic-overlay: rgba(255, 255, 255, 0.45);
+  --toolbar-acrylic-overlay: rgba(255, 255, 255, 0.35);
+
+  /* Pointer Light (defaults to center 0.5, 0.5) */
+  --lx: 0.5;
+  --ly: 0.5;
+  --sx: calc(var(--lx, 0.5) * 16px - 8px);
+  --sy: calc(var(--ly, 0.5) * 20px - 6px);
+
+  /* Common component heights */
+  --toolbar-height: 44px;
+  --sidebar-width: 260px;
+}
+
+/* Dark Mode: "Night Sea Glass" (x.com night aesthetic) */
+body.dark-mode {
+  /* Colour Roles (Dark Mode) */
+  --sys-primary: #bbc3ff;
+  --sys-on-primary: #232c61;
+  --sys-primary-container: #3a4279;
+  --sys-on-primary-container: #dfe0ff;
+  --sys-secondary: #c5c4dd;
+  --sys-on-secondary: #2e2f42;
+  --sys-secondary-container: #444559;
+  --sys-on-secondary-container: #e1e0f9;
+  --sys-tertiary: #e7b9d5;
+  --sys-on-tertiary: #46263b;
+  --sys-tertiary-container: #5e3c52;
+  --sys-on-tertiary-container: #ffd7ee;
+  --sys-error: #ffb4ab;
+  --sys-on-error: #690005;
+  --sys-error-container: #93000a;
+  --sys-on-error-container: #ffdad6;
+  --sys-surface: #0c0e14;
+  --sys-on-surface: #e5e1e7;
+  --sys-surface-variant: #46464f;
+  --sys-on-surface-variant: #c7c5d0;
+  --sys-outline: #90909a;
+  --sys-outline-variant: #46464f;
+  --sys-surface-container-lowest: #07090e;
+  --sys-surface-container-low: #101319;
+  --sys-surface-container: #141720;
+  --sys-surface-container-high: #1a1e28;
+  --sys-surface-container-highest: #222632;
+
+  /* Pebble Tints (Dark Mode: Tone ~30-32, Low Chroma) */
+  --pebble-search: hsl(278, 32%, 30%);
+  --pebble-segment: hsl(140, 26%, 28%);
+  --pebble-media: hsl(348, 30%, 30%);
+  --pebble-fab: hsl(38, 38%, 30%);
+  --pebble-chip: hsl(22, 34%, 30%);
+  --pebble-blue: hsl(205, 36%, 30%);
+  --pebble-lavender: hsl(278, 32%, 30%);
+  --pebble-mint: hsl(140, 26%, 28%);
+  --pebble-pink: hsl(348, 30%, 30%);
+  --pebble-peach: hsl(38, 38%, 30%);
+  --pebble-coral: hsl(22, 34%, 30%);
+
+  /* Glass Variables (Night Sea Glass) */
+  --glass-tint: var(--pebble-search);
+  --glass-frost: color-mix(in oklab, var(--glass-tint, var(--pebble-search)) 22%, rgb(12 14 20 / 0.78));
+  --glass-jewel: color-mix(in oklab, var(--glass-tint, var(--pebble-search)) 48%, rgb(12 14 20 / 0.65));
+  --glass-blur: 16px;
+  --glass-saturate: 1.2;
+  --grain-opacity: 0.05;
+  --rim-top: rgba(255, 255, 255, 0.12);
+  --rim-bottom: color-mix(in srgb, var(--glass-tint, #0c0e14) 30%, transparent);
+  --rim-border: rgba(255, 255, 255, 0.08);
+  --shadow-blob-tint: color-mix(in srgb, var(--glass-tint, #222) 30%, rgb(5 5 8 / 0.5));
+  --shadow-blur: 20px;
+  --sidebar-acrylic-overlay: rgba(12, 14, 20, 0.68);
+  --toolbar-acrylic-overlay: rgba(12, 14, 20, 0.58);
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-spatial: 1ms !important;
+    --dur-spatial-fast: 1ms !important;
+    --dur-spatial-slow: 1ms !important;
+    --dur-effects: 1ms !important;
+    --dur-effects-fast: 1ms !important;
+    --dur-effects-slow: 1ms !important;
+    --spring-spatial: linear(0, 1) !important;
+    --spring-spatial-fast: linear(0, 1) !important;
+    --spring-spatial-slow: linear(0, 1) !important;
+    --spring-effects: linear(0, 1) !important;
+    --spring-effects-fast: linear(0, 1) !important;
+    --spring-effects-slow: linear(0, 1) !important;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* Accessibility: Reduced Transparency */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-blur: 0px !important;
+    --grain-opacity: 0 !important;
+    --sidebar-acrylic-overlay: var(--sys-surface) !important;
+    --toolbar-acrylic-overlay: var(--sys-surface-container) !important;
+    --glass-frost: var(--sys-surface-container-high) !important;
+    --glass-jewel: var(--sys-primary-container) !important;
+  }
+
+  .pebble,
+  .glass-surface,
+  .sea-glass-pill,
+  #navbar,
+  #sidebar {
+    backdrop-filter: none !important;
+    background: var(--sys-surface-container) !important;
+  }
+}
