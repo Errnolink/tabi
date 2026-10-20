@@ -1,5 +1,7 @@
 /* global ipc, tabs */
-var injectBrowserAction = require('electron-chrome-extensions/dist/cjs/browser-action.js').injectBrowserAction
+/* window.require: the real require in the nodeIntegration UI renderer; browserify
+   would otherwise bundle the npm electron package here (its transforms skip node_modules) */
+var injectBrowserAction = window.require('electron-chrome-extensions/dist/cjs/browser-action.js').injectBrowserAction
 var browserUI = require('browserUI.js')
 var containers = require('containers.js')
 
