@@ -4,6 +4,7 @@ const fs = require('fs')
 const outFile = path.resolve(__dirname, '../dist/bundle.css')
 
 const modules = [
+  'css/tokens.css',
   'css/base.css',
   'css/bucketRail.css',
   'css/windowControls.css',
@@ -11,6 +12,7 @@ const modules = [
   'css/tabBar.css',
   'css/tabEditor.css',
   'css/taskOverlay.css',
+  'css/overview.css',
   'css/webviews.css',
   'css/newTabPage.css',
   'css/searchbar.css',
