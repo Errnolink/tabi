@@ -104,6 +104,8 @@ function mount () {
     return false
   }
   actionList = document.createElement('browser-action-list')
+  actionList.setAttribute('partition', containers.partitionFor('default'))
+  actionList.setAttribute('hidden', '')
   slot.appendChild(actionList)
   updateActionList()
   return true

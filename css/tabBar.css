@@ -95,7 +95,7 @@ body::after {
   display: flex;
   align-items: center;
   gap: 2px;
-  width: calc(var(--sidebar-width) - 10px);
+  width: max(calc(var(--sidebar-width) - 10px), 112px);
   flex: none;
   transition: width var(--dur-spatial) var(--spring-spatial);
 }

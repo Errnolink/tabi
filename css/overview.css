@@ -47,6 +47,10 @@ body.overview-morph #webview-placeholder {
   animation: none;
 }
 
+body.ov-settled #webviews {
+  visibility: hidden;
+}
+
 #overview-button.active {
   background: var(--chrome-press);
   color: var(--chrome-ink);
@@ -265,6 +269,10 @@ body.overview-morph #webview-placeholder {
 #overview.entering .ov-card {
   animation: ov-card-in var(--dur-spatial) var(--spring-spatial) both;
   animation-delay: calc(var(--i) * 22ms + 60ms);
+}
+
+#overview.entering .ov-card.current {
+  animation: none;
 }
 
 @keyframes ov-card-in {

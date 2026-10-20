@@ -532,7 +532,11 @@ const overview = {
     tabEditor.hide()
 
     const placeholder = document.getElementById('webview-placeholder')
-    const morph = canMorph() && !!tabs.getSelected() && webviews.hasViewForTab(tabs.getSelected())
+    const selected = tabs.getSelected()
+    let morph = canMorph() && !!selected && webviews.hasViewForTab(selected)
+    if (morph) {
+      morph = await overview.freshPreview(selected)
+    }
     document.body.classList.add('overview-morph')
     webviews.requestPlaceholder('overview')
     if (morph) {
@@ -547,17 +551,19 @@ const overview = {
     document.getElementById('overview-button').classList.add('active')
 
     const reveal = function () {
-      overview.render()
       overview.el.hidden = false
+      overview.render()
       overview.el.classList.add('entering')
       const card = overview.cardFor(tabs.getSelected())
       if (card) {
-        card.scrollIntoView({ block: 'center' })
+        card.scrollIntoView({ block: 'nearest' })
         if (morph) {
           placeholder.style.viewTransitionName = ''
+          card.style.contentVisibility = 'visible'
           card.querySelector('.ov-thumb').style.viewTransitionName = 'xb-page'
         }
       }
+      document.body.classList.add('ov-settled')
     }
 
     if (morph) {
@@ -593,6 +599,7 @@ const overview = {
 
     const conclude = function () {
       overview.el.hidden = true
+      document.body.classList.remove('ov-settled')
       overview.isShown = false
       document.body.classList.remove('overview-is-shown')
       document.body.removeAttribute('data-context')
@@ -622,6 +629,25 @@ const overview = {
     document.body.classList.remove('overview-morph')
     overview.content.textContent = ''
     overview.busy = false
+  },
+
+  previewWaiter: null,
+
+  freshPreview: function (tabId) {
+    return new Promise(function (resolve) {
+      const waiter = {
+        id: tabId,
+        resolve: function (ok) {
+          if (overview.previewWaiter === waiter) {
+            overview.previewWaiter = null
+            resolve(ok)
+          }
+        }
+      }
+      overview.previewWaiter = waiter
+      webviews.captureTab(tabId, { forceCapture: true })
+      setTimeout(() => waiter.resolve(!!tabs.get(tabId).previewImage), 300)
+    })
   },
 
   toggle: function () {
@@ -654,6 +680,11 @@ const overview = {
     document.getElementById('overview-button').addEventListener('click', overview.toggle)
 
     tasks.on('tab-destroyed', forgetThumb)
+    tasks.on('tab-updated', function (id, key) {
+      if (key === 'previewImage' && overview.previewWaiter && overview.previewWaiter.id === id) {
+        overview.previewWaiter.resolve(true)
+      }
+    })
     tasks.on('state-sync-change', function () {
       if (overview.isShown) {
         overview.render()
