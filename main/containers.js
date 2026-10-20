@@ -118,6 +118,15 @@ function broadcastContainersChanged () {
       // the window's UI view can already be torn down during shutdown
     }
   })
+
+  webContents.getAllWebContents().forEach(function (contents) {
+    try {
+      var url = contents.getURL()
+      if (url && url.startsWith('min://app/pages/containers')) {
+        contents.send('containers-page-changed', containerRegistry.containers)
+      }
+    } catch (e) { }
+  })
 }
 
 function validContainerColor (color) {
@@ -328,6 +337,9 @@ ipc.handle('containers:page', function (e, payload) {
 
   if (payload.op === 'list') {
     return containerRegistry.containers
+  }
+  if (payload.op === 'vocabulary') {
+    return { colors: CONTAINER_COLORS, icons: CONTAINER_ICONS }
   }
   if (payload.op === 'tabCounts') {
     return lastContainerTabCounts
