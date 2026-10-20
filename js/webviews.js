@@ -166,10 +166,13 @@ const webviews = {
 
       const viewMargins = webviews.viewMargins
 
+      var rail = document.getElementById('bucket-rail')
+      var railWidth = document.body.classList.contains('rail-on') && rail ? rail.offsetWidth : 0
+
       let position = {
-        x: 0 + Math.round(viewMargins[3]),
+        x: railWidth + Math.round(viewMargins[3]),
         y: 0 + Math.round(viewMargins[0]) + navbarHeight,
-        width: window.innerWidth - Math.round(viewMargins[1] + viewMargins[3]),
+        width: window.innerWidth - railWidth - Math.round(viewMargins[1] + viewMargins[3]),
         height: window.innerHeight - Math.round(viewMargins[0] + viewMargins[2]) - navbarHeight
       }
 

@@ -168,6 +168,7 @@ require('bookmarkConverter.js').initialize()
 require('newTabPage.js').initialize()
 require('macHandoff.js').initialize()
 require('autoFile.js').initialize()
+require('bucketRail.js').initialize()
 
 // default searchbar plugins
 
