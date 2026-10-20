@@ -229,7 +229,8 @@ const tabBar = {
   },
 
   updateAll: function () {
-    if (!tabBar.containerInner) {
+    if (!tabBar.containerInner || typeof tabs === 'undefined') {
+      // tabs doesn't exist yet before the session is restored; restore re-renders anyway
       return
     }
     tabBar.containerInner.innerHTML = ''
