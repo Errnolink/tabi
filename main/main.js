@@ -1,6 +1,6 @@
 const electron = require('electron')
 const fs = require('fs')
-const path = require('path')
+const os = require('os')
 
 const {
   app, // Module to control application life.
@@ -189,8 +189,16 @@ function createWindow (customArgs = {}) {
   return createWindowWithBounds(bounds, customArgs)
 }
 
+function isWin11AcrylicSupported () {
+  if (process.platform !== 'win32') return false
+  const parts = os.release().split('.')
+  const build = parseInt(parts[2] || '0', 10)
+  return build >= 22621 && !settings.get('useSeparateTitlebar')
+}
+
 function createWindowWithBounds (bounds, customArgs) {
-  const newWin = new BaseWindow({
+  const isWin11Acrylic = isWin11AcrylicSupported()
+  const windowOptions = {
     width: bounds.width,
     height: bounds.height,
     x: bounds.x,
@@ -202,8 +210,13 @@ function createWindowWithBounds (bounds, customArgs) {
     icon: __dirname + '/icons/icon256.png',
     frame: settings.get('useSeparateTitlebar'),
     alwaysOnTop: settings.get('windowAlwaysOnTop'),
-    backgroundColor: '#fff', // the value of this is ignored, but setting it seems to work around https://github.com/electron/electron/issues/10559
-  })
+    backgroundColor: isWin11Acrylic ? '#00000000' : '#fff'
+  }
+  if (isWin11Acrylic) {
+    windowOptions.backgroundMaterial = 'acrylic'
+  }
+
+  const newWin = new BaseWindow(windowOptions)
 
   // windows and linux always use a menu button in the upper-left corner instead
   // if frame: false is set, this won't have any effect, but it does apply on Linux if "use separate titlebar" is enabled
@@ -230,9 +243,15 @@ function createWindowWithBounds (bounds, customArgs) {
     }
   })
   mainView.webContents.loadURL(browserPage)
+  if (isWin11Acrylic) {
+    mainView.setBackgroundColor('#00000000')
+  }
 
   if (bounds.maximized) {
     newWin.maximize()
+    if (isWin11Acrylic && typeof newWin.setBackgroundMaterial === 'function') {
+      newWin.setBackgroundMaterial('acrylic')
+    }
 
     mainView.webContents.once('did-finish-load', function () {
       sendIPCToWindow(newWin, 'maximize')
@@ -283,10 +302,16 @@ function createWindowWithBounds (bounds, customArgs) {
   })
 
   newWin.on('maximize', function () {
+    if (isWin11Acrylic && typeof newWin.setBackgroundMaterial === 'function') {
+      newWin.setBackgroundMaterial('acrylic')
+    }
     sendIPCToWindow(newWin, 'maximize')
   })
 
   newWin.on('unmaximize', function () {
+    if (isWin11Acrylic && typeof newWin.setBackgroundMaterial === 'function') {
+      newWin.setBackgroundMaterial('acrylic')
+    }
     sendIPCToWindow(newWin, 'unmaximize')
   })
   

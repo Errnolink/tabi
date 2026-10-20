@@ -3,8 +3,7 @@
   padding: 0;
   box-sizing: border-box;
   font-size: 16px;
-  font-family: ".SFNSText-Regular", "BlinkMacSystemFont", "Helvetica Neue",
-    "Segoe UI", "Arial", sans-serif;
+  font-family: var(--font-sans);
 }
 /* TODO figure out why the default focus color in Electron is orange */
 *:focus {
@@ -30,16 +29,16 @@ button {
 }
 body,
 html {
-  background-color: #fff;
-  color: #000;
+  background-color: transparent;
+  color: var(--sys-on-surface);
   height: 100%;
   overflow: hidden;
   -webkit-user-select: none;
 }
 
 body.dark-mode {
-  background-color: rgb(33, 37, 43);
-  color: lightgrey;
+  background-color: transparent;
+  color: var(--sys-on-surface);
 }
 
 h1,
