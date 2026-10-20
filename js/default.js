@@ -169,6 +169,7 @@ require('newTabPage.js').initialize()
 require('macHandoff.js').initialize()
 require('autoFile.js').initialize()
 require('bucketRail.js').initialize()
+require('discardInactive.js').initialize()
 
 // default searchbar plugins
 
