@@ -1,5 +1,4 @@
-/* global path, app, fs, ipc */
-const { pathToFileURL } = require('url')
+/* global path, app, fs, ipc, pathToFileURL */
 
 const THUMBNAIL_MAX_FILES = 300
 
