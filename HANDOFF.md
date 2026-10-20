@@ -42,6 +42,14 @@ npm run buildXb    # packages dist/app/xb-v<version>-windows-x64.zip (x64 portab
 6. Discard-inactive: when a bucket collapses or loses focus, destroy its hidden BrowserViews (tab objects keep URL; scroll position is lost — acceptable for v1), recreate on focus.
 7. Package Windows (electron-builder), hand to Chef with `code`.
 
+## Plan: sea glass overhaul (branch `feat/seaglass`, from 2026-10-20)
+
+Research: `Documents/research/xb-browser-ux/FINDINGS.md` (+ 01–05, inspo/). Chef's design target: @blueemi99's "sea glass" Material concept (frosted pastel pebbles, grain, tinted pointer-lit shadows).
+
+- Wave 1 (parallel, file ownership in the session contract): Shell (Gemini): tokens, acrylic window, thin toolbar, sidebar replacing the tab strip and bucket rail. Containers (GLM): per-tab partitions, registry, manager page. Extensions (GLM): electron-chrome-extensions per container, Web Store, toolbar actions. Overview (Gemini): disk thumbnails, masonry overview replacing the task overlay, view transitions.
+- Wave 2: sea-glass DOM menus (UI view raised above pages while open) with the full tab, bucket, link and image inventory; missing shortcuts (pin, tab search, Ctrl+1..9); integration polish.
+- Live verification is the main session's job only (agents do build + lint).
+
 ## Decisions log
 
 - 2026-10-20: fork Min over qutebrowser/Electron-scratch — cheapest path to buckets, engine bumps ride upstream. Jev wave-2: use-xcolumn 0.86 / min-fork 0.11; Chef chose building over adopting. XColumn kept as UX reference only.
@@ -54,3 +62,5 @@ npm run buildXb    # packages dist/app/xb-v<version>-windows-x64.zip (x64 portab
 - 2026-10-20: Control Panel for Twitter bundled (`84749a4`): script lives at `ext/userscripts/control-panel-for-twitter.user.js` (Greasy Fork v220, MIT, keep header for attribution); `main.js` passes `--app-path`; `userscripts.js` loadScripts() reads `ext/userscripts/` synchronously before the user-dir scan. Verify by eye on the Home / X tab (Following-forced timeline, promoted/upsell hidden).
 - 2026-10-20: discard-inactive (`js/discardInactive.js`): sweeps WebContentsViews of all tabs outside the selected bucket on bucket switch (1.5 s debounce) and every 60 s; skips private tabs and `tab.hasAudio`. Views recreate lazily via setView; scroll restored from tab state. Live from next app start.
 - 2026-10-20: subagent-spawned processes do not reliably outlive the subagent kernel — the RailPolish agent's "verified" instance died with its session while its windowless tree held the profile singleton lock, silently bouncing later launches (electron exits code 0 immediately). Recovery: `cmd /c "taskkill /F /IM electron.exe"` (xb-only; chrome.exe untouched) then relaunch from the main session. Rule: the main session owns the dev instance lifecycle; agents verify by build+lint+code inspection only.
+- 2026-10-20: overhaul decisions (Chef, via ask). Thin top toolbar, not an omnibox in the sidebar. Containers per tab, with a bucket default container (no x.com site rules: every account shares one domain). Night sea glass follows the dark-mode setting. Sea-glass DOM menus, not native ones. Extensions via electron-chrome-extensions: xb becomes GPL-3.0 (package.json + AGENTS.md updated in `d81e701`). Gemini agents run through `~/.omp/agent/agents/gemini.md` (gemini-3.1-pro, fallback 3.8-flash). The agent cap was raised to 4 for this work.
+- 2026-10-20: platform facts that shape the design. Pages are native views above the UI DOM, so glass is DWM acrylic on chrome only, and DOM menus need the UI view raised. CSS masonry (`grid-lanes`) is unshipped in Chromium 150, so the overview uses JS masonry. `View.setBounds(bounds, {animate})` exists in 43.4.1 (verified in `electron.d.ts`). uBlock Origin MV2 works, but Min's own `session.webRequest` filter must turn off when it is installed. uBO Lite is broken (static DNR rules never load).
