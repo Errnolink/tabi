@@ -1,143 +1,155 @@
-/* Sea Glass Pill Omnibox
- * Material 3 Expressive x Liquid Glass
- */
+/* omnibox: a frosted pebble aligned to the page card's left edge */
 
-#tab-editor.sea-glass-pill.omnibox {
-  flex: 1;
-  max-width: 720px;
-  height: 36px;
-  margin: 0 12px;
+#tab-editor {
   position: relative;
+  flex: 1;
+  max-width: 780px;
+  min-width: 160px;
+  height: 36px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  border-radius: var(--r-pill);
-  background: var(--glass-frost);
-  --glass-tint: var(--pebble-search);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  box-shadow: inset 0 1.5px 1px var(--rim-top),
-              inset 0 -2px 6px var(--rim-bottom),
-              inset 0 0 0 1px var(--rim-border);
+  gap: 6px;
+  padding: 0 6px 0 14px;
+  border-radius: 18px;
+  background: var(--pill-fill);
+  box-shadow:
+    inset 0 1px 0 var(--pill-rim),
+    inset 0 0 0 1px var(--pill-edge);
   cursor: text;
-  box-sizing: border-box;
-  transition: box-shadow var(--dur-effects) var(--spring-effects),
-              background var(--dur-effects) var(--spring-effects),
-              transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+  overflow: hidden;
+  transition:
+    background-color var(--dur-effects) var(--spring-effects),
+    box-shadow var(--dur-effects) var(--spring-effects),
+    border-radius var(--dur-spatial) var(--spring-spatial),
+    max-width var(--dur-spatial) var(--spring-spatial);
 }
 
 #tab-editor::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  pointer-events: none;
   background-image: var(--grain-tile);
   background-size: 64px 64px;
-  opacity: var(--grain-opacity);
+  opacity: calc(var(--grain-opacity) * 1.5);
   mix-blend-mode: overlay;
-  z-index: -1;
+  pointer-events: none;
 }
 
-#tab-editor::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: -2;
-  filter: blur(var(--shadow-blur));
-  background: var(--shadow-blob-tint);
-  transform: translate(var(--sx), var(--sy)) scale(0.96);
-  opacity: 0.8;
-  transition: transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+#tab-editor:hover {
+  background: color-mix(in srgb, var(--pill-fill), var(--chrome-ink) 4%);
 }
 
 #tab-editor.is-editing {
-  background: var(--glass-jewel);
-  box-shadow: inset 0 1.5px 1px var(--rim-top),
-              inset 0 -3px 8px var(--rim-bottom),
-              inset 0 0 0 1.5px color-mix(in srgb, var(--sys-primary) 65%, white 35%),
-              0 2px 14px rgba(0, 0, 0, 0.14);
+  max-width: 900px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--pill-fill), hsl(278 70% 72%) 10%);
+  box-shadow:
+    inset 0 1px 0 var(--pill-rim),
+    inset 0 0 0 1.5px hsl(278 70% 72% / 0.55),
+    0 10px 30px -12px hsl(278 70% 40% / 0.5);
 }
 
 .omnibox-search-icon {
   font-size: 15px;
-  color: var(--sys-on-surface-variant);
-  margin-right: 8px;
-  flex-shrink: 0;
+  color: var(--chrome-ink-faint);
+  flex: none;
   pointer-events: none;
+  transition: color var(--dur-effects) var(--spring-effects), transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+}
+
+#tab-editor.is-editing .omnibox-search-icon {
+  color: hsl(278 70% 72%);
+  transform: scale(1.08);
 }
 
 #tab-editor-input {
   flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
   font-size: 13.5px;
   font-family: var(--font-sans);
-  color: var(--sys-on-surface);
-  background: transparent;
+  letter-spacing: 0.005em;
+  color: var(--chrome-ink);
+  background: transparent !important;
   border: none;
   outline: none;
-  line-height: 20px;
-  -webkit-app-region: no-drag;
 }
 
-#tab-editor-input::-webkit-input-placeholder {
-  color: var(--sys-on-surface-variant);
-  opacity: 0.6;
+#tab-editor:not(.is-editing) #tab-editor-input {
+  color: var(--chrome-ink-muted);
+  pointer-events: none;
+}
+
+#tab-editor-input::placeholder {
+  color: var(--chrome-ink-faint);
 }
 
 #tab-editor .tab-editor-button {
-  padding: 0.35em;
-  border-radius: 50%;
-  color: var(--sys-on-surface-variant);
-  transition: background 0.15s, color 0.15s;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 9px;
+  font-size: 14px;
+  color: var(--chrome-ink-faint);
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity var(--dur-effects) var(--spring-effects),
+    transform var(--dur-spatial-fast) var(--spring-spatial-fast),
+    background-color var(--dur-effects) var(--spring-effects);
+}
+
+#tab-editor:hover .tab-editor-button,
+#tab-editor.is-editing .tab-editor-button {
+  opacity: 1;
+  transform: none;
 }
 
 #tab-editor .tab-editor-button:hover {
-  background-color: color-mix(in srgb, var(--sys-on-surface) 10%, transparent);
-  color: var(--sys-on-surface);
+  background: var(--chrome-hover);
+  color: var(--chrome-ink);
 }
 
-#tab-editor .tab-editor-button:not([hidden]) + .tab-editor-button:not([hidden]) {
-  margin-left: 0.25em;
-}
-
-/* ========================================================
-   Wavy Omnibox Loading Indicator
-   ======================================================== */
-
-.omnibox-progress-bar {
+.omnibox-progress {
   position: absolute;
+  left: 14px;
+  right: 14px;
   bottom: 0;
-  left: 16px;
-  right: 16px;
-  height: 6px;
+  height: 2px;
+  border-radius: 2px;
   overflow: hidden;
   pointer-events: none;
-  border-radius: 0 0 var(--r-pill) var(--r-pill);
 }
 
-.wavy-progress-svg {
-  width: 200%;
-  height: 100%;
-  display: block;
+.omnibox-progress::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, hsl(278 80% 74%), hsl(205 80% 70%), transparent);
+  animation: omnibox-sweep 1.15s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
 
-.wavy-progress-path {
-  fill: none;
-  stroke: var(--sys-primary);
-  stroke-width: 2.2px;
-  stroke-linecap: round;
-}
-
-@keyframes omniboxWave {
-  0% {
-    transform: translateX(0);
+@keyframes omnibox-sweep {
+  from {
+    transform: translateX(-100%);
   }
-  100% {
-    transform: translateX(-50%);
+  to {
+    transform: translateX(260%);
   }
 }
 
-.omnibox-progress-bar.is-loading .wavy-progress-svg {
-  animation: omniboxWave 1.4s linear infinite;
+@media (prefers-reduced-motion: reduce) {
+  .omnibox-progress::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
 }

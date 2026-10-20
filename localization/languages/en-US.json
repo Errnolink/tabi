@@ -76,6 +76,9 @@
     "viewTasks": "View Buckets",
     "newTask": "New Bucket", //"new" is a verb - it is used for a button at the bottom of the task overlay
     "defaultTaskName": "Bucket %n", //this is the name used for newly-created tasks; %n is replaced with a number ("task 1", "task 2", etc)
+    "searchTabs": "Search tabs",
+    "allTabs": "All",
+    "dropToCreateBucket": "Drop a tab here to start a new bucket",
     "taskDeleteWarning": {
       "unsafeHTML": "Bucket deleted. <a>Undo?</a>"
     },

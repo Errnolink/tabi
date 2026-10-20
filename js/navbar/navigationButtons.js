@@ -8,16 +8,10 @@ const navigationButtons = {
   isLoading: false,
   setLoading: function (loading) {
     navigationButtons.isLoading = loading
-    if (!navigationButtons.reloadButton) {
-      return
-    }
-    if (loading) {
-      navigationButtons.reloadButton.className = 'navbar-action-button i carbon:close'
-      navigationButtons.reloadButton.title = 'Stop'
-    } else {
-      navigationButtons.reloadButton.className = 'navbar-action-button i carbon:renew'
-      navigationButtons.reloadButton.title = 'Reload'
-    }
+    navigationButtons.reloadButton.classList.toggle('carbon:close', loading)
+    navigationButtons.reloadButton.classList.toggle('carbon:renew', !loading)
+    navigationButtons.reloadButton.classList.toggle('is-loading', loading)
+    navigationButtons.reloadButton.title = loading ? 'Stop' : 'Reload'
   },
   update: function () {
     const selectedId = tabs.getSelected()
@@ -61,36 +55,24 @@ const navigationButtons = {
       }
     })
 
-    if (navigationButtons.reloadButton) {
-      navigationButtons.reloadButton.addEventListener('click', function () {
-        const selectedId = tabs.getSelected()
-        if (!selectedId) {
-          return
-        }
-        if (navigationButtons.isLoading) {
-          webviews.callAsync(selectedId, 'stop')
-        } else {
-          webviews.callAsync(selectedId, 'reload')
-        }
-      })
+    navigationButtons.reloadButton.addEventListener('click', function () {
+      const selectedId = tabs.getSelected()
+      if (!selectedId) {
+        return
+      }
+      webviews.callAsync(selectedId, navigationButtons.isLoading ? 'stop' : 'reload')
+    })
+
+    function syncLoading () {
+      navigationButtons.setLoading(webviews.isLoading(tabs.getSelected()))
     }
 
-    webviews.bindEvent('did-start-loading', function (tabId) {
-      if (tabId === tabs.getSelected()) {
-        navigationButtons.setLoading(true)
-      }
-    })
+    webviews.bindEvent('did-start-loading', syncLoading)
+    webviews.bindEvent('did-stop-loading', syncLoading)
 
-    webviews.bindEvent('did-stop-loading', function (tabId) {
-      if (tabId === tabs.getSelected()) {
-        navigationButtons.setLoading(false)
-      }
-    })
-
-    tasks.on('tab-selected', function (tabId) {
+    tasks.on('tab-selected', function () {
       navigationButtons.update()
-      const tab = tabs.get(tabId)
-      navigationButtons.setLoading(tab ? tab.loaded === false : false)
+      syncLoading()
     })
 
     webviews.bindEvent('did-navigate', navigationButtons.update)

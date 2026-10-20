@@ -288,9 +288,18 @@ function setView (id, senderContents) {
   }
 }
 
-function setBounds (id, bounds) {
-  if (viewMap[id]) {
-    viewMap[id].setBounds(bounds)
+function setBounds (id, bounds, options) {
+  var view = viewMap[id]
+  if (!view) {
+    return
+  }
+  if (options && typeof options.radius === 'number') {
+    view.setBorderRadius(options.radius)
+  }
+  if (options && options.animate) {
+    view.setBounds(bounds, { animate: { duration: 380, easing: 'ease-out' } })
+  } else {
+    view.setBounds(bounds)
   }
 }
 
@@ -349,7 +358,7 @@ ipc.on('destroyAllViews', function () {
 
 ipc.on('setView', function (e, args) {
   setView(args.id, e.sender)
-  setBounds(args.id, args.bounds)
+  setBounds(args.id, args.bounds, args)
   if (args.focus && BrowserWindow.fromWebContents(e.sender) && BrowserWindow.fromWebContents(e.sender).isFocused()) {
     const couldFocus = focusView(args.id)
     if (!couldFocus) {
@@ -359,7 +368,7 @@ ipc.on('setView', function (e, args) {
 })
 
 ipc.on('setBounds', function (e, args) {
-  setBounds(args.id, args.bounds)
+  setBounds(args.id, args.bounds, args)
 })
 
 ipc.on('focusView', function (e, id) {
@@ -459,22 +468,10 @@ ipc.on('getCapture', function (e, data) {
     if (size.width === 0 && size.height === 0) {
       return
     }
-    if (typeof thumbnailManager !== 'undefined' && thumbnailManager.save) {
-      var result = thumbnailManager.save(data.id, img)
-      if (result) {
-        e.sender.send('captureData', {
-          id: data.id,
-          url: result.dataUrl,
-          fileUrl: result.fileUrl,
-          path: result.filePath
-        })
-        return
-      }
+    var result = thumbnailManager.save(data.id, img)
+    if (result) {
+      e.sender.send('captureData', { id: data.id, url: result.dataUrl })
     }
-    var previewWidth = data.width || 480
-    var previewHeight = data.height || Math.round((previewWidth * size.height) / size.width)
-    img = img.resize({ width: previewWidth, height: previewHeight, quality: 'good' })
-    e.sender.send('captureData', { id: data.id, url: img.toDataURL() })
   }).catch(function (err) {
     console.error('Error capturing page for tab ' + data.id + ':', err)
   })

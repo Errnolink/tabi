@@ -34,7 +34,6 @@
     "@material/material-color-utilities": "^0.4.0",
     "chokidar": "^3.6.0",
     "dexie": "^3.0.3",
-    "dragula": "github:minbrowser/dragula",
     "electron-chrome-context-menu": "^1.1.0",
     "electron-chrome-extensions": "^4.9.0",
     "electron-chrome-web-store": "^0.13.0",

@@ -1,4 +1,4 @@
-/* global path, app, fs, ipc, pathToFileURL */
+/* global path, app, fs, ipc */
 
 const THUMBNAIL_MAX_FILES = 300
 
@@ -22,12 +22,6 @@ const thumbnailManager = {
 
   getFilePath: function (tabId) {
     return path.join(this.getDir(), `${tabId}.jpg`)
-  },
-
-  getFileUrl: function (tabId, timestamp) {
-    const filePath = this.getFilePath(tabId)
-    const t = timestamp || Date.now()
-    return pathToFileURL(filePath).href + '?t=' + t
   },
 
   initLRU: function () {
@@ -79,31 +73,16 @@ const thumbnailManager = {
       return null
     }
 
-    try {
-      // High-res preview for in-memory placeholder
-      const placeholderImg = nativeImg.resize({ width: 480, quality: 'good' })
-      const jpegBuffer = placeholderImg.toJPEG(70)
-      const dataUrl = 'data:image/jpeg;base64,' + jpegBuffer.toString('base64')
-
-      const filePath = this.getFilePath(tabId)
-      fs.writeFileSync(filePath, jpegBuffer)
-
-      const now = Date.now()
-      this.lruMap.delete(tabId)
-      this.lruMap.set(tabId, now)
-      this.pruneLRU()
-
-      const fileUrl = pathToFileURL(filePath).href + '?t=' + now
-
-      return {
-        dataUrl: dataUrl,
-        fileUrl: fileUrl,
-        filePath: filePath
-      }
-    } catch (err) {
+    const jpeg = nativeImg.resize({ width: 560, quality: 'good' }).toJPEG(78)
+    fs.promises.writeFile(this.getFilePath(tabId), jpeg).catch(function (err) {
       console.error('Failed to save thumbnail for tab ' + tabId + ':', err)
-      return null
-    }
+    })
+
+    this.lruMap.delete(tabId)
+    this.lruMap.set(tabId, Date.now())
+    this.pruneLRU()
+
+    return { dataUrl: 'data:image/jpeg;base64,' + jpeg.toString('base64') }
   },
 
   delete: function (tabId) {

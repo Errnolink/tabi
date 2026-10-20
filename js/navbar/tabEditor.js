@@ -93,39 +93,17 @@ const tabEditor = {
 
     keyboardNavigationHelper.addToGroup('searchbar', tabEditor.container)
 
-    const progressBar = tabEditor.container.querySelector('.omnibox-progress-bar')
-    function setProgressLoading (loading) {
-      if (!progressBar) {
-        return
-      }
-      if (loading) {
-        progressBar.hidden = false
-        progressBar.classList.add('is-loading')
-      } else {
-        progressBar.classList.remove('is-loading')
-        setTimeout(function () {
-          if (!progressBar.classList.contains('is-loading')) {
-            progressBar.hidden = true
-          }
-        }, 400)
-      }
+    const progress = tabEditor.container.querySelector('.omnibox-progress')
+    function syncProgress () {
+      progress.hidden = !webviews.isLoading(tabs.getSelected())
     }
 
-    webviews.bindEvent('did-start-loading', function (tabId) {
-      if (tabId === tabs.getSelected()) {
-        setProgressLoading(true)
-      }
-    })
-
-    webviews.bindEvent('did-stop-loading', function (tabId) {
-      if (tabId === tabs.getSelected()) {
-        setProgressLoading(false)
-      }
-    })
+    webviews.bindEvent('did-start-loading', syncProgress)
+    webviews.bindEvent('did-stop-loading', syncProgress)
 
     tasks.on('tab-selected', function (id) {
       tabEditor.updateDisplay(id)
-      setProgressLoading(false)
+      syncProgress()
     })
 
     tasks.on('tab-updated', function (id, key) {

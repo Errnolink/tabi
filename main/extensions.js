@@ -131,7 +131,12 @@ ipc.on('extension-tab-created', function (e, data) {
   check()
 })
 
+var extensionsNotifying = false
+
 function extensionSelectTab (tab, window) {
+  if (extensionsNotifying) {
+    return
+  }
   var tabId = getTabIDFromWebContents(tab)
   var win = window || windows.getCurrent()
   if (tabId == null || !win) {
@@ -140,7 +145,12 @@ function extensionSelectTab (tab, window) {
   sendIPCToWindow(win, 'extension-select-tab', { tabId: tabId })
 }
 
+var extensionsReleasingViews = new WeakSet()
+
 function extensionRemoveTab (tab, window) {
+  if (tab.isDestroyed() || extensionsReleasingViews.has(tab)) {
+    return
+  }
   var tabId = getTabIDFromWebContents(tab)
   var win = window || windows.getCurrent()
   if (tabId == null || !win) {
@@ -168,18 +178,28 @@ function extensionRemoveWindow (win) {
 
 /* hooks called from main/viewManager.js */
 
+function extensionsNotify (fn) {
+  extensionsNotifying = true
+  try {
+    fn()
+  } finally {
+    extensionsNotifying = false
+  }
+}
+
 function extensionsRegisterView (view, partition) {
   var instance = extensionInstances[partition]
   var win = windows.getCurrent()
   if (!instance || !win) {
     return
   }
-  instance.addTab(view.webContents, win)
+  extensionsNotify(() => instance.addTab(view.webContents, win))
 }
 
 function extensionsUnregisterView (view) {
   var instance = ElectronChromeExtensions.fromSession(view.webContents.session)
   if (instance) {
+    extensionsReleasingViews.add(view.webContents)
     instance.removeTab(view.webContents)
   }
 }
@@ -187,7 +207,7 @@ function extensionsUnregisterView (view) {
 function extensionsNotifyViewSelected (view) {
   var instance = ElectronChromeExtensions.fromSession(view.webContents.session)
   if (instance) {
-    instance.selectTab(view.webContents)
+    extensionsNotify(() => instance.selectTab(view.webContents))
   }
 }
 

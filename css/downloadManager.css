@@ -35,11 +35,6 @@
   z-index: -1;
 }
 
-body.sidebar-collapsed #download-bar {
-  left: 72px;
-  max-width: calc(100vw - 88px);
-}
-
 #download-container {
   display: flex;
   flex: 1;

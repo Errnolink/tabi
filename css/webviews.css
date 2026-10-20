@@ -1,7 +1,3 @@
-#webviews {
-  height: calc(100vh - 36px - var(--control-space-top));
-  position: relative;
-}
 
 .arrow-indicator {
   width: 140px;
@@ -44,16 +40,20 @@
 }
 
 #webview-placeholder {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  /* the built-in blur() function creates white edges around the image, avoid this by using an SVG filter. Source:
-	https://codepen.io/tigt/post/fixing-the-white-glow-in-the-css-blur-filter#comment-id-6373
-	https://jsbin.com/kupaqa/edit?html,css,output
-	*/
-  filter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='6' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E %3C/svg%3E#a");
-  background: #fff;
-  position: absolute;
-  top: 0;
-  left: 0;
+  object-fit: cover;
+  filter: blur(14px) saturate(1.25) brightness(0.82);
+  transform: scale(1.04);
   z-index: 1;
+  animation: placeholder-in var(--dur-effects-slow) var(--spring-effects) both;
+}
+
+@keyframes placeholder-in {
+  from {
+    filter: blur(0) saturate(1) brightness(1);
+    transform: none;
+  }
 }

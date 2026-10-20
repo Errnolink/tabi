@@ -1,14 +1,11 @@
 var urlParser = require('util/urlParser.js')
 var settings = require('util/settings/settings.js')
 var containers = require('containers.js')
+var shellLayout = require('shellLayout.js')
 
 /* implements selecting webviews, switching between them, and creating new ones. */
 
 var placeholderImg = document.getElementById('webview-placeholder')
-
-var hasSeparateTitlebar = settings.get('useSeparateTitlebar')
-var windowIsMaximized = false // affects navbar height on Windows
-var windowIsFullscreen = false
 
 function captureTab (tabId, options) {
   if (!tabId) {
@@ -165,38 +162,18 @@ const webviews = {
         width: window.innerWidth,
         height: window.innerHeight
       }
-    } else {
-      const navbar = document.getElementById('navbar')
-      let navbarHeight = navbar ? navbar.offsetHeight : 44
-      if (!navbar) {
-        if (!hasSeparateTitlebar && (window.platformType === 'linux' || window.platformType === 'windows') && !windowIsMaximized && !windowIsFullscreen) {
-          navbarHeight = 56
-        } else {
-          navbarHeight = 44
-        }
-      }
-
-      const viewMargins = webviews.viewMargins
-
-      const sidebar = document.getElementById('sidebar')
-      let sidebarWidth = 0
-      if (sidebar) {
-        if (sidebar.classList.contains('sidebar-collapsed')) {
-          sidebarWidth = 56
-        } else {
-          sidebarWidth = sidebar.offsetWidth || 260
-        }
-      }
-
-      const position = {
-        x: sidebarWidth + Math.round(viewMargins[3]),
-        y: 0 + Math.round(viewMargins[0]) + navbarHeight,
-        width: window.innerWidth - sidebarWidth - Math.round(viewMargins[1] + viewMargins[3]),
-        height: window.innerHeight - Math.round(viewMargins[0] + viewMargins[2]) - navbarHeight
-      }
-
-      return position
     }
+    const rect = shellLayout.pageRect()
+    const viewMargins = webviews.viewMargins
+    return {
+      x: rect.x + Math.round(viewMargins[3]),
+      y: rect.y + Math.round(viewMargins[0]),
+      width: Math.max(0, rect.width - Math.round(viewMargins[1] + viewMargins[3])),
+      height: Math.max(0, rect.height - Math.round(viewMargins[0] + viewMargins[2]))
+    }
+  },
+  getViewRadius: function () {
+    return webviews.viewFullscreenMap[webviews.selectedId] ? 0 : shellLayout.pageRadius
   },
   add: function (tabId, existingViewId) {
     var tabData = tabs.get(tabId)
@@ -265,6 +242,7 @@ const webviews = {
     ipc.send('setView', {
       id: id,
       bounds: webviews.getViewBounds(),
+      radius: webviews.getViewRadius(),
       focus: !options || options.focus !== false
     })
     webviews.emitEvent('view-shown', id)
@@ -272,7 +250,12 @@ const webviews = {
   update: function (id, url) {
     ipc.send('loadURLInView', { id: id, url: urlParser.parse(url) })
   },
+  loadingTabs: new Set(),
+  isLoading: function (id) {
+    return webviews.loadingTabs.has(id)
+  },
   destroy: function (id) {
+    webviews.loadingTabs.delete(id)
     webviews.emitEvent('view-hidden', id)
 
     if (webviews.hasViewForTab(id)) {
@@ -326,6 +309,7 @@ const webviews = {
         ipc.send('setView', {
           id: webviews.selectedId,
           bounds: webviews.getViewBounds(),
+          radius: webviews.getViewRadius(),
           focus: true
         })
         webviews.emitEvent('view-shown', webviews.selectedId)
@@ -346,8 +330,13 @@ const webviews = {
       ipc.send('focusView', webviews.selectedId)
     }
   },
-  resize: function () {
-    ipc.send('setBounds', { id: webviews.selectedId, bounds: webviews.getViewBounds() })
+  resize: function (options) {
+    ipc.send('setBounds', {
+      id: webviews.selectedId,
+      bounds: webviews.getViewBounds(),
+      radius: webviews.getViewRadius(),
+      animate: !!(options && options.animate)
+    })
   },
   goBackIgnoringRedirects: async function (id) {
     const navHistory = await webviews.getNavigationHistory(id)
@@ -424,29 +413,37 @@ webviews.bindEvent('leave-html-full-screen', function (tabId) {
 })
 
 ipc.on('maximize', function () {
-  windowIsMaximized = true
   webviews.resize()
 })
 
 ipc.on('unmaximize', function () {
-  windowIsMaximized = false
   webviews.resize()
 })
 
 ipc.on('enter-full-screen', function () {
-  windowIsFullscreen = true
   webviews.resize()
 })
 
 ipc.on('leave-full-screen', function () {
-  windowIsFullscreen = false
   webviews.resize()
+})
+
+shellLayout.onChange(function (options) {
+  webviews.resize(options)
 })
 
 webviews.bindEvent('did-start-navigation', onNavigate)
 webviews.bindEvent('will-redirect', onNavigate)
 webviews.bindEvent('did-navigate', function (tabId, url, httpResponseCode, httpStatusText) {
   onPageURLChange(tabId, url)
+})
+
+webviews.bindEvent('did-start-loading', function (tabId) {
+  webviews.loadingTabs.add(tabId)
+})
+
+webviews.bindEvent('did-stop-loading', function (tabId) {
+  webviews.loadingTabs.delete(tabId)
 })
 
 webviews.bindEvent('did-finish-load', onPageLoad)
@@ -544,11 +541,11 @@ setInterval(function () {
 }, 15000)
 
 ipc.on('captureData', function (e, data) {
-  tabs.update(data.id, {
-    previewImage: data.url,
-    thumbnailUrl: data.fileUrl || data.url,
-    thumbnailPath: data.path || null
-  })
+  const task = tasks.getTaskContainingTab(data.id)
+  if (!task) {
+    return
+  }
+  task.tabs.update(data.id, { previewImage: data.url, thumbnailTime: Date.now() })
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
     placeholderImg.src = data.url
     placeholderImg.hidden = false

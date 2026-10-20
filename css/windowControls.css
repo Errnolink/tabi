@@ -9,22 +9,25 @@ body {
   display: none;
 }
 
-body.windows:not(.maximized):not(.fullscreen):not(.separate-titlebar),
 body.linux:not(.maximized):not(.fullscreen):not(.separate-titlebar) {
   --control-space-top: 12px;
 }
 
-/* On Windows, draggable regions aren't clickable, so the drag region is a separate area above the tabstrip */
-body.windows:not(.maximized):not(.fullscreen):not(.separate-titlebar) .window-drag-area,
 body.linux:not(.maximized):not(.fullscreen):not(.separate-titlebar) .window-drag-area {
   display: block;
   position: fixed;
-  /* leave an empty space around the edges of the drag area so that the window can be resized */
   top: 3px;
   left: 3px;
   width: calc(100% - 6px);
   height: 12px;
   -webkit-app-region: drag;
+}
+
+body.windows:not(.maximized):not(.fullscreen) #navbar {
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  height: calc(var(--toolbar-height) - 3px);
 }
 
 body.mac:not(.separate-titlebar):not(.fullscreen) .window-drag-area {
@@ -67,53 +70,51 @@ body.windows:not(.separate-titlebar) {
 
 body.windows:not(.separate-titlebar) .windows-caption-buttons {
   display: flex;
-  position: absolute;
-  top: var(--control-space-top);
+  position: fixed;
+  top: 0;
   right: 0;
-  z-index: 10;
+  z-index: 30;
+  -webkit-app-region: no-drag;
 }
 
 .windows-caption-buttons .element {
-  line-height: var(--toolbar-height, 44px);
-  width: 44px;
-  height: var(--toolbar-height, 44px);
+  width: 46px;
+  height: var(--toolbar-height);
   display: flex;
   align-items: center;
   justify-content: center;
-  stroke: var(--sys-on-surface);
+  stroke: var(--chrome-ink);
   box-sizing: border-box;
   fill: transparent;
-  cursor: pointer;
+  cursor: default;
+  opacity: 0.75;
 }
 
-body.dark-mode .windows-caption-buttons .element {
-  stroke: var(--sys-on-surface);
-}
 .windows-caption-buttons .element > svg {
   width: 12px;
   height: 12px;
+  stroke-width: 1px;
 }
 
 .windows-caption-buttons .element {
-  transition: background-color 0.1s linear, color 0.1s linear;
+  transition: background-color var(--dur-effects) var(--spring-effects), opacity var(--dur-effects) var(--spring-effects);
 }
 .windows-caption-buttons .element:hover {
-  background-color: rgba(196, 196, 196, 0.4);
-  transition: none;
+  background-color: var(--chrome-hover);
+  opacity: 1;
 }
 .windows-caption-buttons .element:active {
-  background-color: rgba(168, 168, 168, 0.5);
+  background-color: var(--chrome-press);
 }
 .windows-caption-buttons .element.caption-close:hover {
-  background-color: #e81123;
+  background-color: #c42b1c;
 }
 .windows-caption-buttons .element.caption-close:hover > svg,
 .windows-caption-buttons .element.caption-close:active > svg {
   stroke: #fff;
-  stroke-width: 1.1px;
 }
 .windows-caption-buttons .element.caption-close:active {
-  background-color: rgba(232, 17, 35, 0.6);
+  background-color: rgb(196 43 28 / 0.7);
 }
 
 /* Linux buttons */

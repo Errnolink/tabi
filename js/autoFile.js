@@ -62,7 +62,7 @@ function taskForRule (rule) {
   if (existing) {
     return existing
   }
-  return tasks.add({ name: rule.name })
+  return tasks.get(tasks.add({ name: rule.name }))
 }
 
 function fileTab (tabId) {

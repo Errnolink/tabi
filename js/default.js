@@ -167,7 +167,6 @@ require('bookmarkConverter.js').initialize()
 require('newTabPage.js').initialize()
 require('macHandoff.js').initialize()
 require('autoFile.js').initialize()
-require('seaglass/light.js').initialize()
 require('discardInactive.js').initialize()
 require('extensionsToolbar.js').initialize()
 

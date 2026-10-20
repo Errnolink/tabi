@@ -1,441 +1,587 @@
 const EventEmitter = require('events')
-const dragula = require('dragula')
+const Sortable = require('sortablejs')
 const webviews = require('webviews.js')
-const readerView = require('readerView.js')
-const tabAudio = require('tabAudio.js')
-const settings = require('util/settings/settings.js')
 const urlParser = require('util/urlParser.js')
 const tabEditor = require('navbar/tabEditor.js')
 const permissionRequests = require('navbar/permissionRequests.js')
 const containers = require('containers.js')
+const shellLayout = require('shellLayout.js')
 
-function getContainerColor (containerId) {
-  if (containers && typeof containers.get === 'function') {
-    try {
-      const c = containers.get(containerId)
-      if (c && c.color) {
-        return c.color
-      }
-    } catch (e) {}
-  }
-  return null
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+function cssVar (name) {
+  return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
-const collapsedBuckets = new Set()
+const motion = {
+  spatial: null,
+  spatialFast: null,
+  effects: null,
+  load: function () {
+    motion.spatial = cssVar('--spring-spatial') || 'cubic-bezier(.2,.9,.3,1)'
+    motion.spatialFast = cssVar('--spring-spatial-fast') || motion.spatial
+    motion.effects = cssVar('--spring-effects') || 'ease-out'
+  }
+}
+
+function browserUI () {
+  return require('browserUI.js')
+}
+
+function findTab (tabId) {
+  const task = tasks.getTaskContainingTab(tabId)
+  return task ? { task, tab: task.tabs.get(tabId) } : null
+}
+
+function isNewTabUrl (url) {
+  return !url || url === urlParser.parse('min://newtab')
+}
+
+function tabTitle (tab) {
+  if (isNewTabUrl(tab.url)) {
+    return l('newTabLabel') || 'New Tab'
+  }
+  return (tab.title || (tab.loaded ? tab.url : '') || l('newTabLabel') || 'New Tab').substring(0, 300)
+}
+
+function bucketName (task, index) {
+  return task.name || (l('defaultTaskName') || 'Bucket %n').replace('%n', index + 1)
+}
+
+const rows = new Map()
+const buckets = new Map()
+const leaving = new Set()
 let renamingTaskId = null
+let dragging = false
+let renderQueued = false
+let indicatorPlaced = false
 
 const tabBar = {
-  navBar: document.getElementById('navbar'),
   container: document.getElementById('sidebar'),
-  containerInner: document.getElementById('sidebar-buckets'),
-  tabElementMap: {},
+  containerInner: document.getElementById('tabs-inner'),
+  indicator: null,
   events: new EventEmitter(),
-  dragulaInstance: null,
-  sidebarWidth: 260,
-  isCollapsed: false,
 
   getTab: function (tabId) {
-    return tabBar.tabElementMap[tabId]
-  },
-  getTabInput: function (tabId) {
-    const tabEl = tabBar.getTab(tabId)
-    return tabEl ? tabEl.querySelector('.tab-input') : null
-  },
-  setActiveTab: function (tabId) {
-    const prevActive = document.querySelector('.tab-item.active')
-    if (prevActive) {
-      prevActive.classList.remove('active')
-      prevActive.removeAttribute('aria-selected')
-    }
-
-    const el = tabBar.getTab(tabId)
-    if (!el) {
-      return
-    }
-
-    el.classList.add('active')
-    el.setAttribute('aria-selected', 'true')
-
-    // If tab is inside a collapsed bucket, uncollapse that bucket
-    const bucketEl = el.closest('.sidebar-bucket')
-    if (bucketEl && bucketEl.classList.contains('collapsed')) {
-      const taskId = bucketEl.getAttribute('data-task')
-      collapsedBuckets.delete(taskId)
-      bucketEl.classList.remove('collapsed')
-    }
-
-    requestAnimationFrame(function () {
-      if (el.scrollIntoViewIfNeeded) {
-        el.scrollIntoViewIfNeeded()
-      } else {
-        el.scrollIntoView({ block: 'nearest' })
-      }
-    })
+    const row = rows.get(tabId)
+    return row ? row.el : undefined
   },
 
-  createTab: function (data, taskId) {
-    const tabEl = document.createElement('div')
-    tabEl.className = 'tab-item'
-    tabEl.setAttribute('data-tab', data.id)
-    tabEl.setAttribute('role', 'tab')
+  createRow: function (tabId) {
+    const el = document.createElement('div')
+    el.className = 'tab-item'
+    el.setAttribute('role', 'tab')
+    el.setAttribute('data-tab', tabId)
 
-    const containerId = data.containerId || 'default'
-    tabEl.setAttribute('data-container', containerId)
-
-    // Container color stripe
     const stripe = document.createElement('span')
-    stripe.className = 'tab-container-stripe'
-    const color = getContainerColor(containerId)
-    if (color) {
-      stripe.style.backgroundColor = color
-    }
-    tabEl.appendChild(stripe)
+    stripe.className = 'tab-stripe'
 
-    // Favicon
+    const icon = document.createElement('span')
+    icon.className = 'tab-icon'
     const favicon = document.createElement('img')
     favicon.className = 'tab-favicon'
-    if (data.favicon && data.favicon.url) {
-      favicon.src = data.favicon.url
-    } else {
-      favicon.style.display = 'none'
-    }
+    favicon.decoding = 'async'
     favicon.addEventListener('error', function () {
-      favicon.style.display = 'none'
+      icon.classList.add('no-favicon')
     })
-    tabEl.appendChild(favicon)
+    favicon.addEventListener('load', function () {
+      icon.classList.remove('no-favicon')
+    })
+    const glyph = document.createElement('span')
+    glyph.className = 'tab-glyph'
+    icon.appendChild(favicon)
+    icon.appendChild(glyph)
 
-    // Reader button if available
-    try {
-      const readerBtn = readerView.getButton(data.id)
-      if (readerBtn) {
-        tabEl.appendChild(readerBtn)
-      }
-    } catch (e) {}
+    const permissions = document.createElement('span')
+    permissions.className = 'tab-permissions'
 
-    // Audio / mute indicator
-    try {
-      const audioBtn = tabAudio.getButton(data.id)
-      if (audioBtn) {
-        tabEl.appendChild(audioBtn)
-      }
-    } catch (e) {}
+    const title = document.createElement('span')
+    title.className = 'tab-title'
 
-    // Title
-    const titleEl = document.createElement('span')
-    titleEl.className = 'tab-title'
-    tabEl.appendChild(titleEl)
-
-    // Close button
-    const closeBtn = document.createElement('button')
-    closeBtn.className = 'tab-close-button i carbon:close'
-    closeBtn.title = l('closeTab') || 'Close'
-    closeBtn.setAttribute('tabindex', '-1')
-    closeBtn.addEventListener('click', function (e) {
+    const audio = document.createElement('button')
+    audio.className = 'tab-audio i'
+    audio.tabIndex = -1
+    audio.addEventListener('click', function (e) {
       e.stopPropagation()
-      tabBar.events.emit('tab-closed', data.id)
+      const found = findTab(tabId)
+      if (found && (found.tab.hasAudio || found.tab.muted)) {
+        webviews.callAsync(tabId, 'setAudioMuted', !found.tab.muted)
+        found.task.tabs.update(tabId, { muted: !found.tab.muted })
+      }
     })
-    tabEl.appendChild(closeBtn)
 
-    // Click to switch or focus omnibox
-    tabEl.addEventListener('click', function () {
-      if (tabs.getSelected() !== data.id) {
-        if (taskId) {
-          const browserUI = require('browserUI.js')
-          browserUI.switchToTask(taskId)
-        }
-        tabBar.events.emit('tab-selected', data.id)
+    const close = document.createElement('button')
+    close.className = 'tab-close i carbon:close'
+    close.tabIndex = -1
+    close.title = l('closeTab') || 'Close'
+    close.addEventListener('click', function (e) {
+      e.stopPropagation()
+      tabBar.events.emit('tab-closed', tabId)
+    })
+
+    el.append(stripe, icon, permissions, title, audio, close)
+
+    el.addEventListener('click', function () {
+      const found = findTab(tabId)
+      if (!found) {
+        return
+      }
+      if (tasks.getSelected().id !== found.task.id) {
+        browserUI().switchToTask(found.task.id)
+      }
+      if (tabs.getSelected() !== tabId) {
+        tabBar.events.emit('tab-selected', tabId)
       } else {
-        tabEditor.show(data.id)
+        tabEditor.show(tabId)
       }
     })
 
-    // Middle click to close tab
-    tabEl.addEventListener('auxclick', function (e) {
-      if (e.which === 2) {
-        tabBar.events.emit('tab-closed', data.id)
+    el.addEventListener('auxclick', function (e) {
+      if (e.button === 1) {
+        e.preventDefault()
+        tabBar.events.emit('tab-closed', tabId)
       }
     })
 
-    tabBar.tabElementMap[data.id] = tabEl
-    tabBar.updateTab(data.id, tabEl)
+    el.addEventListener('mousedown', function (e) {
+      if (e.button === 1) {
+        e.preventDefault()
+      }
+    })
 
-    return tabEl
+    const row = { el, stripe, icon, favicon, glyph, permissions, title, audio, close, faviconUrl: undefined }
+    rows.set(tabId, row)
+    return row
   },
 
-  updateTab: function (tabId, tabEl = tabBar.getTab(tabId)) {
-    if (!tabEl) {
+  updateTab: function (tabId) {
+    const row = rows.get(tabId)
+    const found = findTab(tabId)
+    if (!row || !found) {
       return
     }
-    const tabData = tabs.get(tabId)
-    if (!tabData) {
-      return
+    const tab = found.tab
+
+    const text = tabTitle(tab)
+    if (row.title.textContent !== text) {
+      row.title.textContent = text
+      row.el.title = text
     }
 
-    let tabTitle
-    const isNewTab = tabData.url === '' || tabData.url === urlParser.parse('min://newtab')
-    if (isNewTab) {
-      tabTitle = l('newTabLabel') || 'New Tab'
-    } else if (tabData.title) {
-      tabTitle = tabData.title
-    } else if (tabData.loaded) {
-      tabTitle = tabData.url
-    }
-
-    tabTitle = (tabTitle || l('newTabLabel') || 'New Tab').substring(0, 500)
-
-    const titleEl = tabEl.querySelector('.tab-title')
-    if (titleEl) {
-      titleEl.textContent = tabTitle
-    }
-    tabEl.title = tabTitle
-
-    // Favicon update
-    const favicon = tabEl.querySelector('.tab-favicon')
-    if (favicon) {
-      if (tabData.favicon && tabData.favicon.url) {
-        favicon.src = tabData.favicon.url
-        favicon.style.display = ''
+    const faviconUrl = tab.favicon && tab.favicon.url ? tab.favicon.url : null
+    if (faviconUrl !== row.faviconUrl) {
+      row.faviconUrl = faviconUrl
+      if (faviconUrl) {
+        row.favicon.src = faviconUrl
       } else {
-        favicon.style.display = 'none'
+        row.favicon.removeAttribute('src')
+        row.icon.classList.add('no-favicon')
       }
     }
-
-    // Container stripe
-    const containerId = tabData.containerId || 'default'
-    tabEl.setAttribute('data-container', containerId)
-    const stripe = tabEl.querySelector('.tab-container-stripe')
-    if (stripe) {
-      const color = getContainerColor(containerId)
-      if (color) {
-        stripe.style.backgroundColor = color
-      } else {
-        stripe.style.backgroundColor = 'transparent'
-      }
-    }
-
-    // Audio button update
-    const audioBtn = tabEl.querySelector('.tab-audio-button')
-    if (audioBtn) {
-      tabAudio.updateButton(tabId, audioBtn)
-    }
-
-    // Insecure / permission icons
-    tabEl.querySelectorAll('.permission-request-icon').forEach(el => el.remove())
+    let host = ''
     try {
-      permissionRequests.getButtons(tabId).reverse().forEach(function (button) {
-        tabEl.insertBefore(button, tabEl.children[0])
-      })
+      host = tab.url && !isNewTabUrl(tab.url) ? new URL(tab.url).hostname.replace(/^www\./, '') : ''
     } catch (e) {}
+    row.glyph.textContent = host ? host[0].toUpperCase() : '+'
+
+    row.el.classList.toggle('is-new', isNewTabUrl(tab.url))
+    row.el.classList.toggle('loading', webviews.isLoading(tabId))
+    row.el.classList.toggle('private', !!tab.private)
+
+    const containerId = tab.containerId || 'default'
+    row.el.setAttribute('data-container', containerId)
+    const container = containers.get(containerId)
+    const showStripe = container && container.id !== 'default'
+    row.el.classList.toggle('has-container', !!showStripe)
+    row.stripe.style.backgroundColor = showStripe ? container.color : ''
+    row.stripe.title = showStripe ? container.name : ''
+
+    const audioState = tab.muted ? 'muted' : (tab.hasAudio ? 'playing' : '')
+    if (row.audio.dataset.state !== audioState) {
+      row.audio.dataset.state = audioState
+      row.audio.classList.toggle('carbon:volume-mute', audioState === 'muted')
+      row.audio.classList.toggle('carbon:volume-up', audioState === 'playing')
+    }
+
+    row.permissions.textContent = ''
+    if (tasks.getSelected() && tasks.getSelected().id === found.task.id) {
+      try {
+        permissionRequests.getButtons(tabId).forEach(button => row.permissions.appendChild(button))
+      } catch (e) {}
+    }
+  },
+
+  createBucket: function (taskId) {
+    const el = document.createElement('section')
+    el.className = 'bucket'
+    el.setAttribute('data-task', taskId)
+
+    const head = document.createElement('div')
+    head.className = 'bucket-head'
+
+    const chevron = document.createElement('button')
+    chevron.className = 'bucket-chevron i carbon:chevron-down'
+    chevron.tabIndex = -1
+
+    const dot = document.createElement('span')
+    dot.className = 'bucket-dot'
+
+    const name = document.createElement('span')
+    name.className = 'bucket-name'
+
+    const count = document.createElement('span')
+    count.className = 'bucket-count'
+
+    const add = document.createElement('button')
+    add.className = 'bucket-add i carbon:add'
+    add.tabIndex = -1
+    add.title = l('newTabAction') || 'New tab'
+
+    head.append(chevron, dot, name, count, add)
+
+    const body = document.createElement('div')
+    body.className = 'bucket-body'
+    const list = document.createElement('div')
+    list.className = 'bucket-list'
+    list.setAttribute('data-task', taskId)
+    body.appendChild(list)
+
+    el.append(head, body)
+
+    chevron.addEventListener('click', function (e) {
+      e.stopPropagation()
+      tabBar.toggleBucket(taskId)
+    })
+
+    head.addEventListener('click', function () {
+      if (renamingTaskId === taskId) {
+        return
+      }
+      if (!tasks.get(taskId)) {
+        return
+      }
+      if (tasks.getSelected().id !== taskId) {
+        browserUI().switchToTask(taskId)
+      } else {
+        tabBar.toggleBucket(taskId)
+      }
+    })
+
+    head.addEventListener('dblclick', function (e) {
+      e.stopPropagation()
+      tabBar.startRename(taskId)
+    })
+
+    add.addEventListener('click', function (e) {
+      e.stopPropagation()
+      const task = tasks.get(taskId)
+      if (!task) {
+        return
+      }
+      if (tasks.getSelected().id !== taskId) {
+        browserUI().switchToTask(taskId)
+      }
+      const newTab = tabs.add({ containerId: containers.containerForNewTab(taskId) })
+      browserUI().addTab(newTab)
+    })
+
+    const sortable = Sortable.create(list, {
+      group: 'xb-tabs',
+      animation: 260,
+      easing: 'cubic-bezier(0.2, 0.9, 0.25, 1.05)',
+      forceFallback: true,
+      fallbackOnBody: true,
+      fallbackTolerance: 4,
+      ghostClass: 'tab-ghost',
+      chosenClass: 'tab-chosen',
+      dragClass: 'tab-drag',
+      filter: '.tab-close, .tab-audio',
+      preventOnFilter: false,
+      onStart: function () {
+        dragging = true
+        document.body.classList.add('sidebar-dragging')
+      },
+      onEnd: function (e) {
+        dragging = false
+        document.body.classList.remove('sidebar-dragging')
+        tabBar.commitDrop(e)
+      }
+    })
+
+    const bucket = { el, head, chevron, dot, name, count, add, body, list, sortable }
+    buckets.set(taskId, bucket)
+    return bucket
+  },
+
+  commitDrop: function (e) {
+    const tabId = e.item.getAttribute('data-tab')
+    const fromTask = tasks.get(e.from.getAttribute('data-task'))
+    const toTask = tasks.get(e.to.getAttribute('data-task'))
+    if (!fromTask || !toTask) {
+      tabBar.render()
+      return
+    }
+    const oldIndex = fromTask.tabs.getIndex(tabId)
+    if (oldIndex === -1) {
+      tabBar.render()
+      return
+    }
+    const moved = fromTask.tabs.splice(oldIndex, 1)[0]
+    const order = Array.from(e.to.children).filter(c => c.classList.contains('tab-item') && !leaving.has(c.getAttribute('data-tab')))
+    const newIndex = Math.max(0, order.indexOf(e.item))
+    toTask.tabs.splice(newIndex, 0, moved)
+
+    if (fromTask.id !== toTask.id) {
+      if (moved.selected) {
+        moved.selected = false
+        const next = fromTask.tabs.get().slice().sort((a, b) => b.lastActivity - a.lastActivity)[0]
+        if (next) {
+          fromTask.tabs.setSelected(next.id)
+        }
+      }
+      if (fromTask.tabs.count() === 0) {
+        browserUI().closeTask(fromTask.id)
+      }
+      browserUI().switchToTask(toTask.id)
+      browserUI().switchToTab(tabId)
+    }
+    tabBar.render()
+  },
+
+  toggleBucket: function (taskId, collapsed) {
+    const task = tasks.get(taskId)
+    if (!task) {
+      return
+    }
+    const next = typeof collapsed === 'boolean' ? collapsed : !task.collapsed
+    tasks.update(taskId, { collapsed: next })
+  },
+
+  startRename: function (taskId) {
+    const bucket = buckets.get(taskId)
+    const task = tasks.get(taskId)
+    if (!bucket || !task || renamingTaskId) {
+      return
+    }
+    renamingTaskId = taskId
+    const input = document.createElement('input')
+    input.className = 'bucket-rename'
+    input.value = task.name || bucket.name.textContent
+    input.spellcheck = false
+    bucket.name.replaceWith(input)
+    input.focus()
+    input.select()
+
+    let done = false
+    function finish (commit) {
+      if (done) {
+        return
+      }
+      done = true
+      const value = input.value.trim()
+      input.replaceWith(bucket.name)
+      renamingTaskId = null
+      if (commit && value && tasks.get(taskId)) {
+        tasks.update(taskId, { name: value })
+      }
+      tabBar.render()
+    }
+    input.addEventListener('keydown', function (e) {
+      e.stopPropagation()
+      if (e.key === 'Enter') {
+        finish(true)
+      } else if (e.key === 'Escape') {
+        finish(false)
+      }
+    })
+    input.addEventListener('blur', function () { finish(true) })
+    input.addEventListener('click', e => e.stopPropagation())
+  },
+
+  render: function () {
+    renderQueued = false
+    if (!tabBar.containerInner || typeof tasks === 'undefined' || !tasks.getSelected || !tasks.getSelected()) {
+      return
+    }
+    if (dragging) {
+      return
+    }
+
+    const animate = indicatorPlaced && !reduceMotion.matches
+    const before = new Map()
+    if (animate) {
+      rows.forEach(function (row, id) {
+        if (row.el.isConnected && !leaving.has(id)) {
+          before.set(id, row.el.getBoundingClientRect().top)
+        }
+      })
+    }
+
+    const selectedTask = tasks.getSelected()
+    const liveTabIds = new Set()
+    const liveTaskIds = new Set()
+    const entering = []
+
+    let bucketCursor = tabBar.indicator.nextSibling
+    tasks.forEach(function (task, index) {
+      liveTaskIds.add(task.id)
+      const bucket = buckets.get(task.id) || tabBar.createBucket(task.id)
+      if (bucket.el !== bucketCursor) {
+        tabBar.containerInner.insertBefore(bucket.el, bucketCursor)
+      }
+      bucketCursor = bucket.el.nextSibling
+
+      bucket.el.style.setProperty('--bucket-hue', shellLayout.bucketHue(index))
+      bucket.el.classList.toggle('is-current', task.id === selectedTask.id)
+      bucket.el.classList.toggle('collapsed', !!task.collapsed)
+      if (renamingTaskId !== task.id) {
+        const name = bucketName(task, index)
+        if (bucket.name.textContent !== name) {
+          bucket.name.textContent = name
+        }
+      }
+      bucket.count.textContent = String(task.tabs.count())
+
+      let rowCursor = bucket.list.firstChild
+      task.tabs.get().forEach(function (tab) {
+        liveTabIds.add(tab.id)
+        let row = rows.get(tab.id)
+        const isNew = !row
+        if (!row) {
+          row = tabBar.createRow(tab.id)
+        }
+        while (rowCursor && leaving.has(rowCursor.getAttribute('data-tab'))) {
+          rowCursor = rowCursor.nextSibling
+        }
+        if (row.el !== rowCursor) {
+          bucket.list.insertBefore(row.el, rowCursor)
+        } else {
+          rowCursor = rowCursor.nextSibling
+        }
+        tabBar.updateTab(tab.id)
+        if (isNew && animate) {
+          entering.push(row.el)
+        }
+      })
+    })
+
+    rows.forEach(function (row, id) {
+      if (!liveTabIds.has(id) && !leaving.has(id)) {
+        row.el.remove()
+        rows.delete(id)
+      }
+    })
+    buckets.forEach(function (bucket, id) {
+      if (!liveTaskIds.has(id)) {
+        bucket.sortable.destroy()
+        bucket.el.remove()
+        buckets.delete(id)
+      }
+    })
+
+    if (animate) {
+      rows.forEach(function (row, id) {
+        if (!before.has(id)) {
+          return
+        }
+        const dy = before.get(id) - row.el.getBoundingClientRect().top
+        if (Math.abs(dy) > 0.5) {
+          row.el.animate([
+            { transform: 'translateY(' + dy + 'px)' },
+            { transform: 'translateY(0)' }
+          ], { duration: 420, easing: motion.spatial })
+        }
+      })
+      entering.forEach(function (el) {
+        el.animate([
+          { opacity: 0, transform: 'translateX(-10px) scale(0.94)' },
+          { opacity: 1, transform: 'none' }
+        ], { duration: 360, easing: motion.spatialFast })
+      })
+    }
+
+    tabBar.placeIndicator(animate)
+  },
+
+  scheduleRender: function () {
+    if (!renderQueued) {
+      renderQueued = true
+      requestAnimationFrame(tabBar.render)
+    }
+  },
+
+  placeIndicator: function (animate) {
+    const indicator = tabBar.indicator
+    const selected = typeof tabs !== 'undefined' && tabs ? tabs.getSelected() : null
+    const row = selected ? rows.get(selected) : null
+    const bucketEl = row ? row.el.closest('.bucket') : null
+    if (!row || !row.el.isConnected || (bucketEl && bucketEl.classList.contains('collapsed'))) {
+      indicator.classList.add('hidden')
+      return
+    }
+    rows.forEach(r => r.el.classList.toggle('active', r === row))
+    row.el.setAttribute('aria-selected', 'true')
+
+    const scroller = tabBar.containerInner
+    const top = row.el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+    const height = row.el.offsetHeight
+    indicator.style.setProperty('--bucket-hue', bucketEl ? bucketEl.style.getPropertyValue('--bucket-hue') : shellLayout.bucketHue(0))
+
+    const wasHidden = indicator.classList.contains('hidden')
+    indicator.classList.toggle('no-motion', !animate || wasHidden || !indicatorPlaced)
+    indicator.style.transform = 'translateY(' + top + 'px)'
+    indicator.style.height = height + 'px'
+    indicator.classList.remove('hidden')
+    indicatorPlaced = true
+
+    const rowRect = row.el.getBoundingClientRect()
+    const viewRect = scroller.getBoundingClientRect()
+    if (rowRect.top < viewRect.top + 8 || rowRect.bottom > viewRect.bottom - 8) {
+      row.el.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' })
+    }
+  },
+
+  setActiveTab: function (tabId) {
+    const found = findTab(tabId)
+    if (found && found.task.collapsed) {
+      tasks.update(found.task.id, { collapsed: false })
+      return
+    }
+    tabBar.placeIndicator(!reduceMotion.matches)
   },
 
   updateAll: function () {
-    if (!tabBar.containerInner || typeof tabs === 'undefined' || typeof tasks === 'undefined') {
-      return
-    }
-    tabBar.containerInner.innerHTML = ''
-    tabBar.tabElementMap = {}
-
-    const selectedTask = tasks.getSelected()
-
-    tasks.forEach(function (task, taskIndex) {
-      const bucketEl = document.createElement('div')
-      const isCurrentTask = selectedTask && task.id === selectedTask.id
-      bucketEl.className = 'sidebar-bucket' + (isCurrentTask ? ' active-bucket' : '')
-      if (collapsedBuckets.has(task.id)) {
-        bucketEl.classList.add('collapsed')
-      }
-      bucketEl.setAttribute('data-task', task.id)
-
-      // Bucket header
-      const header = document.createElement('div')
-      header.className = 'sidebar-bucket-header'
-
-      const toggleBtn = document.createElement('button')
-      toggleBtn.className = 'bucket-collapse-toggle i carbon:chevron-down'
-      toggleBtn.setAttribute('tabindex', '-1')
-      toggleBtn.addEventListener('click', function (e) {
-        e.stopPropagation()
-        if (collapsedBuckets.has(task.id)) {
-          collapsedBuckets.delete(task.id)
-          bucketEl.classList.remove('collapsed')
-        } else {
-          collapsedBuckets.add(task.id)
-          bucketEl.classList.add('collapsed')
-        }
-      })
-      header.appendChild(toggleBtn)
-
-      const nameSpan = document.createElement('span')
-      nameSpan.className = 'bucket-name'
-      nameSpan.textContent = task.name || (l('defaultTaskName') ? l('defaultTaskName').replace('%n', taskIndex + 1) : `Bucket ${taskIndex + 1}`)
-      header.appendChild(nameSpan)
-
-      const countBadge = document.createElement('span')
-      countBadge.className = 'bucket-count'
-      countBadge.textContent = String(task.tabs.count())
-      header.appendChild(countBadge)
-
-      const addTabBtn = document.createElement('button')
-      addTabBtn.className = 'bucket-add-tab i carbon:add'
-      addTabBtn.title = l('newTabLabel') || 'New tab'
-      addTabBtn.setAttribute('tabindex', '-1')
-      addTabBtn.addEventListener('click', function (e) {
-        e.stopPropagation()
-        const browserUI = require('browserUI.js')
-        browserUI.switchToTask(task.id)
-        let containerId = 'default'
-        if (containers && typeof containers.containerForNewTab === 'function') {
-          containerId = containers.containerForNewTab(task.id)
-        }
-        const newTabId = task.tabs.add({ containerId })
-        browserUI.addTab(newTabId)
-      })
-      header.appendChild(addTabBtn)
-
-      // Header click switches to bucket
-      header.addEventListener('click', function () {
-        const browserUI = require('browserUI.js')
-        browserUI.switchToTask(task.id)
-      })
-
-      // Double-click to rename bucket
-      header.addEventListener('dblclick', function (e) {
-        e.stopPropagation()
-        if (renamingTaskId === task.id) {
-          return
-        }
-        renamingTaskId = task.id
-        const input = document.createElement('input')
-        input.type = 'text'
-        input.className = 'bucket-rename-input'
-        input.value = task.name || nameSpan.textContent
-        nameSpan.replaceWith(input)
-        input.focus()
-        input.select()
-
-        function saveRename () {
-          if (renamingTaskId !== task.id) {
-            return
-          }
-          renamingTaskId = null
-          const newName = input.value.trim()
-          if (newName) {
-            tasks.update(task.id, { name: newName })
-          }
-          tabBar.updateAll()
-        }
-
-        input.addEventListener('blur', saveRename)
-        input.addEventListener('keydown', function (e2) {
-          if (e2.key === 'Enter') {
-            saveRename()
-          } else if (e2.key === 'Escape') {
-            renamingTaskId = null
-            tabBar.updateAll()
-          }
-        })
-      })
-
-      bucketEl.appendChild(header)
-
-      // Tab list for this bucket
-      const tabsContainer = document.createElement('div')
-      tabsContainer.className = 'sidebar-bucket-tabs'
-      tabsContainer.setAttribute('data-task', task.id)
-
-      task.tabs.get().forEach(function (tab) {
-        const tabEl = tabBar.createTab(tab, task.id)
-        tabsContainer.appendChild(tabEl)
-      })
-
-      bucketEl.appendChild(tabsContainer)
-      tabBar.containerInner.appendChild(bucketEl)
-    })
-
-    if (tabs.getSelected()) {
-      tabBar.setActiveTab(tabs.getSelected())
-    }
-
-    tabBar.initializeTabDragging()
+    tabBar.render()
   },
 
   addTab: function (tabId) {
-    tabBar.updateAll()
+    tabBar.render()
   },
 
   removeTab: function (tabId) {
-    const tabEl = tabBar.getTab(tabId)
-    if (tabEl && tabEl.parentNode) {
-      const bucketEl = tabEl.closest('.sidebar-bucket')
-      tabEl.parentNode.removeChild(tabEl)
-      delete tabBar.tabElementMap[tabId]
-      if (bucketEl) {
-        const countBadge = bucketEl.querySelector('.bucket-count')
-        const taskId = bucketEl.getAttribute('data-task')
-        const task = tasks.get(taskId)
-        if (countBadge && task) {
-          countBadge.textContent = String(task.tabs.count())
-        }
+    const row = rows.get(tabId)
+    if (!row || !row.el.isConnected || reduceMotion.matches) {
+      if (row) {
+        row.el.remove()
+        rows.delete(tabId)
       }
-    } else {
-      tabBar.updateAll()
-    }
-  },
-
-  handleDividerPreference: function () {},
-  handleSizeChange: function () {},
-
-  initializeTabDragging: function () {
-    if (tabBar.dragulaInstance) {
-      tabBar.dragulaInstance.destroy()
-    }
-
-    const containers = Array.from(document.querySelectorAll('.sidebar-bucket-tabs'))
-    if (containers.length === 0) {
       return
     }
-
-    tabBar.dragulaInstance = dragula(containers, {
-      direction: 'vertical',
-      slideFactorY: 20
-    })
-
-    tabBar.dragulaInstance.on('drop', function (el, target, source, sibling) {
-      if (!target || !source) {
-        return
-      }
-      const tabId = el.getAttribute('data-tab')
-      const sourceTaskId = source.getAttribute('data-task')
-      const targetTaskId = target.getAttribute('data-task')
-
-      const sourceTask = tasks.get(sourceTaskId)
-      const targetTask = tasks.get(targetTaskId)
-      if (!sourceTask || !targetTask) {
-        return
-      }
-
-      const oldIdx = sourceTask.tabs.getIndex(tabId)
-      if (oldIdx === -1) {
-        return
-      }
-
-      const movedTab = sourceTask.tabs.splice(oldIdx, 1)[0]
-      const adjacentTabId = sibling ? sibling.getAttribute('data-tab') : null
-      let newIdx
-      if (adjacentTabId) {
-        newIdx = targetTask.tabs.getIndex(adjacentTabId)
-      } else {
-        newIdx = targetTask.tabs.count()
-      }
-
-      targetTask.tabs.splice(newIdx, 0, movedTab)
-
-      const browserUI = require('browserUI.js')
-      if (sourceTaskId !== targetTaskId) {
-        browserUI.switchToTask(targetTaskId)
-      }
-      tabBar.updateAll()
-    })
+    leaving.add(tabId)
+    rows.delete(tabId)
+    const el = row.el
+    el.classList.add('leaving')
+    el.classList.remove('active')
+    const height = el.offsetHeight
+    const anim = el.animate([
+      { height: height + 'px', opacity: 1, transform: 'none' },
+      { height: '0px', opacity: 0, transform: 'translateX(-14px) scale(0.92)', marginTop: '0px', marginBottom: '0px' }
+    ], { duration: 300, easing: motion.spatial, fill: 'forwards' })
+    anim.onfinish = function () {
+      el.remove()
+      leaving.delete(tabId)
+      tabBar.placeIndicator(true)
+    }
   },
 
   initializeResizer: function () {
@@ -443,190 +589,111 @@ const tabBar = {
     if (!resizer) {
       return
     }
-
-    let isResizing = false
-    resizer.addEventListener('mousedown', function (e) {
-      isResizing = true
-      document.body.classList.add('is-resizing-sidebar')
-      e.preventDefault()
-    })
-
-    window.addEventListener('mousemove', function (e) {
-      if (!isResizing) {
+    let startX = 0
+    let startWidth = 0
+    let frame = null
+    function onMove (e) {
+      const width = startWidth + (e.clientX - startX)
+      if (!frame) {
+        frame = requestAnimationFrame(function () {
+          frame = null
+          shellLayout.setSidebarWidth(width, false)
+        })
+      }
+    }
+    function onUp () {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      document.body.classList.remove('is-resizing-sidebar')
+      shellLayout.setSidebarWidth(shellLayout.sidebarWidth, true)
+    }
+    resizer.addEventListener('pointerdown', function (e) {
+      if (shellLayout.collapsed) {
         return
       }
-      const minW = 180
-      const maxW = 520
-      const newWidth = Math.max(minW, Math.min(maxW, e.clientX))
-      tabBar.sidebarWidth = newWidth
-      document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px')
-      if (tabBar.container) {
-        tabBar.container.style.width = newWidth + 'px'
-      }
+      startX = e.clientX
+      startWidth = shellLayout.sidebarWidth
+      document.body.classList.add('is-resizing-sidebar')
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+      e.preventDefault()
     })
-
-    window.addEventListener('mouseup', function () {
-      if (isResizing) {
-        isResizing = false
-        document.body.classList.remove('is-resizing-sidebar')
-        settings.set('sidebarWidth', tabBar.sidebarWidth)
-        webviews.resize()
-      }
-    })
-  },
-
-  initializeCollapse: function () {
-    const collapseBtn = document.getElementById('sidebar-collapse-button')
-    if (collapseBtn) {
-      collapseBtn.addEventListener('click', function () {
-        tabBar.isCollapsed = !tabBar.isCollapsed
-        settings.set('sidebarCollapsed', tabBar.isCollapsed)
-        tabBar.applyCollapseState()
-      })
-    }
-  },
-
-  applyCollapseState: function () {
-    const collapseBtn = document.getElementById('sidebar-collapse-button')
-    if (tabBar.isCollapsed) {
-      if (tabBar.container) {
-        tabBar.container.classList.add('sidebar-collapsed')
-      }
-      document.body.classList.add('sidebar-collapsed')
-      if (collapseBtn) {
-        collapseBtn.className = 'sidebar-action-button i carbon:chevron-right'
-        collapseBtn.title = 'Expand sidebar'
-      }
-    } else {
-      if (tabBar.container) {
-        tabBar.container.classList.remove('sidebar-collapsed')
-      }
-      document.body.classList.remove('sidebar-collapsed')
-      if (collapseBtn) {
-        collapseBtn.className = 'sidebar-action-button i carbon:chevron-left'
-        collapseBtn.title = 'Collapse sidebar'
-      }
-    }
-    webviews.resize()
   },
 
   initialize: function () {
-    // Persisted settings
-    const savedWidth = settings.get('sidebarWidth')
-    if (savedWidth && typeof savedWidth === 'number') {
-      tabBar.sidebarWidth = savedWidth
-      document.documentElement.style.setProperty('--sidebar-width', savedWidth + 'px')
-      if (tabBar.container) {
-        tabBar.container.style.width = savedWidth + 'px'
-      }
-    }
+    motion.load()
 
-    const savedCollapsed = settings.get('sidebarCollapsed')
-    if (savedCollapsed === true) {
-      tabBar.isCollapsed = true
-      tabBar.applyCollapseState()
-    }
+    tabBar.indicator = document.createElement('div')
+    tabBar.indicator.className = 'sidebar-indicator hidden'
+    tabBar.containerInner.prepend(tabBar.indicator)
 
     tabBar.initializeResizer()
-    tabBar.initializeCollapse()
 
-    // New bucket button in header
-    const newBucketBtn = document.getElementById('new-bucket-button')
-    if (newBucketBtn) {
-      newBucketBtn.addEventListener('click', function () {
-        const browserUI = require('browserUI.js')
-        browserUI.addTask()
-      })
-    }
+    document.getElementById('sidebar-collapse-button').addEventListener('click', function () {
+      shellLayout.setCollapsed(!shellLayout.collapsed)
+    })
+    document.getElementById('new-bucket-button').addEventListener('click', function () {
+      browserUI().addTask()
+    })
 
-    if (typeof tasks !== 'undefined') {
-      const stateEvents = ['task-added', 'task-removed', 'task-updated', 'tab-added', 'tab-removed', 'tab-updated']
-      stateEvents.forEach(function (eventName) {
-        tasks.on(eventName, function () {
-          tabBar.updateAll()
-        })
-      })
-
-      tasks.on('tab-selected', function (tabId) {
-        tabBar.setActiveTab(tabId)
-      })
-    } else {
-      window.addEventListener('load', function () {
-        if (typeof tasks !== 'undefined') {
-          const stateEvents = ['task-added', 'task-removed', 'task-updated', 'tab-added', 'tab-removed', 'tab-updated']
-          stateEvents.forEach(function (eventName) {
-            tasks.on(eventName, function () {
-              tabBar.updateAll()
-            })
+    const structural = ['task-added', 'task-removed', 'tab-added', 'tab-removed', 'tab-splice']
+    structural.forEach(name => tasks.on(name, tabBar.scheduleRender))
+    tasks.on('task-updated', function (id, key) {
+      if (key === 'collapsed') {
+        tabBar.render()
+        const bucket = buckets.get(id)
+        if (bucket) {
+          bucket.body.addEventListener('transitionend', function settle (e) {
+            if (e.target === bucket.body) {
+              bucket.body.removeEventListener('transitionend', settle)
+              tabBar.placeIndicator(true)
+            }
           })
-          tasks.on('tab-selected', function (tabId) {
-            tabBar.setActiveTab(tabId)
-          })
-          tabBar.updateAll()
         }
+        return
+      }
+      tabBar.scheduleRender()
+    })
+    tasks.on('tab-updated', function (id, key) {
+      if (key === 'containerId' || key === 'title' || key === 'url' || key === 'favicon' || key === 'loaded' || key === 'hasAudio' || key === 'muted' || key === 'hasWebContents' || key === 'private') {
+        tabBar.updateTab(id)
+      }
+    })
+    tasks.on('tab-selected', function () {
+      tabBar.placeIndicator(!reduceMotion.matches)
+    })
+    webviews.bindEvent('did-start-loading', tabBar.updateTab)
+    webviews.bindEvent('did-stop-loading', tabBar.updateTab)
+    containers.on('changed', function () {
+      rows.forEach((row, id) => tabBar.updateTab(id))
+    })
+    shellLayout.onChange(function () {
+      requestAnimationFrame(() => tabBar.placeIndicator(false))
+    })
+
+    tabBar.container.addEventListener('dragover', function (e) {
+      e.preventDefault()
+    })
+    tabBar.container.addEventListener('drop', function (e) {
+      e.preventDefault()
+      const data = e.dataTransfer
+      const path = data && data.files && data.files.length > 0 ? data.files[0].path : (data ? data.getData('text') : '')
+      if (!path) {
+        return
+      }
+      const bucketEl = e.target.closest('.bucket')
+      const taskId = bucketEl ? bucketEl.getAttribute('data-task') : tasks.getSelected().id
+      if (tasks.getSelected().id !== taskId) {
+        browserUI().switchToTask(taskId)
+      }
+      const selected = tabs.get(tabs.getSelected())
+      const newTab = tabs.add({
+        url: path,
+        private: selected ? selected.private : false,
+        containerId: containers.containerForNewTab(taskId)
       })
-    }
-
-    if (containers && typeof containers.on === 'function') {
-      containers.on('changed', function () {
-        tabBar.updateAll()
-      })
-    }
-    if (tabBar.container) {
-      tabBar.container.addEventListener('dragover', function (e) {
-        e.preventDefault()
-      })
-
-      tabBar.container.addEventListener('drop', function (e) {
-        e.preventDefault()
-        const data = e.dataTransfer
-        if (!data) {
-          return
-        }
-        let path = ''
-        if (data.files && data.files.length > 0) {
-          path = data.files[0].path
-        } else {
-          path = data.getData('text')
-        }
-
-        if (!path) {
-          return
-        }
-
-        const targetBucket = e.target.closest('.sidebar-bucket')
-        const targetTaskId = targetBucket ? targetBucket.getAttribute('data-task') : (tasks.getSelected() ? tasks.getSelected().id : null)
-
-        const targetRow = e.target.closest('.tab-item')
-        let containerId = 'default'
-        if (targetRow) {
-          containerId = targetRow.getAttribute('data-container') || 'default'
-        } else if (containers && typeof containers.containerForNewTab === 'function') {
-          containerId = containers.containerForNewTab(targetTaskId)
-        } else {
-          const selectedTab = tabs.get(tabs.getSelected())
-          containerId = (selectedTab && selectedTab.containerId) || 'default'
-        }
-
-        const browserUI = require('browserUI.js')
-        if (targetTaskId && (!tasks.getSelected() || tasks.getSelected().id !== targetTaskId)) {
-          browserUI.switchToTask(targetTaskId)
-        }
-
-        if (tabEditor.isShown || tabs.isEmpty()) {
-          webviews.update(tabs.getSelected(), path)
-          tabEditor.hide()
-        } else {
-          const newTabId = tabs.add({
-            url: path,
-            private: tabs.getSelected() && tabs.get(tabs.getSelected()) ? tabs.get(tabs.getSelected()).private : false,
-            containerId: containerId
-          })
-          browserUI.addTab(newTabId)
-        }
-      })
-    }
-    tabBar.updateAll()
+      browserUI().addTab(newTab, { enterEditMode: false })
+    })
   }
 }
 

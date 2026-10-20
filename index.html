@@ -108,11 +108,7 @@
       </svg>
     </button>
 
-    <div
-      id="navbar"
-      class="theme-background-color theme-text-color windowDragHandle"
-      tabindex="-1"
-    >
+    <div id="navbar" class="windowDragHandle" tabindex="-1">
       <div id="mac-window-drag-area"></div>
       <div id="toolbar-navigation-buttons">
         <button
@@ -135,14 +131,10 @@
         ></button>
       </div>
 
-      <div id="tab-editor" class="sea-glass-pill omnibox">
-        <div class="omnibox-progress-bar" hidden>
-          <svg class="wavy-progress-svg" viewBox="0 0 100 8" preserveAspectRatio="none">
-            <path class="wavy-progress-path" d="M0 4 Q 12.5 0, 25 4 T 50 4 T 75 4 T 100 4" />
-          </svg>
-        </div>
+      <div id="tab-editor" class="omnibox">
         <i class="omnibox-search-icon i carbon:search"></i>
         <input id="tab-editor-input" spellcheck="false" />
+        <span class="omnibox-progress" hidden></span>
       </div>
 
       <button
@@ -170,29 +162,25 @@
 
     <div id="overlay"></div>
 
-    <div id="sidebar" class="sidebar">
-      <div class="sidebar-header">
-        <span class="sidebar-header-title">Buckets</span>
-        <div class="sidebar-header-actions">
-          <button
-            id="sidebar-collapse-button"
-            class="sidebar-action-button i carbon:chevron-left"
-            title="Collapse sidebar"
-            tabindex="-1"
-          ></button>
-          <button
-            id="new-bucket-button"
-            class="sidebar-action-button i carbon:add"
-            title="New bucket"
-            tabindex="-1"
-          ></button>
-        </div>
+    <aside id="sidebar">
+      <div class="sidebar-head">
+        <span class="sidebar-wordmark">Buckets</span>
+        <button
+          id="new-bucket-button"
+          class="sidebar-button i carbon:folder-add"
+          title="New bucket"
+          tabindex="-1"
+        ></button>
+        <button
+          id="sidebar-collapse-button"
+          class="sidebar-button i carbon:open-panel-left"
+          title="Collapse sidebar"
+          tabindex="-1"
+        ></button>
       </div>
-      <div id="sidebar-buckets" class="sidebar-buckets has-thin-scrollbar">
-        <div id="tabs-inner" role="tablist" class="has-thin-scrollbar"></div>
-      </div>
-      <div id="sidebar-resizer" class="sidebar-resizer"></div>
-    </div>
+      <div id="tabs-inner" class="sidebar-scroll" role="tablist"></div>
+      <div id="sidebar-resizer"></div>
+    </aside>
 
     <div id="webviews">
       <div id="leftArrowContainer" class="arrow-indicator">

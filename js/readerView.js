@@ -37,6 +37,9 @@ var readerView = {
   updateButton: function (tabId, button) {
     var button = button || document.querySelector('.reader-button[data-tab="{id}"]'.replace('{id}', tabId))
     var tab = tabs.get(tabId)
+    if (!button || !tab) {
+      return
+    }
 
     if (readerView.isReader(tabId)) {
       button.classList.add('is-reader')

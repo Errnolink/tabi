@@ -1,683 +1,662 @@
-const { ipcRenderer } = require('electron')
-const Sortable = require('sortablejs')
+/* global fs, Blob, ResizeObserver, ipc */
 
 const webviews = require('webviews.js')
 const keybindings = require('keybindings.js')
 const browserUI = require('browserUI.js')
-const tabBar = require('navbar/tabBar.js')
 const tabEditor = require('navbar/tabEditor.js')
 const focusMode = require('focusMode.js')
 const modalMode = require('modalMode.js')
-const overviewBuilder = require('overview/overviewBuilder.js')
+const containers = require('containers.js')
+const shellLayout = require('shellLayout.js')
+const urlParser = require('util/urlParser.js')
 
-let activeTransition = null
+const MIN_COLUMN = 250
+const GAP = 16
+const CARD_META = 62
+const thumbDir = window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\thumbnails\\' : '/thumbnails/')
+const thumbCache = new Map()
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
-function canAnimate () {
-  return typeof document.startViewTransition === 'function' &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+function canMorph () {
+  return typeof document.startViewTransition === 'function' && !reduceMotion.matches
+}
+
+function nextFrame () {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+}
+
+function hostOf (url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch (e) {
+    return ''
+  }
+}
+
+function isTallCard (tab) {
+  return /^https:\/\/(x|twitter)\.com\/[^/]+(\/status\/\d+)?\/?$/.test(tab.url || '') && !/\/(home|explore|notifications|messages|search|i)\/?$/.test(tab.url)
+}
+
+function loadThumb (tab, img) {
+  if (tab.previewImage) {
+    img.src = tab.previewImage
+    return
+  }
+  const cached = thumbCache.get(tab.id)
+  if (cached) {
+    img.src = cached
+    return
+  }
+  fs.promises.readFile(thumbDir + tab.id + '.jpg').then(function (buffer) {
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
+    thumbCache.set(tab.id, url)
+    img.src = url
+  }).catch(function () {
+    img.closest('.ov-thumb').classList.add('empty')
+  })
+}
+
+function forgetThumb (tabId) {
+  const url = thumbCache.get(tabId)
+  if (url) {
+    URL.revokeObjectURL(url)
+    thumbCache.delete(tabId)
+  }
 }
 
 const overview = {
   el: null,
+  search: null,
+  chips: null,
+  content: null,
   isShown: false,
-  sortableInstances: [],
-  activeFilter: 'all',
-  searchQuery: '',
-  controls: null,
-  bucketsContainer: null,
-  newBucketTarget: null,
+  busy: false,
+  query: '',
+  containerFilter: null,
+  resizeObserver: null,
+  lastColumns: 0,
 
-  getDOM: function () {
-    if (!this.el) {
-      let el = document.getElementById('overview')
-      if (!el) {
-        el = document.createElement('div')
-        el.id = 'overview'
-        el.hidden = true
-        el.tabIndex = -1
-        document.body.appendChild(el)
-      }
-      this.el = el
-    }
-    return this.el
-  },
+  build: function () {
+    const el = document.createElement('div')
+    el.id = 'overview'
+    el.hidden = true
+    el.tabIndex = -1
 
-  destroySortables: function () {
-    this.sortableInstances.forEach(function (inst) {
-      try {
-        inst.destroy()
-      } catch (e) {}
-    })
-    this.sortableInstances = []
-  },
+    const header = document.createElement('div')
+    header.className = 'ov-header'
 
-  setupSortable: function () {
-    this.destroySortables()
-    const self = this
+    const searchWrap = document.createElement('label')
+    searchWrap.className = 'ov-search'
+    const icon = document.createElement('i')
+    icon.className = 'i carbon:search'
+    const search = document.createElement('input')
+    search.placeholder = l('searchTabs')
+    search.spellcheck = false
+    searchWrap.append(icon, search)
 
-    // Column drop lists for tabs
-    const columns = this.el.querySelectorAll('.overview-column')
-    columns.forEach(function (col) {
-      const inst = new Sortable(col, {
-        group: 'overview-tabs',
-        draggable: '.overview-card',
-        ghostClass: 'overview-card-ghost',
-        chosenClass: 'overview-card-chosen',
-        animation: 200,
-        scroll: true,
-        scrollSensitivity: 80,
-        scrollSpeed: 15,
-        onEnd: function (e) {
-          self.handleTabDrop(e)
-        }
-      })
-      self.sortableInstances.push(inst)
+    const chips = document.createElement('div')
+    chips.className = 'ov-chips'
+
+    const newBucket = document.createElement('button')
+    newBucket.className = 'ov-new-bucket'
+    newBucket.innerHTML = '<i class="i carbon:folder-add"></i><span></span>'
+    newBucket.querySelector('span').textContent = l('newTask')
+    newBucket.addEventListener('click', function () {
+      browserUI.addTask()
+      overview.hide()
     })
 
-    // New bucket drop target
-    if (this.newBucketTarget) {
-      const newBucketInst = new Sortable(this.newBucketTarget, {
-        group: 'overview-tabs',
-        draggable: '.overview-card',
-        ghostClass: 'overview-card-ghost',
-        onAdd: function (e) {
-          self.handleTabDrop(e)
+    header.append(searchWrap, chips, newBucket)
+
+    const content = document.createElement('div')
+    content.className = 'ov-content'
+
+    el.append(header, content)
+    document.body.appendChild(el)
+
+    search.addEventListener('input', function () {
+      overview.query = search.value.trim().toLowerCase()
+      overview.applyFilter()
+    })
+    search.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        const first = overview.visibleCards()[0]
+        if (first) {
+          e.preventDefault()
+          if (e.key === 'Enter') {
+            overview.hide(first.dataset.tab)
+          } else {
+            first.focus()
+          }
         }
-      })
-      self.sortableInstances.push(newBucketInst)
-    }
+      }
+    })
+
+    el.addEventListener('keydown', overview.onKeyDown)
+    el.addEventListener('click', function (e) {
+      if (e.target === el || e.target === content) {
+        overview.hide()
+      }
+    })
+
+    overview.resizeObserver = new ResizeObserver(function () {
+      if (overview.isShown && overview.columnCount() !== overview.lastColumns) {
+        overview.render()
+      }
+    })
+    overview.resizeObserver.observe(content)
+
+    overview.el = el
+    overview.search = search
+    overview.chips = chips
+    overview.content = content
   },
 
-  handleTabDrop: function (e) {
-    const item = e.item
-    const tabId = item.getAttribute('data-tab')
-    if (!tabId) {
+  columnCount: function () {
+    const width = overview.content.clientWidth - 48
+    return Math.max(1, Math.floor((width + GAP) / (MIN_COLUMN + GAP)))
+  },
+
+  renderChips: function () {
+    const used = new Set()
+    tasks.forEach(task => task.tabs.get().forEach(tab => used.add(tab.containerId || 'default')))
+    const list = containers.list().filter(c => used.has(c.id))
+    overview.chips.textContent = ''
+    if (list.length < 2) {
+      overview.containerFilter = null
       return
     }
-
-    const previousTask = tasks.getTaskContainingTab(tabId)
-    if (!previousTask) {
-      return
-    }
-
-    const oldTab = previousTask.tabs.splice(previousTask.tabs.getIndex(tabId), 1)[0]
-    if (!oldTab) {
-      return
-    }
-
-    if (oldTab.selected) {
-      const mostRecent = previousTask.tabs.get().sort(function (a, b) {
-        return b.lastActivity - a.lastActivity
-      })[0]
-      if (mostRecent) {
-        previousTask.tabs.setSelected(mostRecent.id)
+    const all = [{ id: null, name: l('allTabs') }].concat(list)
+    all.forEach(function (container) {
+      const chip = document.createElement('button')
+      chip.className = 'ov-chip' + (overview.containerFilter === container.id ? ' active' : '')
+      if (container.color) {
+        chip.style.setProperty('--chip-color', container.color)
       }
-      oldTab.selected = false
-    }
+      chip.textContent = container.name
+      chip.addEventListener('click', function () {
+        overview.containerFilter = container.id
+        overview.renderChips()
+        overview.applyFilter()
+      })
+      overview.chips.appendChild(chip)
+    })
+  },
 
-    let targetTask
-    if (e.to === this.newBucketTarget || (this.newBucketTarget && this.newBucketTarget.contains(e.to))) {
-      let index
-      if (tasks.getSelected()) {
-        index = tasks.getIndex(tasks.getSelected().id) + 1
-      }
-      const newTaskId = tasks.add({}, index)
-      targetTask = tasks.get(newTaskId)
-      if (item.parentNode) {
-        item.remove()
-      }
+  createCard: function (tab, task, index) {
+    const card = document.createElement('article')
+    card.className = 'ov-card'
+    card.tabIndex = 0
+    card.dataset.tab = tab.id
+    card.dataset.task = task.id
+    card.draggable = true
+    card.style.setProperty('--i', Math.min(index, 14))
+
+    const tall = isTallCard(tab)
+    const thumb = document.createElement('div')
+    thumb.className = 'ov-thumb' + (tall ? ' tall' : '')
+    const img = document.createElement('img')
+    img.decoding = 'async'
+    img.alt = ''
+    img.addEventListener('error', () => thumb.classList.add('empty'))
+    const fallback = document.createElement('div')
+    fallback.className = 'ov-thumb-fallback'
+    const isNew = !tab.url || tab.url === urlParser.parse('min://newtab')
+    fallback.textContent = isNew ? '+' : (hostOf(tab.url)[0] || '•').toUpperCase()
+    thumb.append(img, fallback)
+    if (isNew) {
+      thumb.classList.add('empty')
     } else {
-      const targetBucketEl = e.to.closest('.overview-bucket-section')
-      const targetBucketId = targetBucketEl ? targetBucketEl.getAttribute('data-bucket') : null
-      targetTask = targetBucketId ? tasks.get(targetBucketId) : tasks.getSelected()
+      loadThumb(tab, img)
     }
 
-    if (targetTask) {
-      const newIdx = Array.from(e.to.children).indexOf(item)
-      if (newIdx >= 0) {
-        targetTask.tabs.splice(newIdx, 0, oldTab)
-      } else {
-        targetTask.tabs.add(oldTab, { atEnd: true })
+    const meta = document.createElement('div')
+    meta.className = 'ov-meta'
+    const favicon = document.createElement('img')
+    favicon.className = 'ov-favicon'
+    if (tab.favicon && tab.favicon.url) {
+      favicon.src = tab.favicon.url
+    } else {
+      favicon.hidden = true
+    }
+    favicon.addEventListener('error', () => { favicon.hidden = true })
+    const text = document.createElement('div')
+    text.className = 'ov-text'
+    const title = document.createElement('div')
+    title.className = 'ov-title'
+    title.textContent = isNew ? l('newTabLabel') : (tab.title || tab.url)
+    const host = document.createElement('div')
+    host.className = 'ov-host'
+    host.textContent = isNew ? '' : hostOf(tab.url)
+    text.append(title, host)
+    meta.append(favicon, text)
+
+    const container = containers.get(tab.containerId || 'default')
+    if (container && container.id !== 'default') {
+      const badge = document.createElement('span')
+      badge.className = 'ov-container'
+      badge.style.setProperty('--chip-color', container.color)
+      badge.textContent = container.name
+      thumb.appendChild(badge)
+    }
+
+    const close = document.createElement('button')
+    close.className = 'ov-close i carbon:close'
+    close.tabIndex = -1
+    close.addEventListener('click', function (e) {
+      e.stopPropagation()
+      overview.closeTab(tab.id, card)
+    })
+
+    card.append(thumb, meta, close)
+    card.addEventListener('click', () => overview.hide(tab.id))
+    card.addEventListener('dragstart', function (e) {
+      e.dataTransfer.setData('application/x-xb-tab', tab.id)
+      e.dataTransfer.effectAllowed = 'move'
+      card.classList.add('dragging')
+      document.body.classList.add('ov-dragging')
+    })
+    card.addEventListener('dragend', function () {
+      card.classList.remove('dragging')
+      document.body.classList.remove('ov-dragging')
+    })
+
+    card._estimate = (tall ? 1.25 : 0.625) + CARD_META / MIN_COLUMN
+    return card
+  },
+
+  makeDropTarget: function (el, taskId) {
+    el.addEventListener('dragover', function (e) {
+      if (e.dataTransfer.types.includes('application/x-xb-tab')) {
+        e.preventDefault()
+        el.classList.add('drop-over')
+      }
+    })
+    el.addEventListener('dragleave', function (e) {
+      if (!el.contains(e.relatedTarget)) {
+        el.classList.remove('drop-over')
+      }
+    })
+    el.addEventListener('drop', function (e) {
+      const tabId = e.dataTransfer.getData('application/x-xb-tab')
+      el.classList.remove('drop-over')
+      if (!tabId) {
+        return
+      }
+      e.preventDefault()
+      overview.moveTab(tabId, taskId || tasks.get(tasks.add({}, tasks.getLength())).id)
+    })
+  },
+
+  moveTab: function (tabId, targetTaskId) {
+    const source = tasks.getTaskContainingTab(tabId)
+    const target = tasks.get(targetTaskId)
+    if (!source || !target || source.id === target.id) {
+      return
+    }
+    const tab = source.tabs.splice(source.tabs.getIndex(tabId), 1)[0]
+    if (tab.selected) {
+      tab.selected = false
+      const next = source.tabs.get().slice().sort((a, b) => b.lastActivity - a.lastActivity)[0]
+      if (next) {
+        source.tabs.setSelected(next.id)
       }
     }
-
-    if (previousTask.tabs.count() === 0) {
-      browserUI.closeTask(previousTask.id)
+    target.tabs.splice(target.tabs.count(), 0, tab)
+    if (source.tabs.count() === 0) {
+      browserUI.closeTask(source.id)
     }
+    overview.render()
+  },
 
-    if (tabBar && tabBar.updateAll) {
-      tabBar.updateAll()
+  closeTab: function (tabId, card) {
+    const finish = function () {
+      forgetThumb(tabId)
+      const task = tasks.getTaskContainingTab(tabId)
+      if (!task) {
+        return
+      }
+      if (task.id === tasks.getSelected().id) {
+        browserUI.closeTab(tabId)
+      } else {
+        task.tabs.destroy(tabId)
+        webviews.destroy(tabId)
+        if (task.tabs.count() === 0) {
+          browserUI.closeTask(task.id)
+        }
+      }
+      overview.render()
     }
-
-    this.render()
+    if (reduceMotion.matches) {
+      finish()
+      return
+    }
+    card.animate([
+      { opacity: 1, transform: 'none' },
+      { opacity: 0, transform: 'scale(0.86) translateY(8px)' }
+    ], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = finish
   },
 
   render: function () {
-    const root = this.getDOM()
-    this.destroySortables()
-    root.innerHTML = ''
-
-    const self = this
-
-    // Top Controls
-    this.controls = overviewBuilder.createTopControls({
-      onSearch: function (val) {
-        self.searchQuery = val.toLowerCase().trim()
-        self.applyFilter()
-      },
-      onClear: function () {
-        self.searchQuery = ''
-        self.applyFilter()
-      }
-    })
-
-    // Search input binding
-    const searchInput = this.controls.input
-    const clearBtn = this.controls.clearButton
-
-    searchInput.value = this.searchQuery
-    clearBtn.hidden = !this.searchQuery
-
-    searchInput.addEventListener('input', function () {
-      self.searchQuery = this.value.toLowerCase().trim()
-      clearBtn.hidden = !self.searchQuery
-      self.applyFilter()
-    })
-
-    clearBtn.addEventListener('click', function () {
-      searchInput.value = ''
-      self.searchQuery = ''
-      clearBtn.hidden = true
-      self.applyFilter()
-      searchInput.focus()
-    })
-
-    searchInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
-        const firstVisible = self.el.querySelector('.overview-card:not([hidden])')
-        if (firstVisible) {
-          firstVisible.click()
-        }
-      }
-    })
-
-    // Filter Chips binding
-    const chips = this.controls.filterBar.querySelectorAll('.overview-chip')
-    chips.forEach(function (chip) {
-      chip.addEventListener('click', function () {
-        chips.forEach(function (c) { c.classList.remove('active') })
-        this.classList.add('active')
-        self.activeFilter = this.getAttribute('data-container') || 'all'
-        self.applyFilter()
-      })
-    })
-
-    root.appendChild(this.controls.element)
-
-    // Buckets Container
-    this.bucketsContainer = document.createElement('div')
-    this.bucketsContainer.className = 'overview-buckets-container'
-
-    const containerWidth = root.clientWidth || 960
-
-    tasks.forEach(function (task, taskIdx) {
-      const sectionObj = overviewBuilder.createBucketSection(task, taskIdx, {
-        onBucketDelete: function (taskId, sectionEl) {
-          if (tasks.count() <= 1) {
-            return
-          }
-          sectionEl.remove()
-          browserUI.closeTask(taskId)
-          if (tabBar && tabBar.updateAll) {
-            tabBar.updateAll()
-          }
-        }
-      })
-
-      const cards = []
-      if (task.tabs) {
-        task.tabs.forEach(function (tab) {
-          const card = overviewBuilder.createCard(tab, task, {
-            onTabSelect: function (tabId, taskId) {
-              self.hide(tabId, taskId)
-            },
-            onTabClose: function (tabId, cardEl) {
-              self.deleteTab(tabId, cardEl)
-            }
-          })
-          cards.push(card)
-        })
-      }
-
-      overviewBuilder.layoutMasonry(sectionObj.grid, cards, containerWidth)
-      self.bucketsContainer.appendChild(sectionObj.element)
-    })
-
-    root.appendChild(this.bucketsContainer)
-
-    // New Bucket Drop Target
-    this.newBucketTarget = overviewBuilder.createNewBucketTarget(function () {
-      browserUI.addTask()
-      self.hide()
-      if (tabEditor && tabs.getSelected()) {
-        tabEditor.show(tabs.getSelected())
-      }
-    })
-    root.appendChild(this.newBucketTarget)
-
-    this.setupSortable()
-    this.applyFilter()
-    this.setupKeyboardNavigation()
-  },
-
-  deleteTab: function (tabId, cardEl) {
-    const task = tasks.getTaskContainingTab(tabId)
-    if (!task) {
+    if (!overview.el) {
       return
     }
+    const focusedTab = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.tab : null
+    const columns = overview.columnCount()
+    overview.lastColumns = columns
+    overview.renderChips()
+    overview.content.textContent = ''
 
-    const successor = cardEl.nextElementSibling || cardEl.previousElementSibling
-    const parentCol = cardEl.parentElement
+    let cardIndex = 0
+    const selectedTab = tabs.getSelected()
+    tasks.forEach(function (task, index) {
+      const section = document.createElement('section')
+      section.className = 'ov-bucket'
+      section.dataset.task = task.id
+      section.style.setProperty('--bucket-hue', shellLayout.bucketHue(index))
 
-    task.tabs.destroy(tabId)
-    webviews.destroy(tabId)
-    cardEl.remove()
+      const head = document.createElement('div')
+      head.className = 'ov-bucket-head'
+      const dot = document.createElement('span')
+      dot.className = 'ov-dot'
+      const name = document.createElement('span')
+      name.className = 'ov-bucket-name'
+      name.textContent = task.name || l('defaultTaskName').replace('%n', index + 1)
+      const count = document.createElement('span')
+      count.className = 'ov-count'
+      count.textContent = task.tabs.count()
+      const add = document.createElement('button')
+      add.className = 'ov-add i carbon:add'
+      add.title = l('newTabAction')
+      add.addEventListener('click', function () {
+        browserUI.switchToTask(task.id)
+        browserUI.addTab(tabs.add({ containerId: containers.containerForNewTab(task.id) }), { enterEditMode: false })
+        overview.hide(tabs.getSelected())
+      })
+      head.append(dot, name, count, add)
 
-    if (tabBar && tabBar.updateAll) {
-      tabBar.updateAll()
-    }
-
-    if (task.tabs.count() === 0) {
-      const section = this.el.querySelector(`.overview-bucket-section[data-bucket="${task.id}"]`)
-      if (section) {
-        section.remove()
+      const grid = document.createElement('div')
+      grid.className = 'ov-grid'
+      const cols = []
+      const heights = []
+      for (let i = 0; i < columns; i++) {
+        const col = document.createElement('div')
+        col.className = 'ov-col'
+        grid.appendChild(col)
+        cols.push(col)
+        heights.push(0)
       }
-      browserUI.closeTask(task.id)
-    } else {
-      const section = this.el.querySelector(`.overview-bucket-section[data-bucket="${task.id}"]`)
-      if (section) {
-        const countBadge = section.querySelector('.overview-bucket-count')
-        if (countBadge) {
-          const count = task.tabs.count()
-          countBadge.textContent = `${count} tab${count === 1 ? '' : 's'}`
+      task.tabs.get().forEach(function (tab) {
+        const card = overview.createCard(tab, task, cardIndex++)
+        if (tab.id === selectedTab) {
+          card.classList.add('current')
         }
-      }
-    }
+        let shortest = 0
+        for (let i = 1; i < columns; i++) {
+          if (heights[i] < heights[shortest] - 0.01) {
+            shortest = i
+          }
+        }
+        cols[shortest].appendChild(card)
+        heights[shortest] += card._estimate
+      })
 
-    if (successor) {
-      successor.focus()
-    } else if (parentCol) {
-      const remaining = parentCol.querySelector('.overview-card')
-      if (remaining) {
-        remaining.focus()
+      section.append(head, grid)
+      overview.makeDropTarget(section, task.id)
+      overview.content.appendChild(section)
+    })
+
+    const newZone = document.createElement('div')
+    newZone.className = 'ov-new-zone'
+    newZone.textContent = l('dropToCreateBucket')
+    overview.makeDropTarget(newZone, null)
+    overview.content.appendChild(newZone)
+
+    overview.applyFilter()
+    if (focusedTab) {
+      const again = overview.cardFor(focusedTab)
+      if (again) {
+        again.focus({ preventScroll: true })
       }
     }
+  },
+
+  cardFor: function (tabId) {
+    return overview.el.querySelector('.ov-card[data-tab="' + tabId + '"]')
+  },
+
+  visibleCards: function () {
+    return Array.from(overview.el.querySelectorAll('.ov-card:not(.dim)'))
   },
 
   applyFilter: function () {
-    const query = this.searchQuery
-    const containerFilter = this.activeFilter
-
-    const sections = this.el.querySelectorAll('.overview-bucket-section')
-    sections.forEach(function (section) {
-      const bucketId = section.getAttribute('data-bucket')
-      const task = tasks.get(bucketId)
-      const taskName = (task && task.name ? task.name : '').toLowerCase()
-
-      const cards = section.querySelectorAll('.overview-card')
-      let visibleCardCount = 0
-
-      cards.forEach(function (card) {
-        const tabContainer = card.getAttribute('data-container') || 'default'
-        if (containerFilter !== 'all' && tabContainer !== containerFilter) {
-          card.hidden = true
-          return
-        }
-
-        if (!query) {
-          card.hidden = false
-          visibleCardCount++
-          return
-        }
-
-        const title = (card.querySelector('.overview-card-title') ? card.querySelector('.overview-card-title').textContent : '').toLowerCase()
-        const domain = (card.querySelector('.overview-card-domain') ? card.querySelector('.overview-card-domain').textContent : '').toLowerCase()
-        const text = `${title} ${domain} ${taskName} ${tabContainer}`
-
-        const matches = query.split(' ').every(function (word) {
-          return text.includes(word)
-        })
-
-        if (matches) {
-          card.hidden = false
-          visibleCardCount++
-        } else {
-          card.hidden = true
-        }
-      })
-
-      if (visibleCardCount === 0 && (query || containerFilter !== 'all')) {
-        section.hidden = true
-      } else {
-        section.hidden = false
+    const query = overview.query
+    overview.el.querySelectorAll('.ov-card').forEach(function (card) {
+      const found = tasks.getTaskContainingTab(card.dataset.tab)
+      if (!found) {
+        return
       }
+      const tab = found.tabs.get(card.dataset.tab)
+      const container = containers.get(tab.containerId || 'default')
+      let match = true
+      if (overview.containerFilter && (tab.containerId || 'default') !== overview.containerFilter) {
+        match = false
+      }
+      if (match && query) {
+        const haystack = [tab.title, tab.url, found.name, container && container.name].join(' ').toLowerCase()
+        match = query.split(/\s+/).every(word => haystack.includes(word))
+      }
+      card.classList.toggle('dim', !match)
+      card.tabIndex = match ? 0 : -1
     })
   },
 
-  setupKeyboardNavigation: function () {
-    const root = this.el
-
-    root.onkeydown = function (e) {
-      const active = document.activeElement
-      const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
-
-      if (e.key.toLowerCase() === 't' && !isInput) {
-        const searchInput = root.querySelector('.overview-search-input')
-        if (searchInput) {
-          e.preventDefault()
-          searchInput.focus()
-          searchInput.select()
-        }
-        return
-      }
-
-      if (isInput) {
-        if (e.key === 'Escape') {
-          active.blur()
-          const firstCard = root.querySelector('.overview-card:not([hidden])')
-          if (firstCard) {
-            firstCard.focus()
-          }
-        }
-        return
-      }
-
-      const visibleCards = Array.from(root.querySelectorAll('.overview-card:not([hidden])'))
-      const currentIndex = visibleCards.indexOf(active)
-
-      if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        if (currentIndex >= 0 && currentIndex < visibleCards.length - 1) {
-          visibleCards[currentIndex + 1].focus()
-        } else if (visibleCards.length > 0) {
-          visibleCards[0].focus()
-        }
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        if (currentIndex > 0) {
-          visibleCards[currentIndex - 1].focus()
-        } else if (visibleCards.length > 0) {
-          visibleCards[visibleCards.length - 1].focus()
-        }
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        if (currentIndex >= 0 && currentIndex + 3 < visibleCards.length) {
-          visibleCards[currentIndex + 3].focus()
-        } else if (currentIndex >= 0 && currentIndex < visibleCards.length - 1) {
-          visibleCards[currentIndex + 1].focus()
-        }
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        if (currentIndex - 3 >= 0) {
-          visibleCards[currentIndex - 3].focus()
-        } else if (currentIndex > 0) {
-          visibleCards[currentIndex - 1].focus()
-        }
-      } else if (e.key === 'Enter') {
-        if (active && active.classList.contains('overview-card')) {
-          e.preventDefault()
-          active.click()
-        }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (active && active.classList.contains('overview-card')) {
-          e.preventDefault()
-          const closeBtn = active.querySelector('.overview-card-close')
-          if (closeBtn) {
-            closeBtn.click()
-          }
-        }
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
+  onKeyDown: function (e) {
+    const active = document.activeElement
+    const onCard = active && active.classList && active.classList.contains('ov-card')
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      if (overview.query && document.activeElement === overview.search) {
+        overview.search.value = ''
+        overview.query = ''
+        overview.applyFilter()
+      } else {
         overview.hide()
       }
+      return
+    }
+    if (!onCard) {
+      return
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      overview.hide(active.dataset.tab)
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault()
+      const cards = overview.visibleCards()
+      const next = cards[cards.indexOf(active) + 1] || cards[cards.indexOf(active) - 1]
+      overview.closeTab(active.dataset.tab, active)
+      if (next) {
+        setTimeout(() => { const card = overview.cardFor(next.dataset.tab); if (card) card.focus() }, 240)
+      }
+    } else if (e.key.startsWith('Arrow')) {
+      e.preventDefault()
+      overview.moveFocus(active, e.key)
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      overview.search.focus()
     }
   },
 
-  show: function () {
-    if (this.isShown) {
+  moveFocus: function (from, key) {
+    const a = from.getBoundingClientRect()
+    const ax = a.left + a.width / 2
+    const ay = a.top + a.height / 2
+    let best = null
+    let bestScore = Infinity
+    overview.visibleCards().forEach(function (card) {
+      if (card === from) {
+        return
+      }
+      const b = card.getBoundingClientRect()
+      const dx = b.left + b.width / 2 - ax
+      const dy = b.top + b.height / 2 - ay
+      const forward = key === 'ArrowRight' ? dx : key === 'ArrowLeft' ? -dx : key === 'ArrowDown' ? dy : -dy
+      const side = key === 'ArrowRight' || key === 'ArrowLeft' ? Math.abs(dy) : Math.abs(dx)
+      if (forward <= 4) {
+        return
+      }
+      const score = forward + side * 2.2
+      if (score < bestScore) {
+        bestScore = score
+        best = card
+      }
+    })
+    if (best) {
+      best.focus()
+      best.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  },
+
+  show: async function () {
+    if (overview.isShown || overview.busy) {
       return
     }
-
-    if (focusMode && focusMode.enabled && focusMode.enabled()) {
+    if (focusMode.enabled()) {
       focusMode.warn()
       return
     }
-
-    if (modalMode && modalMode.enabled && modalMode.enabled()) {
+    if (modalMode.enabled()) {
       return
     }
+    overview.busy = true
+    tabEditor.hide()
 
-    if (activeTransition) {
-      try {
-        activeTransition.skipTransition()
-      } catch (e) {}
-      activeTransition = null
-    }
-
-    // 1. Capture active view for thumbnail update
-    webviews.captureCurrentTab({ forceCapture: true })
-
-    // 2. Hide webviews and show pixel-identical placeholder
+    const placeholder = document.getElementById('webview-placeholder')
+    const morph = canMorph() && !!tabs.getSelected() && webviews.hasViewForTab(tabs.getSelected())
+    document.body.classList.add('overview-morph')
     webviews.requestPlaceholder('overview')
-
-    if (tabEditor && tabEditor.hide) {
-      tabEditor.hide()
+    if (morph) {
+      await nextFrame()
     }
 
+    overview.isShown = true
+    overview.query = ''
+    overview.search.value = ''
     document.body.classList.add('overview-is-shown')
     document.body.setAttribute('data-context', 'overview')
-    this.isShown = true
+    document.getElementById('overview-button').classList.add('active')
 
-    const btn = document.getElementById('overview-button') || document.getElementById('switch-task-button')
-    if (btn) {
-      btn.classList.add('active')
-    }
-
-    const self = this
-
-    if (!canAnimate()) {
-      self.render()
-      self.getDOM().hidden = false
-      const selectedCard = self.el.querySelector('.overview-card.is-selected') || self.el.querySelector('.overview-card')
-      if (selectedCard) {
-        selectedCard.focus()
-      }
-      return
-    }
-
-    try {
-      activeTransition = document.startViewTransition(function () {
-        self.render()
-        self.getDOM().hidden = false
-      })
-
-      activeTransition.finished.finally(function () {
-        activeTransition = null
-        const selectedCard = self.el.querySelector('.overview-card.is-selected') || self.el.querySelector('.overview-card')
-        if (selectedCard) {
-          selectedCard.focus()
+    const reveal = function () {
+      overview.render()
+      overview.el.hidden = false
+      overview.el.classList.add('entering')
+      const card = overview.cardFor(tabs.getSelected())
+      if (card) {
+        card.scrollIntoView({ block: 'center' })
+        if (morph) {
+          placeholder.style.viewTransitionName = ''
+          card.querySelector('.ov-thumb').style.viewTransitionName = 'xb-page'
         }
-      })
-    } catch (err) {
-      self.render()
-      self.getDOM().hidden = false
-      activeTransition = null
+      }
     }
+
+    if (morph) {
+      placeholder.style.viewTransitionName = 'xb-page'
+      const transition = document.startViewTransition(reveal)
+      await transition.finished.catch(() => {})
+      overview.el.querySelectorAll('.ov-thumb').forEach(t => { t.style.viewTransitionName = '' })
+    } else {
+      reveal()
+    }
+    const current = overview.cardFor(tabs.getSelected()) || overview.visibleCards()[0]
+    if (current) {
+      current.focus({ preventScroll: true })
+    } else {
+      overview.search.focus()
+    }
+    setTimeout(() => overview.el.classList.remove('entering'), 700)
+    overview.busy = false
   },
 
-  hide: function (targetTabId, targetTaskId) {
-    if (!this.isShown) {
+  hide: async function (targetTabId) {
+    if (!overview.isShown || overview.busy) {
       return
     }
+    overview.busy = true
+    const targetId = targetTabId || tabs.getSelected()
+    const found = targetId ? tasks.getTaskContainingTab(targetId) : null
+    const card = targetId ? overview.cardFor(targetId) : null
+    const thumb = card ? card.querySelector('.ov-thumb') : null
+    const thumbImg = thumb && !thumb.classList.contains('empty') ? thumb.querySelector('img') : null
+    const placeholder = document.getElementById('webview-placeholder')
+    const morph = canMorph() && thumbImg && thumbImg.src
 
-    if (activeTransition) {
-      try {
-        activeTransition.skipTransition()
-      } catch (e) {}
-      activeTransition = null
-    }
-
-    this.isShown = false
-    document.body.classList.remove('overview-is-shown')
-    document.body.removeAttribute('data-context')
-
-    const btn = document.getElementById('overview-button') || document.getElementById('switch-task-button')
-    if (btn) {
-      btn.classList.remove('active')
-    }
-
-    const self = this
-
-    function activateTarget () {
-      if (targetTaskId) {
-        browserUI.switchToTask(targetTaskId)
-      }
-      if (targetTabId) {
-        browserUI.switchToTab(targetTabId)
-      } else if (!tabs.getSelected()) {
-        const mostRecentTab = tabs.get().sort(function (a, b) {
-          return b.lastActivity - a.lastActivity
-        })[0]
-        if (mostRecentTab) {
-          browserUI.switchToTab(mostRecentTab.id)
+    const conclude = function () {
+      overview.el.hidden = true
+      overview.isShown = false
+      document.body.classList.remove('overview-is-shown')
+      document.body.removeAttribute('data-context')
+      document.getElementById('overview-button').classList.remove('active')
+      if (found) {
+        if (tasks.getSelected().id !== found.id) {
+          browserUI.switchToTask(found.id)
         }
-      } else {
-        browserUI.switchToTab(tabs.getSelected())
+        browserUI.switchToTab(targetId)
       }
-      webviews.hidePlaceholder('overview')
+      if (morph) {
+        placeholder.src = thumbImg.src
+        placeholder.hidden = false
+        placeholder.style.viewTransitionName = 'xb-page'
+      }
     }
 
-    if (!canAnimate()) {
-      self.getDOM().hidden = true
-      self.destroySortables()
-      activateTarget()
-      return
+    if (morph) {
+      thumb.style.viewTransitionName = 'xb-page'
+      const transition = document.startViewTransition(conclude)
+      await transition.finished.catch(() => {})
+      placeholder.style.viewTransitionName = ''
+    } else {
+      conclude()
     }
-
-    try {
-      activeTransition = document.startViewTransition(function () {
-        self.getDOM().hidden = true
-      })
-
-      activeTransition.finished.finally(function () {
-        activeTransition = null
-        self.destroySortables()
-        activateTarget()
-      })
-    } catch (err) {
-      self.getDOM().hidden = true
-      self.destroySortables()
-      activateTarget()
-      activeTransition = null
-    }
+    webviews.hidePlaceholder('overview')
+    document.body.classList.remove('overview-morph')
+    overview.content.textContent = ''
+    overview.busy = false
   },
 
   toggle: function () {
-    if (this.isShown) {
-      this.hide()
+    if (overview.isShown) {
+      overview.hide()
     } else {
-      this.show()
+      overview.show()
     }
   },
 
   initialize: function () {
-    const self = this
+    overview.build()
 
-    // Bind wheel on navbar to swipe down
-    const navbar = document.getElementById('navbar')
-    if (navbar) {
-      navbar.addEventListener('wheel', function (e) {
-        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
-          return
-        }
-        if (e.deltaY < -30 && Math.abs(e.deltaX) < 10) {
-          self.show()
-          e.stopImmediatePropagation()
-        }
-      })
-    }
-
-    // Bind shortcuts
-    keybindings.defineShortcut('toggleTasks', function () {
-      self.toggle()
-    })
-
-    keybindings.defineShortcut({ keys: 'mod+shift+o' }, function () {
-      self.toggle()
-    })
-
-    keybindings.defineShortcut({ keys: 'ctrl+shift+o' }, function () {
-      self.toggle()
-    })
-
-    keybindings.defineShortcut({ keys: 'esc' }, function () {
-      if (self.isShown) {
-        self.hide()
-      }
-    })
-
-    keybindings.defineShortcut('enterEditMode', function () {
-      if (self.isShown) {
-        self.hide()
-      }
-    })
-
-    keybindings.defineShortcut('closeTab', function () {
-      if (!self.isShown) {
+    keybindings.defineShortcut('toggleTasks', overview.toggle)
+    keybindings.defineShortcut({ keys: 'mod+shift+o' }, overview.toggle)
+    keybindings.defineShortcut('addTask', function () {
+      if (modalMode.enabled()) {
         return
       }
-      const active = document.activeElement
-      if (active && active.classList.contains('overview-card')) {
-        const tabId = active.getAttribute('data-tab')
-        if (tabId) {
-          self.deleteTab(tabId, active)
-        }
-      }
-    }, { contexts: ['overview'] })
-
-    function addTaskFromMenu () {
-      if (modalMode && modalMode.enabled && modalMode.enabled()) {
-        return
-      }
-      if (focusMode && focusMode.enabled && focusMode.enabled()) {
+      if (focusMode.enabled()) {
         focusMode.warn()
         return
       }
       browserUI.addTask()
-      self.show()
-    }
+    })
+    ipc.on('addTask', function () {
+      browserUI.addTask()
+    })
 
-    keybindings.defineShortcut('addTask', addTaskFromMenu)
-    ipcRenderer.on('addTask', addTaskFromMenu)
+    document.getElementById('overview-button').addEventListener('click', overview.toggle)
 
-    // Bind buttons
-    const bindBtn = function () {
-      const overviewButton = document.getElementById('overview-button') || document.getElementById('switch-task-button')
-      if (overviewButton && !overviewButton.hasAttribute('data-overview-bound')) {
-        overviewButton.setAttribute('data-overview-bound', 'true')
-        overviewButton.title = typeof l === 'function' ? l('viewTasks') : 'Overview'
-        overviewButton.addEventListener('click', function () {
-          self.toggle()
-        })
-      }
-    }
-    bindBtn()
-    setTimeout(bindBtn, 1000)
-
-    // Listen for state changes
+    tasks.on('tab-destroyed', forgetThumb)
     tasks.on('state-sync-change', function () {
-      if (self.isShown) {
-        self.render()
+      if (overview.isShown) {
+        overview.render()
       }
     })
   }
