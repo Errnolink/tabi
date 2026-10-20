@@ -232,6 +232,8 @@
     "appMenuHelp": "Help",
     "appMenuAbout": "About %n", //%n is replaced with app name
     "appMenuPreferences": "Preferences",
+    "appMenuContainers": "Containers",
+    "appMenuExtensions": "Extensions",
     "appMenuServices": "Services",
     "appMenuHide": "Hide %n",
     "appMenuHideOthers": "Hide Others",
@@ -241,6 +243,25 @@
     /* Tab menu */
     "tabMenuNewWindow": "Move Tab to New Window",
     "tabMenuReload": "Reload",
+    /* Containers */
+    "openInContainer": "Open Link in Container",
+    "containersPageTitle": "Containers",
+    "containersPageDescription": "Containers keep cookies, storage and logins separate. Tabs in different containers can be signed into different accounts on the same site.",
+    "containersNewContainer": "New Container",
+    "containersEdit": "Edit",
+    "containersDelete": "Delete",
+    "containersDeleteConfirm": "Confirm delete",
+    "containersDeleteWarning": "Deleting \"%s\" moves its tabs to Default and permanently removes its cookies and site data.",
+    "containersDefaultLabel": "Default container — cannot be deleted",
+    "containersNameLabel": "Name",
+    "containersColorLabel": "Color",
+    "containersIconLabel": "Icon",
+    "containersOpenTabs": "%n open tab(s)",
+    "containersSave": "Save",
+    "containersCancel": "Cancel",
+    "containersEditorNew": "New Container",
+    "containersEditorEdit": "Edit Container",
+    "settingsManageContainers": "Manage containers",
     /* PDF Viewer */
     "PDFInvertPage": "Invert page colors",
     "PDFPageCounter": {
