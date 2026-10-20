@@ -87,6 +87,21 @@ const userscripts = {
   loadScripts: function () {
     userscripts.scripts = []
 
+    var bundledDir = window.globalArgs['app-path'] && path.join(window.globalArgs['app-path'], 'ext', 'userscripts')
+    if (bundledDir) {
+      try {
+        window.fs.readdirSync(bundledDir).forEach(function (filename) {
+          if (filename.endsWith('.js')) {
+            var file = window.fs.readFileSync(path.join(bundledDir, filename), 'utf-8')
+            var features = parseTampermonkeyFeatures(file)
+            if (features) {
+              userscripts.scripts.push({ options: features, content: file, name: (features.name && features.name[0]) || filename })
+            }
+          }
+        })
+      } catch (e) { }
+    }
+
     fs.readdir(userscripts.scriptDir, function (err, files) {
       if (err) {
         userscripts.ensureDirectoryExists()
