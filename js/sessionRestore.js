@@ -62,7 +62,7 @@ const sessionRestore = {
       console.warn('failed to read session restore data', e)
     }
 
-    var startupConfigOption = settings.get('startupTabOption') || 2
+    var startupConfigOption = settings.get('startupTabOption') || 1
     /*
     1 - reopen last task
     2 - open new task, keep old tabs in background

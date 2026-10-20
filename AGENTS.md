@@ -5,7 +5,7 @@ Chef's X-bucket browser. Read `HANDOFF.md` first — it has the map, plan, and d
 ## Rules
 
 - Keep X interaction display-only: no API calls, no scraping, no automation of x.com actions.
-- Baseline before mutation: stock `npm run build && npm start` must pass before any feature work on a fresh clone.
+- Baseline gates: `npm run build` must pass (green, 10 s). Upstream `npm test` (standard) is RED at 1.35.7 — 645 pre-existing errors, maintainer mode. The lint gate is therefore: zero NEW errors in files you touch. Measure with a stash-compare before/after.
 - Engine updates: bump `electronVersion` in package.json, then `npm install && npm run build`. Do not vendor engine patches.
 - Page-side X cleanup lives in userscripts (`js/userscripts.js` injector), never in core page hacks.
 - License stays Apache-2.0; keep upstream LICENSE/NOTICE intact.
