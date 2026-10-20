@@ -283,7 +283,12 @@ const tabBar = {
         e.stopPropagation()
         const browserUI = require('browserUI.js')
         browserUI.switchToTask(task.id)
-        browserUI.addTab()
+        let containerId = 'default'
+        if (containers && typeof containers.containerForNewTab === 'function') {
+          containerId = containers.containerForNewTab(task.id)
+        }
+        const newTabId = task.tabs.add({ containerId })
+        browserUI.addTab(newTabId)
       })
       header.appendChild(addTabBtn)
 
@@ -549,6 +554,60 @@ const tabBar = {
     if (containers && typeof containers.on === 'function') {
       containers.on('changed', function () {
         tabBar.updateAll()
+      })
+    }
+    if (tabBar.container) {
+      tabBar.container.addEventListener('dragover', function (e) {
+        e.preventDefault()
+      })
+
+      tabBar.container.addEventListener('drop', function (e) {
+        e.preventDefault()
+        const data = e.dataTransfer
+        if (!data) {
+          return
+        }
+        let path = ''
+        if (data.files && data.files.length > 0) {
+          path = data.files[0].path
+        } else {
+          path = data.getData('text')
+        }
+
+        if (!path) {
+          return
+        }
+
+        const targetBucket = e.target.closest('.sidebar-bucket')
+        const targetTaskId = targetBucket ? targetBucket.getAttribute('data-task') : (tasks.getSelected() ? tasks.getSelected().id : null)
+
+        const targetRow = e.target.closest('.tab-item')
+        let containerId = 'default'
+        if (targetRow) {
+          containerId = targetRow.getAttribute('data-container') || 'default'
+        } else if (containers && typeof containers.containerForNewTab === 'function') {
+          containerId = containers.containerForNewTab(targetTaskId)
+        } else {
+          const selectedTab = tabs.get(tabs.getSelected())
+          containerId = (selectedTab && selectedTab.containerId) || 'default'
+        }
+
+        const browserUI = require('browserUI.js')
+        if (targetTaskId && (!tasks.getSelected() || tasks.getSelected().id !== targetTaskId)) {
+          browserUI.switchToTask(targetTaskId)
+        }
+
+        if (tabEditor.isShown || tabs.isEmpty()) {
+          webviews.update(tabs.getSelected(), path)
+          tabEditor.hide()
+        } else {
+          const newTabId = tabs.add({
+            url: path,
+            private: tabs.getSelected() && tabs.get(tabs.getSelected()) ? tabs.get(tabs.getSelected()).private : false,
+            containerId: containerId
+          })
+          browserUI.addTab(newTabId)
+        }
       })
     }
     tabBar.updateAll()
