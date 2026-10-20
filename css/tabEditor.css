@@ -1,51 +1,143 @@
-#tab-editor {
-  padding: 0 0.55em;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+/* Sea Glass Pill Omnibox
+ * Material 3 Expressive x Liquid Glass
+ */
+
+#tab-editor.sea-glass-pill.omnibox {
+  flex: 1;
+  max-width: 720px;
+  height: 36px;
+  margin: 0 12px;
+  position: relative;
   display: flex;
-  height: 100%;
   align-items: center;
-  transform-origin: top left;
-  z-index: 1;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: var(--glass-frost);
+  --glass-tint: var(--pebble-search);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: inset 0 1.5px 1px var(--rim-top),
+              inset 0 -2px 6px var(--rim-bottom),
+              inset 0 0 0 1px var(--rim-border);
+  cursor: text;
+  box-sizing: border-box;
+  transition: box-shadow var(--dur-effects) var(--spring-effects),
+              background var(--dur-effects) var(--spring-effects),
+              transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+}
+
+#tab-editor::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--grain-tile);
+  background-size: 64px 64px;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  z-index: -1;
+}
+
+#tab-editor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -2;
+  filter: blur(var(--shadow-blur));
+  background: var(--shadow-blob-tint);
+  transform: translate(var(--sx), var(--sy)) scale(0.96);
+  opacity: 0.8;
+  transition: transform var(--dur-spatial-fast) var(--spring-spatial-fast);
+}
+
+#tab-editor.is-editing {
+  background: var(--glass-jewel);
+  box-shadow: inset 0 1.5px 1px var(--rim-top),
+              inset 0 -3px 8px var(--rim-bottom),
+              inset 0 0 0 1.5px color-mix(in srgb, var(--sys-primary) 65%, white 35%),
+              0 2px 14px rgba(0, 0, 0, 0.14);
+}
+
+.omnibox-search-icon {
+  font-size: 15px;
+  color: var(--sys-on-surface-variant);
+  margin-right: 8px;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 #tab-editor-input {
-  font-size: 1.1em;
-  line-height: 2em;
-  background: none;
-  -webkit-appearance: none;
-  border: none;
-  color: inherit;
   flex: 1;
-  height: 1.5em;
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+  color: var(--sys-on-surface);
+  background: transparent;
+  border: none;
   outline: none;
-  -webkit-user-select: auto;
+  line-height: 20px;
   -webkit-app-region: no-drag;
 }
+
 #tab-editor-input::-webkit-input-placeholder {
-  color: inherit;
-  opacity: 0.5;
-  line-height: 1.25em;
+  color: var(--sys-on-surface-variant);
+  opacity: 0.6;
 }
 
 #tab-editor .tab-editor-button {
-  padding: 0.4em;
-  margin-top: 0.1em;
+  padding: 0.35em;
   border-radius: 50%;
+  color: var(--sys-on-surface-variant);
+  transition: background 0.15s, color 0.15s;
 }
 
 #tab-editor .tab-editor-button:hover {
-  background-color: rgba(0, 0, 0, 0.075);
+  background-color: color-mix(in srgb, var(--sys-on-surface) 10%, transparent);
+  color: var(--sys-on-surface);
 }
 
-.dark-theme #tab-editor .tab-editor-button:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-#tab-editor
-  .tab-editor-button:not([hidden])
-  + .tab-editor-button:not([hidden]) {
+#tab-editor .tab-editor-button:not([hidden]) + .tab-editor-button:not([hidden]) {
   margin-left: 0.25em;
+}
+
+/* ========================================================
+   Wavy Omnibox Loading Indicator
+   ======================================================== */
+
+.omnibox-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 6px;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 0 0 var(--r-pill) var(--r-pill);
+}
+
+.wavy-progress-svg {
+  width: 200%;
+  height: 100%;
+  display: block;
+}
+
+.wavy-progress-path {
+  fill: none;
+  stroke: var(--sys-primary);
+  stroke-width: 2.2px;
+  stroke-linecap: round;
+}
+
+@keyframes omniboxWave {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.omnibox-progress-bar.is-loading .wavy-progress-svg {
+  animation: omniboxWave 1.4s linear infinite;
 }

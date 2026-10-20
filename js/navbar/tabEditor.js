@@ -1,43 +1,63 @@
-var searchbar = require('searchbar/searchbar.js')
-var webviews = require('webviews.js')
-var modalMode = require('modalMode.js')
-var urlParser = require('util/urlParser.js')
-var keyboardNavigationHelper = require('util/keyboardNavigationHelper.js')
-var bookmarkStar = require('navbar/bookmarkStar.js')
-var contentBlockingToggle = require('navbar/contentBlockingToggle.js')
+const searchbar = require('searchbar/searchbar.js')
+const webviews = require('webviews.js')
+const modalMode = require('modalMode.js')
+const urlParser = require('util/urlParser.js')
+const keyboardNavigationHelper = require('util/keyboardNavigationHelper.js')
+const bookmarkStar = require('navbar/bookmarkStar.js')
+const contentBlockingToggle = require('navbar/contentBlockingToggle.js')
 
 const tabEditor = {
   container: document.getElementById('tab-editor'),
   input: document.getElementById('tab-editor-input'),
   star: null,
+  contentBlockingToggle: null,
   isShown: false,
-  show: function (tabId, editingValue, showSearchbar) {
-    /* Edit mode is not available in modal mode. */
+  updateDisplay: function (tabId = tabs.getSelected()) {
+    if (tabEditor.isShown) {
+      return
+    }
+    if (!tabId || tabs.isEmpty()) {
+      tabEditor.input.value = ''
+      return
+    }
+    const tab = tabs.get(tabId)
+    if (!tab || !tab.url || tab.url === '' || tab.url === urlParser.parse('min://newtab')) {
+      tabEditor.input.value = ''
+    } else {
+      tabEditor.input.value = urlParser.getSourceURL(tab.url)
+    }
+  },
+  show: function (tabId = tabs.getSelected(), editingValue, showSearchbar) {
     if (modalMode.enabled()) {
       return
     }
+    if (!tabId) {
+      return
+    }
 
-    tabEditor.container.hidden = false
     tabEditor.isShown = true
+    tabEditor.container.classList.add('is-editing')
 
     bookmarkStar.update(tabId, tabEditor.star)
     contentBlockingToggle.update(tabId, tabEditor.contentBlockingToggle)
 
     webviews.requestPlaceholder('editMode')
-
     document.body.classList.add('is-edit-mode')
 
-    var currentURL = urlParser.getSourceURL(tabs.get(tabId).url)
-    if (currentURL === 'min://newtab') {
-      currentURL = ''
+    const tabData = tabs.get(tabId)
+    let currentURL = ''
+    if (tabData && tabData.url) {
+      currentURL = urlParser.getSourceURL(tabData.url)
+      if (currentURL === 'min://newtab') {
+        currentURL = ''
+      }
     }
 
-    tabEditor.input.value = editingValue || currentURL
+    tabEditor.input.value = editingValue !== undefined && editingValue !== null ? editingValue : currentURL
     tabEditor.input.focus()
     if (!editingValue) {
       tabEditor.input.select()
     }
-    // https://github.com/minbrowser/min/discussions/1506
     tabEditor.input.scrollLeft = 0
 
     searchbar.show(tabEditor.input)
@@ -49,38 +69,18 @@ const tabEditor = {
         searchbar.showResults('', null)
       }
     }
-
-    /* animation */
-    if (tabs.count() > 1) {
-      requestAnimationFrame(function () {
-        var item = document.querySelector(`.tab-item[data-tab="${tabId}"]`)
-        var originCoordinates = item.getBoundingClientRect()
-
-        var finalCoordinates = document.querySelector('#tabs').getBoundingClientRect()
-
-        var translateX = Math.min(Math.round(originCoordinates.x - finalCoordinates.x) * 0.45, window.innerWidth)
-
-        tabEditor.container.style.opacity = 0
-        tabEditor.container.style.transform = `translateX(${translateX}px)`
-        requestAnimationFrame(function () {
-          tabEditor.container.style.transition = '0.135s all'
-          tabEditor.container.style.opacity = 1
-          tabEditor.container.style.transform = ''
-        })
-      })
-    }
   },
   hide: function () {
-    tabEditor.container.hidden = true
-    tabEditor.container.removeAttribute('style')
     tabEditor.isShown = false
+    tabEditor.container.classList.remove('is-editing')
 
     tabEditor.input.blur()
     searchbar.hide()
 
     document.body.classList.remove('is-edit-mode')
-
     webviews.hidePlaceholder('editMode')
+
+    tabEditor.updateDisplay()
   },
   initialize: function () {
     tabEditor.input.setAttribute('placeholder', l('searchbarPlaceholder'))
@@ -93,15 +93,59 @@ const tabEditor = {
 
     keyboardNavigationHelper.addToGroup('searchbar', tabEditor.container)
 
-    tabEditor.input.addEventListener('input', function (e) {
-      if (e.isComposing) {
-        // This input will instead be handled during the compositionend event
+    const progressBar = tabEditor.container.querySelector('.omnibox-progress-bar')
+    function setProgressLoading (loading) {
+      if (!progressBar) {
         return
       }
+      if (loading) {
+        progressBar.hidden = false
+        progressBar.classList.add('is-loading')
+      } else {
+        progressBar.classList.remove('is-loading')
+        setTimeout(function () {
+          if (!progressBar.classList.contains('is-loading')) {
+            progressBar.hidden = true
+          }
+        }, 400)
+      }
+    }
 
-      // handles all inputs except for the case where the selection is moved (since we call preventDefault() there)
+    webviews.bindEvent('did-start-loading', function (tabId) {
+      if (tabId === tabs.getSelected()) {
+        setProgressLoading(true)
+      }
+    })
+
+    webviews.bindEvent('did-stop-loading', function (tabId) {
+      if (tabId === tabs.getSelected()) {
+        setProgressLoading(false)
+      }
+    })
+
+    tasks.on('tab-selected', function (id) {
+      tabEditor.updateDisplay(id)
+      setProgressLoading(false)
+    })
+
+    tasks.on('tab-updated', function (id, key) {
+      if (id === tabs.getSelected() && (key === 'url' || key === 'title')) {
+        tabEditor.updateDisplay(id)
+      }
+    })
+
+    tabEditor.container.addEventListener('click', function (e) {
+      if (!tabEditor.isShown && tabs.getSelected()) {
+        tabEditor.show(tabs.getSelected())
+      }
+    })
+
+    tabEditor.input.addEventListener('input', function (e) {
+      if (e.isComposing) {
+        return
+      }
       searchbar.showResults(this.value, {
-        isDeletion: e.inputType.includes('delete')
+        isDeletion: e.inputType ? e.inputType.includes('delete') : false
       })
     })
 
@@ -110,17 +154,14 @@ const tabEditor = {
     })
 
     tabEditor.input.addEventListener('keypress', function (e) {
-      if (e.keyCode === 13) { // return key pressed; update the url
+      if (e.keyCode === 13) {
         if (this.getAttribute('data-autocomplete-text') && this.getAttribute('data-autocomplete-text').toLowerCase() === this.value.toLowerCase()) {
-          // The original autocompletion can contain additional information, such as a protocol or different capitalization than what was typed
           searchbar.openURL(this.getAttribute('data-autocomplete-ref') || this.getAttribute('data-autocomplete-text'), e)
         } else {
           searchbar.openURL(this.value, e)
         }
         e.preventDefault()
       }
-
-      // on keydown, if the autocomplete result doesn't change, we move the selection instead of regenerating it to avoid race conditions with typing. Adapted from https://github.com/patrickburke/jquery.inlineComplete
 
       if (e.key && this.selectionEnd === this.value.length && this.value[this.selectionStart] === e.key) {
         this.selectionStart += 1
@@ -129,9 +170,19 @@ const tabEditor = {
       }
     })
 
-    document.getElementById('webviews').addEventListener('click', function () {
-      tabEditor.hide()
-    })
+    const webviewsEl = document.getElementById('webviews')
+    if (webviewsEl) {
+      webviewsEl.addEventListener('click', function () {
+        tabEditor.hide()
+      })
+    }
+
+    const sidebarEl = document.getElementById('sidebar')
+    if (sidebarEl) {
+      sidebarEl.addEventListener('click', function () {
+        tabEditor.hide()
+      })
+    }
   }
 }
 

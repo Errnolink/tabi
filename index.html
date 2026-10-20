@@ -113,78 +113,56 @@
       class="theme-background-color theme-text-color windowDragHandle"
       tabindex="-1"
     >
-    <div id="mac-window-drag-area"></div>
-      <button
-        id="menu-button"
-        class="navbar-action-button i carbon:overflow-menu-vertical"
-        data-label="openMenu"
-        tabindex="-1"
-      ></button>
-      <div id="toolbar-navigation-buttons" hidden>
-          <button
+      <div id="mac-window-drag-area"></div>
+      <div id="toolbar-navigation-buttons">
+        <button
           id="back-button"
           class="navbar-action-button i carbon:chevron-left"
           data-label="goBack"
           tabindex="-1"
         ></button>
         <button
-        id="forward-button"
-        class="navbar-action-button i carbon:chevron-right"
-        data-label="goForward"
-        tabindex="-1"
-      ></button>
-      </div>
-      <div id="tabs">
-        <div id="tab-editor" hidden>
-          <input id="tab-editor-input" spellcheck="false" />
-        </div>
-        <div id="tabs-inner" role="tablist" class="has-thin-scrollbar"></div>
-      </div>
-      <div class="navbar-right-actions">
+          id="forward-button"
+          class="navbar-action-button i carbon:chevron-right"
+          data-label="goForward"
+          tabindex="-1"
+        ></button>
         <button
-          id="add-tab-button"
-          class="navbar-action-button i carbon:add"
-          data-label="newTabAction"
+          id="reload-button"
+          class="navbar-action-button i carbon:renew"
+          title="Reload"
           tabindex="-1"
         ></button>
       </div>
+
+      <div id="tab-editor" class="sea-glass-pill omnibox">
+        <div class="omnibox-progress-bar" hidden>
+          <svg class="wavy-progress-svg" viewBox="0 0 100 8" preserveAspectRatio="none">
+            <path class="wavy-progress-path" d="M0 4 Q 12.5 0, 25 4 T 50 4 T 75 4 T 100 4" />
+          </svg>
+        </div>
+        <i class="omnibox-search-icon i carbon:search"></i>
+        <input id="tab-editor-input" spellcheck="false" />
+      </div>
+
+      <button
+        id="overview-button"
+        class="navbar-action-button i carbon:grid"
+        title="Overview"
+        tabindex="-1"
+      ></button>
+
+      <div id="toolbar-actions"></div>
+
+      <button
+        id="menu-button"
+        class="navbar-action-button i carbon:overflow-menu-vertical"
+        data-label="openMenu"
+        tabindex="-1"
+      ></button>
     </div>
 
-    <button
-      id="switch-task-button"
-      class="navbar-action-button theme-text-color windowDragHandle i"
-      data-label="viewTasks"
-      tabindex="-1"
-    >
-      <svg
-        version="1.1"
-        viewBox="0.0 0.0 26.0 26.0"
-        fill="none"
-        stroke="none"
-        stroke-linecap="square"
-        stroke-miterlimit="10"
-        xmlns:xlink="http://www.w3.org/1999/xlink"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <g clip-path="url(#p.0)">
-          <path
-            fill="currentColor"
-            d="m0 0l32 0l0 4l-32 0z"
-            fill-rule="evenodd"
-          />
-          <path
-            fill="currentColor"
-            d="m0 11l32 0l0 4l-32 0z"
-            fill-rule="evenodd"
-          />
-          <path
-            fill="currentColor"
-            d="m0 22l32 0l0 4l-32 0z"
-            fill-rule="evenodd"
-          />
-        </g>
-      </svg>
-    </button>
+    <button id="switch-task-button" hidden tabindex="-1"></button>
 
     <div id="searchbar" class="theme-background-color theme-text-color">
       <div class="top-answer-area"></div>
@@ -192,7 +170,29 @@
 
     <div id="overlay"></div>
 
-    <div id="bucket-rail" class="theme-background-color theme-text-color"></div>
+    <div id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-header-title">Buckets</span>
+        <div class="sidebar-header-actions">
+          <button
+            id="sidebar-collapse-button"
+            class="sidebar-action-button i carbon:chevron-left"
+            title="Collapse sidebar"
+            tabindex="-1"
+          ></button>
+          <button
+            id="new-bucket-button"
+            class="sidebar-action-button i carbon:add"
+            title="New bucket"
+            tabindex="-1"
+          ></button>
+        </div>
+      </div>
+      <div id="sidebar-buckets" class="sidebar-buckets has-thin-scrollbar">
+        <div id="tabs-inner" role="tablist" class="has-thin-scrollbar"></div>
+      </div>
+      <div id="sidebar-resizer" class="sidebar-resizer"></div>
+    </div>
 
     <div id="webviews">
       <div id="leftArrowContainer" class="arrow-indicator">
