@@ -34,8 +34,6 @@ function captureTab (tabId, options) {
 function captureCurrentTab (options) {
   captureTab(tabs.getSelected(), options)
 }
-webviews.captureTab = captureTab
-webviews.captureCurrentTab = captureCurrentTab
 
 // called whenever a new page starts loading, or an in-page navigation occurs
 function onPageURLChange (tab, url) {
@@ -568,5 +566,8 @@ ipc.on('windowFocus', function () {
     webviews.focus()
   }
 })
+
+webviews.captureTab = captureTab
+webviews.captureCurrentTab = captureCurrentTab
 
 module.exports = webviews
