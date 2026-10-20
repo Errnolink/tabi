@@ -1,5 +1,5 @@
 const browserUI = require('browserUI.js')
-const taskOverlay = require('taskOverlay/taskOverlay.js')
+const overview = require('overview/overview.js')
 
 const windowSync = {
 
@@ -89,7 +89,7 @@ const windowSync = {
           } else {
             browserUI.addTask()
           }
-          taskOverlay.show()
+          overview.show()
         }
         //if a tab was added or removed from our task, force a rerender
         if (

@@ -11,7 +11,7 @@ const browserUI = require('browserUI.js')
 const focusMode = require('focusMode.js')
 const places = require('places/places.js')
 const contentBlockingToggle = require('navbar/contentBlockingToggle.js')
-const taskOverlay = require('taskOverlay/taskOverlay.js')
+const overview = require('overview/overview.js')
 const bookmarkConverter = require('bookmarkConverter.js')
 const searchbarPlugins = require('searchbar/searchbarPlugins.js')
 const tabEditor = require('navbar/tabEditor.js')
@@ -35,10 +35,10 @@ function moveToTaskCommand (taskId) {
   browserUI.switchToTask(newTask.id)
   browserUI.switchToTab(currentTab.id)
 
-  taskOverlay.show()
+  overview.show()
 
   setTimeout(function () {
-    taskOverlay.hide()
+    overview.hide()
   }, 600)
 }
 
@@ -51,7 +51,7 @@ function switchToTaskCommand (taskId) {
 
   // no task was specified, show all of the tasks
   if (!taskId) {
-    taskOverlay.show()
+    overview.show()
     return
   }
 
@@ -258,7 +258,7 @@ function initialize () {
       // switch to the first search result
         switchToTaskCommand(searchAndSortTasks(text)[0].task.id)
       } else {
-        taskOverlay.show()
+        overview.show()
       }
     }
   })
@@ -274,9 +274,7 @@ function initialize () {
         focusMode.warn()
         return
       }
-
-      taskOverlay.show()
-
+      overview.show()
       setTimeout(function () {
         browserUI.addTask()
         if (text) {
@@ -304,9 +302,9 @@ function initialize () {
       if (taskToClose) {
         browserUI.closeTask(taskToClose.id)
         if (currentTask.id === taskToClose.id) {
-          taskOverlay.show()
+          overview.show()
           setTimeout(function () {
-            taskOverlay.hide()
+            overview.hide()
           }, 600)
         }
       }
