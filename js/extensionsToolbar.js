@@ -84,7 +84,7 @@ function setTabAttribute (tabId, attempt) {
 }
 
 function updateActionList () {
-  if (!actionList) {
+  if (!actionList || !window.tabs) {
     return
   }
   var tabId = tabs.getSelected()
@@ -110,13 +110,14 @@ function mount () {
 }
 
 function listenForTabEvents () {
-  tabs.on('tab-selected', function () { updateActionList() })
-  tabs.on('tab-updated', function (id, key) {
+  tasks.on('task-selected', function () { updateActionList() })
+  tasks.on('tab-selected', function () { updateActionList() })
+  tasks.on('tab-updated', function (id, key) {
     if (key === 'containerId') {
       updateActionList()
     }
   })
-  tabs.on('tab-destroyed', function () { updateActionList() })
+  tasks.on('tab-destroyed', function () { updateActionList() })
   containers.on('changed', function () { updateActionList() })
 }
 
@@ -165,20 +166,7 @@ function initialize () {
   }
 
   listenForExtensionCommands()
-
-  // tabs is assigned once the first task is selected during startup
-  if (tabs) {
-    listenForTabEvents()
-    updateActionList()
-  } else {
-    var wait = setInterval(function () {
-      if (tabs) {
-        clearInterval(wait)
-        listenForTabEvents()
-        updateActionList()
-      }
-    }, 50)
-  }
+  listenForTabEvents()
 }
 
 module.exports = { initialize }

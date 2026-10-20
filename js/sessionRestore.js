@@ -11,7 +11,11 @@ const statistics = require('js/statistics.js')
 const sessionRestore = {
   savePath: window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\sessionRestore.json' : '/sessionRestore.json'),
   previousState: null,
+  restored: false,
   save: function (forceSave, sync) {
+    if (!sessionRestore.restored) {
+      return
+    }
     //only one window (the focused one) should be responsible for saving session restore data
     if (!document.body.classList.contains('focused')) {
       return
@@ -235,6 +239,7 @@ const sessionRestore = {
     } else {
       sessionRestore.syncWithWindow()
     }
+    sessionRestore.restored = true
     if (settings.get('newWindowOption') === 2 && !Object.hasOwn(window.globalArgs, 'launch-window') && !Object.hasOwn(window.globalArgs, 'initial-task')) {
       overview.show()
     }
@@ -243,6 +248,9 @@ const sessionRestore = {
     setInterval(sessionRestore.save, 30000)
 
     window.onbeforeunload = function (e) {
+      if (!sessionRestore.restored) {
+        return
+      }
       sessionRestore.save(true, true)
       //workaround for notifying the other windows that the task open in this window isn't open anymore.
       //This should ideally be done in windowSync, but it needs to run synchronously, which windowSync doesn't

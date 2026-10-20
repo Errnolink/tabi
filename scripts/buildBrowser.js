@@ -35,6 +35,7 @@ function buildBrowser () {
 
   instance.exclude('chokidar')
   instance.exclude('write-file-atomic')
+  instance.exclude('electron-chrome-extensions/browser-action')
 
   instance.transform(renderify)
   const stream = fs.createWriteStream(outFile, { encoding: 'utf-8' })
