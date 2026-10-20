@@ -170,6 +170,7 @@ require('macHandoff.js').initialize()
 require('autoFile.js').initialize()
 require('seaglass/light.js').initialize()
 require('discardInactive.js').initialize()
+require('extensionsToolbar.js').initialize()
 
 // default searchbar plugins
 
