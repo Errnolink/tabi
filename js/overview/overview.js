@@ -52,10 +52,6 @@ function cardAspect (tab) {
 }
 
 function loadThumb (tab, img) {
-  if (tab.thumbImage) {
-    img.src = tab.thumbImage
-    return
-  }
   const cached = thumbCache.get(tab.id)
   if (cached) {
     img.src = cached
@@ -698,7 +694,7 @@ const overview = {
       }
       overview.previewWaiter = waiter
       webviews.captureTab(tabId, { forceCapture: true })
-      setTimeout(() => waiter.resolve(!!tabs.get(tabId).previewImage), 300)
+      setTimeout(() => waiter.resolve(!!tabs.get(tabId).thumbAspect), 300)
     })
   },
 
@@ -741,7 +737,7 @@ const overview = {
 
     tasks.on('tab-destroyed', forgetThumb)
     tasks.on('tab-updated', function (id, key) {
-      if (key !== 'previewImage') {
+      if (key !== 'thumbAspect') {
         return
       }
       if (overview.previewWaiter && overview.previewWaiter.id === id) {

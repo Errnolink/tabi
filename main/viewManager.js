@@ -1,4 +1,4 @@
-/* global extensionsRegisterView, extensionsUnregisterView, extensionsNotifyViewSelected */
+/* global extensionsRegisterView, extensionsUnregisterView, extensionsNotifyViewSelected, os */
 var viewMap = {} // id: view
 var viewStateMap = {} // id: view state
 
@@ -356,6 +356,26 @@ ipc.on('destroyAllViews', function () {
   destroyAllViews()
 })
 
+function detachView (id) {
+  var view = viewMap[id]
+  if (!view) {
+    return
+  }
+  var isSelected = windows.getAll().some(function (window) {
+    return windows.getState(window).selectedView === id
+  })
+  if (isSelected) {
+    return
+  }
+  windows.getAll().forEach(function (window) {
+    window.getContentView().removeChildView(view)
+  })
+}
+
+ipc.on('detachView', function (e, id) {
+  detachView(id)
+})
+
 ipc.on('setView', function (e, args) {
   setView(args.id, e.sender)
   setBounds(args.id, args.bounds, args)
@@ -495,7 +515,8 @@ ipc.on('getCapture', function (e, data) {
     return
   }
 
-  Promise.all([view.webContents.capturePage(), thumbnailFocusRect(view)]).then(function ([img, focus]) {
+  var needsLarge = data.needsLarge === true
+  Promise.all([view.webContents.capturePage(), needsLarge ? thumbnailFocusRect(view) : Promise.resolve(null)]).then(function ([img, focus]) {
     if (!img || img.isEmpty()) {
       return
     }
@@ -513,10 +534,11 @@ ipc.on('getCapture', function (e, data) {
         height: Math.round(focus.height * scale)
       }
     }
-    var result = thumbnailManager.save(data.id, img, crop)
-    if (result) {
-      e.sender.send('captureData', { id: data.id, url: result.pageUrl, thumbUrl: result.thumbUrl, aspect: result.aspect })
-    }
+    thumbnailManager.save(data.id, img, crop).then(function (result) {
+      if (result && needsLarge) {
+        e.sender.send('captureData', { id: data.id, aspect: result.aspect })
+      }
+    })
   }).catch(function (err) {
     console.error('Error capturing page for tab ' + data.id + ':', err)
   })
@@ -531,6 +553,64 @@ ipc.on('saveViewCapture', function (e, data) {
   view.webContents.capturePage().then(function (image) {
     view.webContents.downloadURL(image.toDataURL())
   })
+})
+
+const memoryBudgetState = {
+  totalBytes: 0,
+  freeBytes: 0,
+  budgetBytes: 0,
+  viewBytes: {}
+}
+
+function computeMemoryBudget () {
+  var totalBytes = os.totalmem()
+  var freeBytes = 0
+  try {
+    freeBytes = process.getSystemMemoryInfo().free * 1024
+  } catch (err) {
+    freeBytes = 0
+  }
+  var budgetBytes = clamp(0.25 * (totalBytes - 4 * 1024 * 1024 * 1024), 512 * 1024 * 1024, 12 * 1024 * 1024 * 1024)
+
+  var metricsByPid = {}
+  app.getAppMetrics().forEach(function (metric) {
+    metricsByPid[metric.pid] = metric.metrics ? metric.metrics.memory : null
+  })
+
+  var viewBytes = {}
+  for (var id in viewMap) {
+    try {
+      if (viewMap[id].webContents.isDestroyed()) {
+        continue
+      }
+      var memory = metricsByPid[viewMap[id].webContents.getOSProcessId()]
+      if (memory) {
+        viewBytes[id] = (memory.privateBytes || memory.workingSetSize || 0) * 1024
+      }
+    } catch (err) {
+      continue
+    }
+  }
+
+  memoryBudgetState.totalBytes = totalBytes
+  memoryBudgetState.freeBytes = freeBytes
+  memoryBudgetState.budgetBytes = budgetBytes
+  memoryBudgetState.viewBytes = viewBytes
+
+  windows.getAll().forEach(function (window) {
+    try {
+      getWindowWebContents(window).send('memoryBudget', memoryBudgetState)
+    } catch (err) {}
+  })
+}
+
+app.whenReady().then(function () {
+  computeMemoryBudget()
+  setInterval(computeMemoryBudget, 30000)
+})
+
+ipc.on('getMemoryBudget', function (e) {
+  e.sender.send('memoryBudget', memoryBudgetState)
 })
 
 global.getView = getView

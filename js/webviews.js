@@ -7,6 +7,48 @@ var shellLayout = require('shellLayout.js')
 
 var placeholderImg = document.getElementById('webview-placeholder')
 
+var lastCaptureTimes = {}
+var thumbObjectUrls = {}
+
+function getThumbFilePath (tabId) {
+  var userData = (window.globalArgs && window.globalArgs['user-data-path']) || ''
+  if (!userData) {
+    return null
+  }
+  var sep = window.platformType === 'windows' ? '\\' : '/'
+  return userData + sep + 'thumbnails' + sep + tabId + '.jpg'
+}
+
+function loadThumbObjectURL (tabId, callback, retried) {
+  if (thumbObjectUrls[tabId]) {
+    callback(thumbObjectUrls[tabId])
+    return
+  }
+  var filePath = getThumbFilePath(tabId)
+  if (!filePath || typeof fs === 'undefined' || !fs.promises) {
+    return
+  }
+  fs.promises.readFile(filePath).then(function (buffer) {
+    if (!thumbObjectUrls[tabId]) {
+      thumbObjectUrls[tabId] = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
+    }
+    callback(thumbObjectUrls[tabId])
+  }).catch(function () {
+    if (!retried) {
+      setTimeout(function () {
+        loadThumbObjectURL(tabId, callback, true)
+      }, 300)
+    }
+  })
+}
+
+function forgetThumbObjectURL (tabId) {
+  if (thumbObjectUrls[tabId]) {
+    URL.revokeObjectURL(thumbObjectUrls[tabId])
+    delete thumbObjectUrls[tabId]
+  }
+}
+
 function captureTab (tabId, options) {
   if (!tabId || document.visibilityState === 'hidden') {
     return
@@ -23,9 +65,17 @@ function captureTab (tabId, options) {
     return
   }
 
+  var forceCapture = options && options.forceCapture === true
+  var now = Date.now()
+  if (!forceCapture && now - (lastCaptureTimes[tabId] || 0) < 2000) {
+    return
+  }
+  lastCaptureTimes[tabId] = now
+
   ipc.send('getCapture', {
     id: tabId,
-    width: 480
+    width: 480,
+    needsLarge: forceCapture || webviews.placeholderRequests.length > 0
   })
 }
 
@@ -246,17 +296,20 @@ const webviews = {
       radius: webviews.getViewRadius(),
       focus: !options || options.focus !== false
     })
+    webviews.detachedTabs.delete(id)
     webviews.emitEvent('view-shown', id)
   },
   update: function (id, url) {
     ipc.send('loadURLInView', { id: id, url: urlParser.parse(url) })
   },
   loadingTabs: new Set(),
+  detachedTabs: new Set(),
   isLoading: function (id) {
     return webviews.loadingTabs.has(id)
   },
   destroy: function (id) {
     webviews.loadingTabs.delete(id)
+    webviews.detachedTabs.delete(id)
     webviews.emitEvent('view-hidden', id)
 
     if (webviews.hasViewForTab(id)) {
@@ -272,6 +325,25 @@ const webviews = {
       webviews.selectedId = null
     }
   },
+  detach: function (id) {
+    if (!webviews.hasViewForTab(id) || webviews.selectedId === id) {
+      return
+    }
+    webviews.detachedTabs.add(id)
+    webviews.emitEvent('view-hidden', id)
+    ipc.send('detachView', id)
+  },
+  warmUp: function (tabId) {
+    if (!tabId || webviews.hasViewForTab(tabId)) {
+      return
+    }
+    var task = tasks.getTaskContainingTab(tabId)
+    var tabData = task && task.tabs.get(tabId)
+    if (!tabData || tabData.private || !tabData.url) {
+      return
+    }
+    webviews.add(tabId)
+  },
   requestPlaceholder: function (reason) {
     if (reason && !webviews.placeholderRequests.includes(reason)) {
       webviews.placeholderRequests.push(reason)
@@ -280,11 +352,18 @@ const webviews = {
       // create a new placeholder
 
       var associatedTab = tasks.getTaskContainingTab(webviews.selectedId).tabs.get(webviews.selectedId)
-      var img = associatedTab.previewImage
-      if (img) {
-        placeholderImg.src = img
+      var thumbUrl = thumbObjectUrls[webviews.selectedId]
+      if (thumbUrl) {
+        placeholderImg.src = thumbUrl
         placeholderImg.hidden = false
       } else if (associatedTab && associatedTab.url) {
+        var placeholderTabId = webviews.selectedId
+        loadThumbObjectURL(placeholderTabId, function (url) {
+          if (url && webviews.selectedId === placeholderTabId && webviews.placeholderRequests.length > 0) {
+            placeholderImg.src = url
+            placeholderImg.hidden = false
+          }
+        })
         captureCurrentTab({ forceCapture: true })
       } else {
         placeholderImg.hidden = true
@@ -313,6 +392,7 @@ const webviews = {
           radius: webviews.getViewRadius(),
           focus: true
         })
+        webviews.detachedTabs.delete(webviews.selectedId)
         webviews.emitEvent('view-shown', webviews.selectedId)
       }
       // wait for the view to be visible before removing the placeholder
@@ -537,23 +617,35 @@ ipc.on('view-ipc', function (e, args) {
   })
 })
 
-setInterval(function () {
-  captureCurrentTab()
-}, 15000)
+webviews.bindEvent('media-started-playing', function (tabId) {
+  if (webviews.detachedTabs.has(tabId)) {
+    webviews.destroy(tabId)
+  }
+})
 
 ipc.on('captureData', function (e, data) {
   const task = tasks.getTaskContainingTab(data.id)
   if (!task) {
     return
   }
-  task.tabs.update(data.id, { previewImage: data.url, thumbImage: data.thumbUrl, thumbAspect: data.aspect })
+  if (typeof data.aspect === 'number' && isFinite(data.aspect) && data.aspect > 0) {
+    task.tabs.update(data.id, { thumbAspect: data.aspect })
+  }
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
-    placeholderImg.src = data.url
-    placeholderImg.hidden = false
+    forgetThumbObjectURL(data.id)
+    loadThumbObjectURL(data.id, function (url) {
+      if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
+        placeholderImg.src = url
+        placeholderImg.hidden = false
+      }
+    })
   }
 })
 
 tasks.on('tab-destroyed', function (id) {
+  forgetThumbObjectURL(id)
+  delete lastCaptureTimes[id]
+  webviews.detachedTabs.delete(id)
   ipc.send('deleteThumbnail', id)
 })
 

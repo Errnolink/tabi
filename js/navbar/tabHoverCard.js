@@ -2,6 +2,8 @@ const uiLayer = require('uiLayer.js')
 const urlParser = require('util/urlParser.js')
 const containers = require('containers.js')
 const shellLayout = require('shellLayout.js')
+const webviews = require('webviews.js')
+const discardInactive = require('discardInactive.js')
 
 const thumbCache = new Map()
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -24,7 +26,39 @@ let isHiding = false
 let currentTabId = null
 let currentRowEl = null
 let pendingTabId = null
-let pendingRowEl = null
+let warmTimer = null
+let warmTabId = null
+
+function scheduleWarmUp (tabId) {
+  if (warmTimer || warmTabId) {
+    return
+  }
+  const found = findTab(tabId)
+  if (!found || found.tab.private || !found.tab.url) {
+    return
+  }
+  if (webviews.hasViewForTab(tabId) || !discardInactive.canWarmUp()) {
+    return
+  }
+  warmTabId = tabId
+  warmTimer = setTimeout(function () {
+    warmTimer = null
+    const target = warmTabId
+    warmTabId = null
+    const found = target && findTab(target)
+    if (found && !found.tab.private && !webviews.hasViewForTab(target) && discardInactive.canWarmUp()) {
+      webviews.warmUp(target)
+    }
+  }, 150)
+}
+
+function cancelWarmUp (tabId) {
+  if (warmTabId === tabId) {
+    clearTimeout(warmTimer)
+    warmTimer = null
+    warmTabId = null
+  }
+}
 
 function getThumbPath (tabId) {
   const userData = (window.globalArgs && window.globalArgs['user-data-path']) || ''
@@ -36,12 +70,6 @@ function getThumbPath (tabId) {
 }
 
 function fetchThumb (tab) {
-  if (tab.thumbImage) {
-    return Promise.resolve(tab.thumbImage)
-  }
-  if (tab.previewImage) {
-    return Promise.resolve(tab.previewImage)
-  }
   const cached = thumbCache.get(tab.id)
   if (cached) {
     return Promise.resolve(cached)
@@ -158,7 +186,7 @@ function updateCardContent (tabId, rowEl) {
     glyphEl.hidden = false
   }
 
-  const syncThumb = tab.thumbImage || tab.previewImage || thumbCache.get(tab.id)
+  const syncThumb = thumbCache.get(tab.id)
   if (syncThumb) {
     thumbImg.src = syncThumb
     thumbWrap.hidden = false
@@ -319,12 +347,12 @@ const tabHoverCard = {
 
   onRowMouseEnter: function (tabId, rowEl) {
     clearTimeout(hideTimer)
+    scheduleWarmUp(tabId)
     if (isCardVisible) {
       show(tabId, rowEl)
     } else {
       clearTimeout(hoverTimer)
       pendingTabId = tabId
-      pendingRowEl = rowEl
       const found = findTab(tabId)
       if (found) {
         fetchThumb(found.tab)
@@ -338,12 +366,12 @@ const tabHoverCard = {
   },
 
   onRowMouseLeave: function (tabId, rowEl) {
+    cancelWarmUp(tabId)
     if (!isCardVisible) {
       if (pendingTabId === tabId) {
         clearTimeout(hoverTimer)
         hoverTimer = null
         pendingTabId = null
-        pendingRowEl = null
       }
     }
   },
@@ -352,7 +380,7 @@ const tabHoverCard = {
     clearTimeout(hoverTimer)
     hoverTimer = null
     pendingTabId = null
-    pendingRowEl = null
+    cancelWarmUp(warmTabId)
 
     if (!isCardVisible && !isHiding) {
       return
