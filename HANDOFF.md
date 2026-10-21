@@ -82,8 +82,7 @@ Also in round 1: page menu Reload/Save/Print/Copy link/View source (`575df2a`). 
 
 ### Open after round 1
 
-- Chef to approve the #6 pick list before any of it is built.
-- Chef to decide: userscript manager (Tampermonkey replacement). uBlock Origin MV2 should install through electron-chrome-extensions; uBO Lite and Tampermonkey/Violentmonkey will not work.
+- 2026-10-21: Chef approved from the #6 pick list: Ghostery adblocker, URL cleaning, DoH, tab hover cards. Rejected: Helium bangs, PiP auto-enter. Approved the userscript manager (keep extension support beside it) and merge buckets. All six are queued in `issues.md`.
 - Containers: extension instances for a deleted default partition are not torn down. `containersDefaultLabel` is stale in non-English locales.
 - Rebuild the packaged runtime (`npm run buildXb`, then `xb-update.ps1`).
 
