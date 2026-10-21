@@ -64,18 +64,51 @@ var appIsReady = false
 
 var quitWatchdogArmed = false
 var quitCommitted = false
+var quitStartTicks = null
+var spawnProcess = require('child_process').spawn
+
+function quitProcessTicks () {
+  if (quitStartTicks !== null) {
+    return quitStartTicks
+  }
+  try {
+    quitStartTicks = require('child_process').execFileSync('powershell', ['-NoProfile', '-Command', '(Get-Process -Id ' + process.pid + ').StartTime.Ticks'], { encoding: 'utf8', timeout: 5000 }).trim()
+  } catch (e) {
+    quitStartTicks = ''
+  }
+  return quitStartTicks
+}
+
+function armQuitWatcher () {
+  if (process.platform !== 'win32') {
+    return
+  }
+  try {
+    const batchPath = path.join(userDataPath, 'quit-watchdog.cmd')
+    const batch = [
+      '@echo off',
+      'ping -n 6 127.0.0.1 >nul',
+      'powershell -NoProfile -Command "$p = Get-Process -Id %1 -ErrorAction SilentlyContinue; if ($p -and $p.ProcessName -eq \'%2\' -and $p.StartTime.Ticks -eq %3) { Stop-Process -Id %1 -Force }"'
+    ].join('\r\n')
+    fs.writeFileSync(batchPath, batch)
+    const ticks = quitProcessTicks()
+    if (!ticks) {
+      return
+    }
+    spawnProcess('cmd.exe', ['/c', batchPath, String(process.pid), path.basename(process.execPath, '.exe'), ticks], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    }).unref()
+  } catch (e) { }
+}
 
 app.on('before-quit', function () {
   if (quitWatchdogArmed) {
     return
   }
   quitWatchdogArmed = true
-  webContents.getAllWebContents().forEach(function (contents) {
-    try {
-      contents.stop()
-    } catch (e) { }
-  })
-  destroyAllViews()
+  armQuitWatcher()
   setTimeout(function () {
     if (!quitCommitted) {
       console.warn('quit did not complete within 2500ms, forcing exit')
@@ -85,8 +118,20 @@ app.on('before-quit', function () {
         } catch (e) { }
       })
     }
-    process.kill(process.pid, 'SIGKILL')
+    try {
+      process.kill(process.pid, 'SIGKILL')
+    } catch (e) {
+      process.exit(1)
+    }
   }, 2500)
+  webContents.getAllWebContents().forEach(function (contents) {
+    try {
+      contents.stop()
+    } catch (e) { }
+  })
+  try {
+    destroyAllViews()
+  } catch (e) { }
 })
 
 app.on('quit', function () {
