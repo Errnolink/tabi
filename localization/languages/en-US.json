@@ -429,6 +429,10 @@
     "PDFPrint": "Print PDF",
     "PDFOpenDefault": "Open in default viewer",
     "PDFDisplaySettings": "Display settings",
+    "close": "Close",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "PDFOpenExternal": "Open in default viewer",
     /* Context Reader */
     "buttonReaderSettings": "Reader Settings",
     "buttonReaderLightTheme": "Light",

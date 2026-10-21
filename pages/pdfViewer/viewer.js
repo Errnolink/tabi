@@ -42,7 +42,7 @@ linkService.setViewer(pdfViewer)
 const thumbnailContainer = document.getElementById('thumbnail-view')
 let thumbnailViewer = null
 
-if (thumbnailContainer) {
+if (thumbnailContainer && pdfjsViewer.PDFThumbnailViewer) {
   thumbnailViewer = new pdfjsViewer.PDFThumbnailViewer({
     container: thumbnailContainer,
     eventBus,
@@ -216,6 +216,9 @@ function toggleZoomDropdown () {
   if (settingsDropdown && !zoomDropdown.hidden) {
     settingsDropdown.hidden = true
   }
+  if (!zoomDropdown.hidden && isFindBarOpen) {
+    closeFindBar()
+  }
 }
 
 if (zoomMenuBtn) {
@@ -256,7 +259,7 @@ if (zoomOutBtn) {
 const rotateBtn = document.getElementById('rotate-btn')
 if (rotateBtn) {
   rotateBtn.addEventListener('click', function () {
-    pdfViewer.pagesRotation = (pdfViewer.pagesRotation + 90) % 360
+    pdfViewer.pagesRotation = ((pdfViewer.pagesRotation || 0) + 90) % 360
   })
 }
 
@@ -266,16 +269,34 @@ const findCount = document.getElementById('find-count')
 const findBtn = document.getElementById('find-btn')
 let isFindBarOpen = false
 
+function executeFind (type, options) {
+  options = options || {}
+  eventBus.dispatch('find', {
+    type: type || '',
+    query: options.query !== undefined ? options.query : (findInput ? findInput.value : ''),
+    phraseSearch: options.phraseSearch !== undefined ? options.phraseSearch : true,
+    caseSensitive: false,
+    entireWord: false,
+    highlightAll: options.highlightAll !== undefined ? options.highlightAll : true,
+    findPrevious: options.findPrevious !== undefined ? options.findPrevious : false
+  })
+}
+
 function openFindBar () {
   if (!findBar) return
   findBar.hidden = false
   isFindBarOpen = true
+  if (findBtn) findBtn.classList.add('active')
   showToolbar()
+  const zoomDropdown = document.getElementById('zoom-dropdown')
+  const settingsDropdown = document.getElementById('settings-dropdown')
+  if (zoomDropdown) zoomDropdown.hidden = true
+  if (settingsDropdown) settingsDropdown.hidden = true
   if (findInput) {
     findInput.focus()
     findInput.select()
     if (findInput.value) {
-      findController.executeCommand('find', {
+      executeFind('', {
         query: findInput.value,
         phraseSearch: true,
         highlightAll: true,
@@ -289,7 +310,9 @@ function closeFindBar () {
   if (!findBar) return
   findBar.hidden = true
   isFindBarOpen = false
-  findController.executeCommand('find', {
+  if (findBtn) findBtn.classList.remove('active')
+  eventBus.dispatch('findbarclose')
+  executeFind('', {
     query: '',
     phraseSearch: true,
     highlightAll: false,
@@ -316,10 +339,11 @@ if (findInput) {
     const query = this.value
     if (!query) {
       if (findCount) findCount.textContent = ''
-      findController.executeCommand('find', { query: '', highlightAll: false })
+      eventBus.dispatch('findbarclose')
+      executeFind('', { query: '', highlightAll: false })
       return
     }
-    findController.executeCommand('find', {
+    executeFind('', {
       query: query,
       phraseSearch: true,
       highlightAll: true,
@@ -330,7 +354,7 @@ if (findInput) {
   findInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      findController.executeCommand('again', { findPrevious: e.shiftKey })
+      executeFind('again', { findPrevious: e.shiftKey })
     } else if (e.key === 'Escape') {
       closeFindBar()
     }
@@ -340,14 +364,14 @@ if (findInput) {
 const findPrevBtn = document.getElementById('find-prev')
 if (findPrevBtn) {
   findPrevBtn.addEventListener('click', function () {
-    findController.executeCommand('again', { findPrevious: true })
+    executeFind('again', { findPrevious: true })
   })
 }
 
 const findNextBtn = document.getElementById('find-next')
 if (findNextBtn) {
   findNextBtn.addEventListener('click', function () {
-    findController.executeCommand('again', { findPrevious: false })
+    executeFind('again', { findPrevious: false })
   })
 }
 

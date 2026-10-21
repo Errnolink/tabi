@@ -12,7 +12,7 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 function registerBundleProtocol (ses) {
-  ses.protocol.handle('min', (req) => {
+  ses.protocol.handle('min', async (req) => {
     const parsed = new URL(req.url)
     const host = parsed.host
     let pathname = parsed.pathname
@@ -49,8 +49,17 @@ function registerBundleProtocol (ses) {
         headers: { 'content-type': 'text/html' }
       })
     }
-
-    return net.fetch(pathToFileURL(pathToServe).toString())
+    const res = await net.fetch(pathToFileURL(pathToServe).toString())
+    if (pathname.endsWith('.mjs')) {
+      const headers = new Headers(res.headers)
+      headers.set('content-type', 'text/javascript')
+      return new Response(res.body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: headers
+      })
+    }
+    return res
   })
 }
 
