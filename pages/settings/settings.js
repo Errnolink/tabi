@@ -261,6 +261,16 @@ startupSettingInput.addEventListener('change', function() {
   settings.set('startupTabOption', parseInt(this.value))
 })
 
+var tabSleepInput = document.getElementById('tab-sleep-options')
+
+settings.get('tabSleepMinutes', function (value = 60) {
+  tabSleepInput.value = value
+})
+
+tabSleepInput.addEventListener('change', function () {
+  settings.set('tabSleepMinutes', parseInt(this.value))
+})
+
 /* new window settings */
 
 var newWindowSettingInput = document.getElementById('new-window-options')
