@@ -192,10 +192,10 @@ const tabBar = {
     row.el.classList.toggle('private', !!tab.private)
     row.el.classList.toggle('pinned', !!tab.pinned)
 
-    const containerId = tab.containerId || 'default'
+    const containerId = containers.sanitizeContainerId(tab.containerId)
     row.el.setAttribute('data-container', containerId)
     const container = containers.get(containerId)
-    const showStripe = container && container.id !== 'default'
+    const showStripe = container && !containers.isDefault(container.id)
     row.el.classList.toggle('has-container', !!showStripe)
     row.stripe.style.backgroundColor = showStripe ? container.color : ''
     row.stripe.title = showStripe ? container.name : ''

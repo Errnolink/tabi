@@ -323,6 +323,15 @@
     "downloadRemove": "Remove from list",
     "downloadsTitle": "Downloads",
     "downloadsClear": "Clear",
+    "siteSecure": "Connection is secure",
+    "siteInsecure": "Connection is not secure",
+    "siteInternal": "xb page",
+    "siteContainer": "Container",
+    "siteBlocking": "Block ads and trackers",
+    "siteZoom": "Zoom",
+    "siteClearData": "Clear cookies and site data",
+    "siteClearDataConfirm": "Click again to log out of this site",
+    "showBookmarksTitle": "Bookmarks",
     /* Update Notifications */
     "updateNotificationTitle": "A new version of xb is available",
     /* Autofill settings */
@@ -373,6 +382,28 @@
     "secretKey": "Secret key",
     "openExternalApp": "Open in \\\"%s\\\"?", // %s is the name of an app
     "clickToCopy": "Click to copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    /* Tab import */
+    "appMenuImportTabs": "Import from Another Browser…",
+    "importPageTitle": "Import from Another Browser",
+    "importPageDescription": "Bring your open tabs (and optionally bookmarks) over from browsers installed on this computer. Tabs are imported as lightweight entries — nothing is loaded until you open it.",
+    "importSourcesHeading": "Browsers",
+    "importNoSources": "No other browser profiles with saved sessions were found on this computer.",
+    "importSourceTabs": "%n tab(s)",
+    "importSourceNoTabs": "no open tabs",
+    "importTabsHeading": "Open Tabs",
+    "importWindow": "Window %n",
+    "importIncludeBookmarks": "Also import bookmarks as a new bucket",
+    "importTargetHeading": "Destination",
+    "importTargetPerWindow": "One new bucket per window",
+    "importTargetExisting": "Into existing bucket:",
+    "importContainerLabel": "Container:",
+    "importButton": "Import %n Tabs",
+    "importButtonOne": "Import 1 Tab",
+    "importImported": "Imported %n tabs into xb.",
+    "importImportedOne": "Imported 1 tab into xb.",
+    "importReadError": "Could not read this browser's session.",
+    "importWindowBucketName": "%s — Window %n",
+    "importBookmarksBucketName": "%s Bookmarks"
   }
 }

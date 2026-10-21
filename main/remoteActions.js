@@ -49,6 +49,22 @@ ipc.handle('addWordToSpellCheckerDictionary', function (e, word) {
   })
 })
 
+ipc.handle('clearSiteData', function (e, data) {
+  var origin
+  try {
+    origin = new URL(data.url).origin
+  } catch (err) {
+    return false
+  }
+  if (!containerPartitions().includes(data.partition)) {
+    return false
+  }
+  var ses = session.fromPartition(data.partition)
+  return ses.clearStorageData({ origin: origin }).then(function () {
+    return ses.cookies.flushStore()
+  }).then(() => true)
+})
+
 ipc.handle('clearStorageData', function () {
   /* It's important not to delete data from file:// from the default partition, since that would also remove internal browser data (such as bookmarks). However, HTTP data does need to be cleared, as there can be leftover data from loading external resources in the browser UI */
   var partitionClears = containerPartitions().map(function (partition) {

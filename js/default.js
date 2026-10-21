@@ -146,6 +146,7 @@ require('navbar/menuButton.js').initialize()
 
 require('navbar/sidebarMenus.js').initialize()
 require('navbar/containerChip.js').initialize()
+require('navbar/omniboxActions.js').initialize()
 require('navbar/tabActivity.js').initialize()
 require('navbar/tabColor.js').initialize()
 require('navbar/navigationButtons.js').initialize()
@@ -170,6 +171,7 @@ require('macHandoff.js').initialize()
 require('autoFile.js').initialize()
 require('discardInactive.js').initialize()
 require('extensionsToolbar.js').initialize()
+require('importTabs.js').initialize()
 
 // default searchbar plugins
 

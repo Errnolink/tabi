@@ -90,7 +90,7 @@ function fileTab (tabId) {
   }
 
   // a moved tab keeps its container, so it can only move into buckets whose default container matches (or that have none)
-  if (target.defaultContainerId && (tab.containerId || 'default') !== target.defaultContainerId) {
+  if (target.defaultContainerId && require('containers.js').sanitizeContainerId(tab.containerId) !== target.defaultContainerId) {
     return
   }
 

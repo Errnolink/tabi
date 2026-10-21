@@ -151,7 +151,7 @@ async function showSearchbarPlaceResults (text, input, inputFlags, pluginName = 
       })
 
       matchingTasks.filter(task => task.id !== currentTaskMatch?.id).forEach(task => {
-        const taskName = (task.name ? '"' + task.name + '"' : l('defaultTaskName').replace('%n', tasks.getIndex(task.id) + 1))
+        const taskName = task.name || l('defaultTaskName').replace('%n', tasks.getIndex(task.id) + 1)
         data.textActionButtons.push({
           icon: 'carbon:arrow-up-right',
           text: (task.id === tasks.getSelected().id) ? l('placesPluginSwitchToTab') : l('placesPluginSwitchToTask').replace('%t', taskName),

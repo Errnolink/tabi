@@ -173,7 +173,7 @@ const overview = {
 
   renderChips: function () {
     const used = new Set()
-    tasks.forEach(task => task.tabs.get().forEach(tab => used.add(tab.containerId || 'default')))
+    tasks.forEach(task => task.tabs.get().forEach(tab => used.add(containers.sanitizeContainerId(tab.containerId))))
     const list = containers.list().filter(c => used.has(c.id))
     overview.chips.textContent = ''
     if (list.length < 2) {
@@ -246,8 +246,8 @@ const overview = {
     text.append(title, host)
     meta.append(favicon, text)
 
-    const container = containers.get(tab.containerId || 'default')
-    if (container && container.id !== 'default') {
+    const container = containers.get(tab.containerId)
+    if (container && !containers.isDefault(container.id)) {
       const badge = document.createElement('span')
       badge.className = 'ov-container'
       badge.style.setProperty('--chip-color', container.color)
@@ -328,13 +328,13 @@ const overview = {
   },
 
   matches: function (tab, task) {
-    if (overview.containerFilter && (tab.containerId || 'default') !== overview.containerFilter) {
+    if (overview.containerFilter && containers.sanitizeContainerId(tab.containerId) !== overview.containerFilter) {
       return false
     }
     if (!overview.query) {
       return true
     }
-    const container = containers.get(tab.containerId || 'default')
+    const container = containers.get(tab.containerId)
     const haystack = [tab.title, tab.url, task.name, container && container.name].join(' ').toLowerCase()
     return overview.query.split(/\s+/).every(word => haystack.includes(word))
   },

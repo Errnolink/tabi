@@ -103,3 +103,43 @@
   background: var(--chrome-press);
   color: var(--chrome-ink);
 }
+
+.text-action-button-row {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  flex: none;
+  opacity: 0;
+  transition: opacity var(--dur-effects) var(--spring-effects);
+}
+
+.searchbar-item:hover .text-action-button-row,
+.searchbar-item.fakefocus .text-action-button-row,
+.searchbar-item:focus .text-action-button-row {
+  opacity: 1;
+}
+
+.action-button-horizontal {
+  height: 24px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--chrome-ink-muted);
+  background: var(--chrome-hover);
+  transition: background-color var(--dur-effects) var(--spring-effects), color var(--dur-effects) var(--spring-effects);
+}
+
+.action-button-horizontal:hover,
+.action-button-horizontal.default-action {
+  color: var(--chrome-ink);
+  background: var(--chrome-press);
+}
+
+.searchbar-item.has-text-actions .secondary-text {
+  display: none;
+}

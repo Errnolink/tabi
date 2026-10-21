@@ -104,7 +104,7 @@ function mount () {
     return false
   }
   actionList = document.createElement('browser-action-list')
-  actionList.setAttribute('partition', containers.partitionFor('default'))
+  actionList.setAttribute('partition', containers.partitionFor(containers.defaultId()))
   actionList.setAttribute('hidden', '')
   slot.appendChild(actionList)
   updateActionList()
@@ -125,7 +125,7 @@ function listenForTabEvents () {
 
 function listenForExtensionCommands () {
   ipc.on('extension-create-tab', function (e, data) {
-    var containerId = 'default'
+    var containerId = containers.defaultId()
     var match = containers.list().find(function (c) { return c.partition === data.partition })
     if (match) {
       containerId = match.id

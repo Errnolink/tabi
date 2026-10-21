@@ -256,6 +256,7 @@ function createItem (data) {
     })
 
     item.appendChild(buttonArea)
+    item.classList.add('has-text-actions')
   }
 
   if (data.click) {
