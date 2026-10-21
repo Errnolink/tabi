@@ -263,7 +263,7 @@
 
             <div class="settings-info-subheading extension-notice-card" id="extension-filter-notice" hidden>
               <i class="i carbon:extension"></i>
-              <span>Built-in content blocking is paused while an extension that blocks requests itself (such as uBlock Origin) is active.</span>
+              <span data-string="settingsExtensionBlockingNotice">An extension handles ad and tracker blocking in some containers. Phishing protection and link cleaning stay on.</span>
             </div>
 
             <div class="setting-row">
@@ -313,6 +313,7 @@
               </div>
               <div class="setting-row-control">
                 <input type="text" id="doh-custom-template" placeholder="https://example.com/dns-query" class="settings-text-input" />
+                <div class="subpanel-help" id="doh-custom-error" hidden data-string="settingsDnsCustomTemplateInvalid">That doesn't look like an HTTPS URL. Fix it and press Enter to apply.</div>
               </div>
             </div>
 

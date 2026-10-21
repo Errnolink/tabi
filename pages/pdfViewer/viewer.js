@@ -71,7 +71,8 @@ function setProgress (ratio) {
 
 const loadingTask = pdfjsLib.getDocument({
   url: docUrl,
-  withCredentials: true
+  withCredentials: true,
+  isEvalSupported: false
 })
 
 loadingTask.onProgress = function (progress) {
@@ -124,7 +125,7 @@ loadingTask.promise.then(async function (_pdfDocument) {
   }
 }).catch(function (err) {
   console.error('Failed to load PDF', err)
-  downloadPDF()
+  showLoadError(err)
 })
 
 eventBus.on('pagesinit', function () {
@@ -528,8 +529,39 @@ function renderOutline (outline, containerEl) {
   containerEl.appendChild(createList(outline))
 }
 
+const errorOverlay = document.getElementById('pdf-error')
+const errorDetail = document.getElementById('pdf-error-detail')
+
+function showLoadError (err) {
+  if (progressBar) {
+    progressBar.style.opacity = '0'
+  }
+  if (errorDetail) {
+    errorDetail.textContent = (err && err.message) ? err.message : ''
+  }
+  if (errorOverlay) {
+    errorOverlay.hidden = false
+  }
+}
+
 function downloadPDF () {
+  if (rawUrl.startsWith('file://')) {
+    window.postMessage({ message: 'saveLocalPDF', url: rawUrl }, '*')
+    return
+  }
   window.postMessage({ message: 'downloadFile', url: rawUrl }, '*')
+}
+
+const errorRetryButton = document.getElementById('pdf-error-retry')
+if (errorRetryButton) {
+  errorRetryButton.addEventListener('click', function () {
+    window.location.reload()
+  })
+}
+
+const errorSaveButton = document.getElementById('pdf-error-save')
+if (errorSaveButton) {
+  errorSaveButton.addEventListener('click', downloadPDF)
 }
 
 function printPDF () {

@@ -38,10 +38,11 @@ var extensionFilterNotice = document.getElementById('extension-filter-notice')
 if (extensionFilterNotice) {
   var extensionFilterRequestId = 'settings-ext-filter-check'
   var extensionFilterListener = function (e) {
-    if (e.data && e.data.message === 'extensionsResponse' && e.data.requestId === extensionFilterRequestId) {
+    if (e.data && e.data.message === 'extensionsReply' && e.data.data && e.data.data.replyTo === extensionFilterRequestId) {
       window.removeEventListener('message', extensionFilterListener)
-      var hasBlockingExtension = (e.data.result || []).some(function (ext) {
-        return (ext.package?.permissions || []).includes('webRequestBlocking')
+      var extensions = e.data.data.extensions || []
+      var hasBlockingExtension = extensions.some(function (ext) {
+        return ext.blocksMinFilter
       })
       extensionFilterNotice.hidden = !hasBlockingExtension
     }
@@ -176,6 +177,24 @@ var dohProviderSelect = document.getElementById('doh-provider')
 var dohProviderRow = document.getElementById('doh-provider-row')
 var dohCustomRow = document.getElementById('doh-custom-row')
 var dohCustomTemplateInput = document.getElementById('doh-custom-template')
+var dohCustomError = document.getElementById('doh-custom-error')
+var dohSavedTemplate = ''
+var dohInputDebounce = null
+
+function dohCustomTemplateIsValid (value) {
+  try {
+    var parsed = new URL(value)
+    return parsed.protocol === 'https:' && parsed.hostname.length > 0
+  } catch (e) {
+    return false
+  }
+}
+
+function showDohCustomError (show) {
+  if (dohCustomError) {
+    dohCustomError.hidden = !show
+  }
+}
 
 function updateDnsUI (doh) {
   doh = doh || { mode: 'automatic', provider: 'cloudflare' }
@@ -186,7 +205,9 @@ function updateDnsUI (doh) {
   if (dohModeSelect) dohModeSelect.value = mode
   if (dohProviderSelect) dohProviderSelect.value = provider
   if (dohCustomTemplateInput) dohCustomTemplateInput.value = customTemplate
+  dohSavedTemplate = customTemplate
 
+  showDohCustomError(false)
   if (dohProviderRow) dohProviderRow.hidden = (mode === 'off')
   if (dohCustomRow) dohCustomRow.hidden = (mode === 'off' || provider !== 'custom')
 }
@@ -201,8 +222,26 @@ function saveDnsSettings () {
     customTemplate: customTemplate
   }
   settings.set('dnsOverHttps', doh)
+  dohSavedTemplate = customTemplate
+  showDohCustomError(false)
   if (dohProviderRow) dohProviderRow.hidden = (mode === 'off')
   if (dohCustomRow) dohCustomRow.hidden = (mode === 'off' || provider !== 'custom')
+}
+
+function commitDohCustomTemplate () {
+  if (!dohCustomTemplateInput) {
+    return
+  }
+  var value = dohCustomTemplateInput.value.trim()
+  if (value === dohSavedTemplate) {
+    showDohCustomError(false)
+    return
+  }
+  if (value === '' || dohCustomTemplateIsValid(value)) {
+    saveDnsSettings()
+  } else {
+    showDohCustomError(true)
+  }
 }
 
 if (dohModeSelect) {
@@ -212,7 +251,23 @@ if (dohModeSelect) {
 
   dohModeSelect.addEventListener('change', saveDnsSettings)
   if (dohProviderSelect) dohProviderSelect.addEventListener('change', saveDnsSettings)
-  if (dohCustomTemplateInput) dohCustomTemplateInput.addEventListener('input', saveDnsSettings)
+  if (dohCustomTemplateInput) {
+    dohCustomTemplateInput.addEventListener('input', function () {
+      clearTimeout(dohInputDebounce)
+      var value = this.value.trim()
+      dohInputDebounce = setTimeout(function () {
+        showDohCustomError(value !== '' && value !== dohSavedTemplate && !dohCustomTemplateIsValid(value))
+      }, 400)
+    })
+    dohCustomTemplateInput.addEventListener('change', commitDohCustomTemplate)
+    dohCustomTemplateInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        commitDohCustomTemplate()
+        this.blur()
+      }
+    })
+  }
 }
 
 var darkModeNever = document.getElementById('dark-mode-never')

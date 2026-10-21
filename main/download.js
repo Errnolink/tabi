@@ -6,6 +6,50 @@ ipc.on('cancelDownload', function (e, path) {
   }
 })
 
+function validLocalPDFFileURL (urlString) {
+  if (typeof urlString !== 'string') {
+    return null
+  }
+  try {
+    var parsed = new URL(urlString)
+    if (parsed.protocol !== 'file:' || parsed.host !== '' || parsed.username || parsed.password) {
+      return null
+    }
+    if (!/\.pdf$/i.test(parsed.pathname)) {
+      return null
+    }
+    return parsed
+  } catch (e) {
+    return null
+  }
+}
+
+ipc.on('saveLocalPDF', function (e, data) {
+  var parsed = validLocalPDFFileURL(data && data.url)
+  if (!parsed) {
+    return
+  }
+  var sourceWindow = windows.windowFromContents(e.sender)?.win || windows.getCurrent()
+  var name = parsed.pathname.split('/').pop() || 'document.pdf'
+  var filename = 'document.pdf'
+  try {
+    filename = decodeURIComponent(name)
+  } catch (err) {
+    filename = name
+  }
+  dialog.showSaveDialog(sourceWindow, {
+    defaultPath: filename,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  }).then(function (result) {
+    if (result.canceled || !result.filePath) {
+      return
+    }
+    fs.promises.copyFile(fileURLToPath(parsed.href), result.filePath).catch(function (err) {
+      console.warn('failed to save the local PDF', err)
+    })
+  })
+})
+
 function isAttachment (header) {
   return /^\s*attache*?ment/i.test(header)
 }
@@ -17,12 +61,18 @@ function downloadHandler (event, item, webContents) {
   }
 
   if (item.getURL().startsWith('file://') && /\.pdf($|\?|#)/i.test(item.getURL())) {
-    event.preventDefault()
-    sendIPCToWindow(sourceWindow, 'openPDF', {
-      url: item.getURL(),
-      tabId: (typeof getTabIDFromWebContents === 'function' && webContents) ? getTabIDFromWebContents(webContents) : null
-    })
-    return
+    var downloadStartedFromViewer = false
+    try {
+      downloadStartedFromViewer = !!(webContents && !webContents.isDestroyed() && webContents.getURL().startsWith('min://app/pages/pdfViewer'))
+    } catch (e) { }
+    if (!downloadStartedFromViewer) {
+      event.preventDefault()
+      sendIPCToWindow(sourceWindow, 'openPDF', {
+        url: item.getURL(),
+        tabId: (typeof getTabIDFromWebContents === 'function' && webContents) ? getTabIDFromWebContents(webContents) : null
+      })
+      return
+    }
   }
   var savePathFilename
 

@@ -106,6 +106,20 @@
       <div id="viewer" class="pdfViewer"></div>
     </div>
 
+    <div id="pdf-error" class="pdf-error-overlay" hidden>
+      <div class="pdf-error-card pebble-card">
+        <div class="pdf-error-pebble">
+          <i class="i carbon:document-blank"></i>
+        </div>
+        <h1 data-string="PDFLoadErrorTitle"></h1>
+        <p id="pdf-error-detail"></p>
+        <div class="pdf-error-actions">
+          <button id="pdf-error-retry" class="primary-button btn-jewel" data-string="PDFRetry"></button>
+          <button id="pdf-error-save" class="secondary-button btn-tonal" data-string="PDFDownload"></button>
+        </div>
+      </div>
+    </div>
+
     <script src="../../dist/localization.build.js"></script>
     <script src="../../js/util/settings/settingsContent.js"></script>
     <script src="../../js/util/theme.js"></script>

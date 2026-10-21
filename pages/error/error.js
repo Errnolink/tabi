@@ -6,9 +6,29 @@ var primaryButton = document.getElementById('primary-button')
 var secondaryButton = document.getElementById('secondary-button')
 
 var ec = searchParams.get('ec')
-var url = searchParams.get('url')
+
+function urlIsWebURL (value) {
+  if (typeof value !== 'string') {
+    return false
+  }
+  try {
+    var parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch (e) {
+    return false
+  }
+}
+
+var url = null
+var urlParam = searchParams.get('url')
+if (urlIsWebURL(urlParam)) {
+  url = urlParam
+}
 
 function retry () {
+  if (!url) {
+    return
+  }
   // make the page blank while the replacement page is loading, so it doesn't look like the error condition still exists
   document.body.innerHTML = ''
   document.body.style.backgroundColor = '#fff'
@@ -19,11 +39,14 @@ function retry () {
 var websiteNotFound = {
   name: l('serverNotFoundTitle'),
   message: l('serverNotFoundSubtitle'),
-  secondaryAction: {
+  retryOnReconnect: true
+}
+
+if (url) {
+  websiteNotFound.secondaryAction = {
     title: l('archiveSearchAction'),
     url: 'https://web.archive.org/web/*/' + url
-  },
-  retryOnReconnect: true
+  }
 }
 
 var sslError = {
@@ -309,7 +332,7 @@ const erorDescriptions = {
 
 var errDesc = erorDescriptions[ec]
 
-if (errDesc && errDesc.retryOnReconnect) {
+if (errDesc && errDesc.retryOnReconnect && url) {
   window.addEventListener('online', function () {
     retry()
   })
@@ -339,7 +362,7 @@ if (errDesc && errDesc.secondaryAction) {
 
 // if an ssl error occured, "try again" should go to the http:// version, which might work
 
-if (erorDescriptions[ec] === sslError) {
+if (erorDescriptions[ec] === sslError && url) {
   url = url.replace('https://', 'http://')
 }
 
@@ -347,6 +370,8 @@ if (url) {
   primaryButton.addEventListener('click', function () {
     retry()
   })
+} else {
+  primaryButton.hidden = true
 }
 
 primaryButton.focus()

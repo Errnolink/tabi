@@ -1,4 +1,4 @@
-/* global path, userDataPath, session, ipc, app, windows, createWindow, sendIPCToWindow, getView, getWindowFromViewContents, getTabIDFromWebContents, onContainerPartitionAdded, setExtensionWebRequestBlocker */
+/* global path, userDataPath, session, ipc, app, windows, createWindow, sendIPCToWindow, getView, getWindowFromViewContents, getTabIDFromWebContents, onContainerPartitionAdded, setExtensionWebRequestBlocker, DEFAULT_CONTAINER */
 var ElectronChromeExtensions = require('electron-chrome-extensions').ElectronChromeExtensions
 var installChromeWebStore = require('electron-chrome-web-store').installChromeWebStore
 var uninstallExtension = require('electron-chrome-web-store').uninstallExtension
@@ -188,6 +188,7 @@ function extensionsNotify (fn) {
 }
 
 function extensionsRegisterView (view, partition) {
+  extensionsInitForPartition(partition)
   var instance = extensionInstances[partition]
   var win = windows.getCurrent()
   if (!instance || !win) {
@@ -315,7 +316,11 @@ ipc.handle('getExtensionTabWebContentsID', function (e, tabId) {
 
 app.once('ready', function () {
   ElectronChromeExtensions.handleCRXProtocol(session.defaultSession)
-  onContainerPartitionAdded(extensionsInitForPartition)
+  onContainerPartitionAdded(function (partition) {
+    if (partition === DEFAULT_CONTAINER.partition) {
+      extensionsInitForPartition(partition)
+    }
+  })
 })
 
 /* called from main/viewManager.js and main/remoteMenu.js in the concatenated main bundle */

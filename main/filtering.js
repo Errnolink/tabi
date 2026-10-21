@@ -13,16 +13,41 @@ var enabledFilteringOptions = {
 // for tracking the number of blocked requests
 var unsavedBlockedRequests = 0
 
-setInterval(function () {
-  if (unsavedBlockedRequests > 0) {
-    var current = settings.get('filteringBlockedCount')
-    if (!current) {
-      current = 0
-    }
-    settings.set('filteringBlockedCount', current + unsavedBlockedRequests)
-    unsavedBlockedRequests = 0
+function flushBlockedRequestCount () {
+  if (unsavedBlockedRequests <= 0) {
+    return
   }
-}, 60000)
+  var current = settings.get('filteringBlockedCount')
+  if (!current) {
+    current = 0
+  }
+  settings.set('filteringBlockedCount', current + unsavedBlockedRequests)
+  unsavedBlockedRequests = 0
+}
+
+setInterval(flushBlockedRequestCount, 5 * 60 * 1000)
+
+var blockedCountQuitFlushQueued = false
+
+app.on('before-quit', function (e) {
+  if (unsavedBlockedRequests <= 0 || blockedCountQuitFlushQueued) {
+    return
+  }
+  blockedCountQuitFlushQueued = true
+  e.preventDefault()
+  try {
+    flushBlockedRequestCount()
+  } catch (err) {
+    app.quit()
+    return
+  }
+  var pendingWrite = settings.fileWritePromise || Promise.resolve()
+  pendingWrite.then(function () {
+    app.quit()
+  }).catch(function () {
+    app.quit()
+  })
+})
 
 function removeWWW (domain) {
   return domain.replace(/^www\./i, '')
@@ -117,7 +142,7 @@ function handleRequest (details, callback) {
   }
 
   // tracking-parameter stripping, tracking-redirect skipping and de-AMP
-  if (urlCleaningEnabled()) {
+  if (urlCleaningEnabled() && (isMainFrame || details.resourceType === 'subFrame')) {
     modifiedURL = urlCleanNavigationURL(details.url, isMainFrame)
   }
 
@@ -202,6 +227,65 @@ function setExtensionWebRequestBlocker (ses, hasBlocker) {
 }
 
 global.setExtensionWebRequestBlocker = setExtensionWebRequestBlocker
+
+function filteringSessionHasExtensionBlocker (contents) {
+  try {
+    return sessionsWithExtensionBlocker.has(contents.session)
+  } catch (e) {
+    return false
+  }
+}
+
+function filteringNavigationThreat (urlString) {
+  if (enabledFilteringOptions.blockingLevel === 0 || !/^https?:\/\//i.test(urlString)) {
+    return null
+  }
+  var navDomain = navigationDomain(urlString)
+  if (requestDomainIsWhitelistedFromPhishing(navDomain) || requestDomainIsException(navDomain)) {
+    return null
+  }
+  return adblockMatchMalwareNavigation(urlString)
+}
+
+function filteringProtectNavigation (contents, details) {
+  if (!details.isMainFrame || contents.isDestroyed() || !filteringSessionHasExtensionBlocker(contents)) {
+    return
+  }
+  var threat = filteringNavigationThreat(details.url)
+  if (threat) {
+    details.preventDefault()
+    adblockShowPhishingPage(contents.id, details.url, threat)
+    return
+  }
+  if (urlCleaningEnabled()) {
+    var cleaned = urlCleanNavigationURL(details.url, true)
+    if (cleaned && cleaned !== details.url) {
+      details.preventDefault()
+      contents.loadURL(cleaned).catch(function () { })
+    }
+  }
+}
+
+app.on('web-contents-created', function (e, contents) {
+  contents.on('will-frame-navigate', function (details) {
+    filteringProtectNavigation(contents, details)
+  })
+  contents.on('will-redirect', function (details) {
+    filteringProtectNavigation(contents, details)
+  })
+  contents.on('did-start-navigation', function (details) {
+    if (!details.isMainFrame || details.isSameDocument) {
+      return
+    }
+    if (contents.isDestroyed() || !filteringSessionHasExtensionBlocker(contents)) {
+      return
+    }
+    var threat = filteringNavigationThreat(details.url)
+    if (threat) {
+      adblockShowPhishingPage(contents.id, details.url, threat)
+    }
+  })
+})
 
 function registerFiltering (ses) {
   if (sessionsWithExtensionBlocker.has(ses)) {

@@ -8,10 +8,14 @@ function requestExtensions (type, id) {
       if (
         e.data &&
         e.data.message === 'extensionsReply' &&
-        e.data.requestId === requestId
+        e.data.data &&
+        e.data.data.replyTo === requestId
       ) {
         window.removeEventListener('message', listener)
-        resolve(e.data.data)
+        if (e.data.data.error) {
+          setStatus('Extension update failed: ' + e.data.data.error)
+        }
+        resolve(e.data.data.extensions || [])
       }
     }
     window.addEventListener('message', listener)
@@ -141,7 +145,7 @@ function render (extensions) {
     meta.className = 'extension-meta'
     var metaText = formatPartitions(extension)
     if (extension.blocksMinFilter) {
-      metaText += ' \u00b7 handles ad/tracker blocking (Min\u2019s built-in filter is off)'
+      metaText += ' \u00b7 handles ad/tracker blocking'
     }
     meta.textContent = metaText
     info.appendChild(meta)

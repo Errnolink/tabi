@@ -12,7 +12,7 @@ blocks window creation. Sessions where an extension with blocking webRequest
 main/filtering.js) nor the cosmetic-filter preload.
 */
 
-/* global fs, path, ipc, app, webContents, userDataPath, enabledFilteringOptions, registeredFilteringSessions, sessionsWithExtensionBlocker, requestDomainIsException */
+/* global fs, path, ipc, app, webContents, windows, userDataPath, enabledFilteringOptions, registeredFilteringSessions, sessionsWithExtensionBlocker, requestDomainIsException */
 
 const { ElectronBlocker, FiltersEngine, Request } = require('@ghostery/adblocker-electron')
 
@@ -24,6 +24,67 @@ var adblockEngineLoadStarted = false
 var adblockEnginesWaitReady = false
 var adblockEngineRefreshTimer = null
 var adblockEngineRefreshing = false
+var adblockBootStarted = false
+var adblockBootScheduled = false
+
+function adblockStartEngines () {
+  if (adblockBootStarted) {
+    return
+  }
+  adblockBootStarted = true
+  if (enabledFilteringOptions.blockingLevel > 0) {
+    adblockEnsureEngines()
+  }
+}
+
+function adblockWatchFirstWindow (win) {
+  var started = false
+  var start = function () {
+    if (!started) {
+      started = true
+      setTimeout(adblockStartEngines, 400)
+    }
+  }
+  try {
+    win.once('ready-to-show', start)
+    var contents = win.webContents
+    if (contents.isLoading()) {
+      contents.once('did-finish-load', start)
+    } else {
+      start()
+    }
+  } catch (err) {
+    start()
+  }
+  setTimeout(start, 8000)
+}
+
+function adblockScheduleBootStart () {
+  if (adblockBootScheduled) {
+    return
+  }
+  adblockBootScheduled = true
+  var begin = function () {
+    var existing = windows.getAll()
+    if (existing.length > 0) {
+      adblockWatchFirstWindow(existing[0])
+      return
+    }
+    app.once('browser-window-created', function (e, win) {
+      adblockWatchFirstWindow(win)
+    })
+    setTimeout(function () {
+      if (!adblockBootStarted) {
+        adblockStartEngines()
+      }
+    }, 12000)
+  }
+  if (app.isReady()) {
+    begin()
+  } else {
+    app.once('ready', begin)
+  }
+}
 
 const adblockMalwareLists = [
   {
@@ -311,7 +372,11 @@ function adblockSyncCosmetics () {
 
 function adblockOnFilteringLevelChanged () {
   if (enabledFilteringOptions.blockingLevel > 0) {
-    adblockEnsureEngines()
+    if (adblockBootStarted) {
+      adblockEnsureEngines()
+    } else {
+      adblockScheduleBootStart()
+    }
   }
   adblockSyncCosmetics()
 }

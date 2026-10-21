@@ -14,6 +14,15 @@ const secureDnsTemplates = {
   nextdns: 'https://dns.nextdns.io'
 }
 
+function secureDnsTemplateIsValid (template) {
+  try {
+    var parsed = new URL(template)
+    return parsed.protocol === 'https:' && parsed.hostname.length > 0
+  } catch (e) {
+    return false
+  }
+}
+
 function secureDnsServersFor (value) {
   if (!value) {
     return [secureDnsTemplates.cloudflare]
@@ -21,7 +30,7 @@ function secureDnsServersFor (value) {
   var template
   if (value.provider === 'custom') {
     template = typeof value.customTemplate === 'string' ? value.customTemplate.trim() : ''
-    if (!template.startsWith('https://')) {
+    if (!secureDnsTemplateIsValid(template)) {
       template = ''
     }
   } else {

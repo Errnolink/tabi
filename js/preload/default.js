@@ -62,6 +62,10 @@ window.addEventListener('message', function (e) {
     ipc.send('downloadFile', e.data.url)
   }
 
+  if (e.data?.message === 'saveLocalPDF') {
+    ipc.send('saveLocalPDF', { url: e.data.url })
+  }
+
   if (e.data?.message === 'extensionsRequest') {
     ipc.send('extensionsRequest', e.data)
   }

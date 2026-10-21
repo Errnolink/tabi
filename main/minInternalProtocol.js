@@ -11,6 +11,74 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
+const minInternalCSP = 'script-src \'self\'; object-src \'none\'; frame-ancestors \'none\''
+
+function minInternalResponse (body, init) {
+  const headers = new Headers(init && init.headers)
+  headers.set('content-security-policy', minInternalCSP)
+  return new Response(body, Object.assign({}, init, { headers: headers }))
+}
+
+function minInternalResponseFrom (res) {
+  const headers = new Headers(res.headers)
+  headers.set('content-security-policy', minInternalCSP)
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: headers
+  })
+}
+
+function minInternalRequestIsFromViewer (req) {
+  let referrer = ''
+  try {
+    referrer = req.referrer || ''
+  } catch (e) { }
+  if (referrer.startsWith('min://app/pages/pdfViewer')) {
+    return true
+  }
+  let refererHeader = ''
+  try {
+    refererHeader = req.headers.get('referer') || ''
+  } catch (e) { }
+  if (refererHeader.startsWith('min://app/pages/pdfViewer')) {
+    return true
+  }
+  try {
+    return req.headers.get('sec-fetch-site') === 'same-origin'
+  } catch (e) {
+    return false
+  }
+}
+
+function minInternalPDFTarget (targetUrl) {
+  let parsed
+  try {
+    parsed = new URL(targetUrl)
+  } catch (e) {
+    return null
+  }
+  if (parsed.protocol !== 'file:' || parsed.host !== '' || parsed.username || parsed.password) {
+    return null
+  }
+  if (!/\.pdf$/i.test(parsed.pathname)) {
+    return null
+  }
+  return parsed
+}
+
+async function minInternalPDFFile (req, searchParams) {
+  const targetUrl = searchParams.get('url')
+  if (!targetUrl || !minInternalRequestIsFromViewer(req) || !minInternalPDFTarget(targetUrl)) {
+    return minInternalResponse('forbidden', { status: 403 })
+  }
+  try {
+    return minInternalResponseFrom(await net.fetch(targetUrl))
+  } catch (e) {
+    return minInternalResponse('not found', { status: 404 })
+  }
+}
+
 function registerBundleProtocol (ses) {
   ses.protocol.handle('min', async (req) => {
     const parsed = new URL(req.url)
@@ -23,28 +91,22 @@ function registerBundleProtocol (ses) {
     }
 
     if (host !== 'app') {
-      return new Response('bad', {
+      return minInternalResponse('bad', {
         status: 400,
         headers: { 'content-type': 'text/html' }
       })
     }
 
     if (pathname === 'pdf-file') {
-      const targetUrl = searchParams.get('url')
-      if (targetUrl && targetUrl.startsWith('file://') && /\.pdf$/i.test(new URL(targetUrl).pathname)) {
-        return net.fetch(targetUrl)
-      }
-      return new Response('bad', { status: 400 })
+      return minInternalPDFFile(req, searchParams)
     }
 
-    // NB, this checks for paths that escape the bundle, e.g.
-    // app://bundle/../../secret_file.txt
     const pathToServe = path.resolve(__dirname, pathname)
     const relativePath = path.relative(__dirname, pathToServe)
     const isSafe = relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath)
 
     if (!isSafe) {
-      return new Response('bad', {
+      return minInternalResponse('bad', {
         status: 400,
         headers: { 'content-type': 'text/html' }
       })
@@ -53,13 +115,13 @@ function registerBundleProtocol (ses) {
     if (pathname.endsWith('.mjs')) {
       const headers = new Headers(res.headers)
       headers.set('content-type', 'text/javascript')
-      return new Response(res.body, {
+      return minInternalResponse(res.body, {
         status: res.status,
         statusText: res.statusText,
         headers: headers
       })
     }
-    return res
+    return minInternalResponseFrom(res)
   })
 }
 

@@ -34,17 +34,6 @@
     <script src="../../js/util/settings/settingsContent.js"></script>
     <script src="../../js/util/theme.js"></script>
     <script src="../../dist/localization.build.js"></script>
-
-    <script>
-      var backupLoc = new URLSearchParams(window.location.search).get(
-        "backupLoc"
-      );
-
-      var backupInfoEl = document.getElementById("backup-info");
-      backupInfoEl.textContent = l("sessionRestoreErrorBackupInfo").replace(
-        "%l",
-        backupLoc
-      );
-    </script>
+    <script src="errorPage.js"></script>
   </body>
 </html>

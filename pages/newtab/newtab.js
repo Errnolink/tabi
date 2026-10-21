@@ -6,14 +6,25 @@ const DEFAULT_SHORTCUTS = [
   { title: 'Reddit', url: 'https://www.reddit.com' }
 ]
 
-function getFaviconUrl (url) {
-  try {
-    const host = new URL(url).hostname
-    if (!host) return null
-    return 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(host) + '&sz=128'
-  } catch (e) {
-    return null
+function shortcutIsSafe (url) {
+  if (typeof url !== 'string') {
+    return false
   }
+  try {
+    var parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch (e) {
+    return false
+  }
+}
+
+function getShortcuts (saved) {
+  if (Array.isArray(saved) && saved.length > 0) {
+    return saved.filter(function (shortcut) {
+      return shortcut && shortcutIsSafe(shortcut.url)
+    })
+  }
+  return DEFAULT_SHORTCUTS.slice()
 }
 
 function updateClock () {
@@ -26,12 +37,12 @@ function updateClock () {
   if (dateEl) dateEl.textContent = dateStr
 }
 
-function renderShortcuts () {
+function renderShortcuts (shortcuts) {
   const grid = document.getElementById('ntp-shortcuts-grid')
   if (!grid) return
   grid.innerHTML = ''
 
-  DEFAULT_SHORTCUTS.forEach(shortcut => {
+  shortcuts.forEach(shortcut => {
     const item = document.createElement('a')
     item.className = 'ntp-shortcut-item'
     item.href = shortcut.url
@@ -39,35 +50,28 @@ function renderShortcuts () {
     const tile = document.createElement('div')
     tile.className = 'ntp-shortcut-tile'
 
-    const img = document.createElement('img')
-    img.className = 'ntp-shortcut-icon'
-    img.loading = 'lazy'
-    img.decoding = 'async'
-    const iconUrl = getFaviconUrl(shortcut.url)
-
     const fallback = document.createElement('div')
     fallback.className = 'ntp-shortcut-letter'
-    fallback.textContent = shortcut.title.charAt(0)
+    fallback.textContent = (shortcut.title || shortcut.url).charAt(0).toUpperCase()
 
-    if (iconUrl) {
-      img.src = iconUrl
-      img.onerror = () => {
-        img.remove()
-        tile.appendChild(fallback)
-      }
-      tile.appendChild(img)
-    } else {
-      tile.appendChild(fallback)
-    }
+    tile.appendChild(fallback)
 
     const title = document.createElement('div')
     title.className = 'ntp-shortcut-title'
-    title.textContent = shortcut.title
+    title.textContent = shortcut.title || shortcut.url
 
     item.appendChild(tile)
     item.appendChild(title)
     grid.appendChild(item)
   })
+}
+
+function getSearchURL (query) {
+  const engine = window.currentSearchEngine
+  if (engine && typeof engine.searchURL === 'string' && engine.searchURL.indexOf('%s') !== -1) {
+    return engine.searchURL.replace('%s', encodeURIComponent(query))
+  }
+  return 'https://duckduckgo.com/?q=' + encodeURIComponent(query)
 }
 
 function initSearch () {
@@ -77,11 +81,13 @@ function initSearch () {
     if (e.key === 'Enter') {
       const q = input.value.trim()
       if (q) {
-        if (q.includes('://') || q.includes('.')) {
-          window.location.href = q.includes('://') ? q : 'https://' + q
-        } else {
-          window.location.href = 'https://duckduckgo.com/?q=' + encodeURIComponent(q)
+        let target = null
+        if (/^https?:\/\//i.test(q)) {
+          target = q
+        } else if (q.includes('.') && !q.includes(' ')) {
+          target = 'https://' + q
         }
+        window.location.href = target || getSearchURL(q)
       }
     }
   })
@@ -90,6 +96,13 @@ function initSearch () {
 document.addEventListener('DOMContentLoaded', function () {
   updateClock()
   setInterval(updateClock, 1000)
-  renderShortcuts()
   initSearch()
+
+  if (typeof settings !== 'undefined') {
+    settings.listen('newTabShortcuts', function (saved) {
+      renderShortcuts(getShortcuts(saved))
+    })
+  } else {
+    renderShortcuts(getShortcuts(null))
+  }
 })

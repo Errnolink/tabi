@@ -6,6 +6,26 @@ var listLabels = {
   phishing: 'phishing-filter'
 }
 
+function urlIsWebURL (value) {
+  if (typeof value !== 'string') {
+    return false
+  }
+  try {
+    var parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch (e) {
+    return false
+  }
+}
+
+var targetURL = null
+try {
+  var rawURLParam = decodeURIComponent(new URLSearchParams(window.location.search.replace('?', '')).get('url'))
+  if (urlIsWebURL(rawURLParam)) {
+    targetURL = rawURLParam
+  }
+} catch (e) { }
+
 try {
   var listId = new URLSearchParams(window.location.search).get('list')
   if (listLabels[listId]) {
@@ -15,7 +35,14 @@ try {
   }
 } catch (e) { }
 
+if (!targetURL) {
+  ignoreButton.hidden = true
+}
+
 ignoreButton.addEventListener('click', function () {
+  if (!targetURL) {
+    return
+  }
   // add the domain to the exception list
 
   settings.get('phishingWhitelist', function (value) {
@@ -23,15 +50,12 @@ ignoreButton.addEventListener('click', function () {
       value = []
     }
 
-    var searchParams = new URLSearchParams(window.location.search.replace('?', ''))
-
-    var url = decodeURIComponent(searchParams.get('url'))
-
-    if (!url) {
-      throw new Error('URL cannot be undefined')
+    var domain
+    try {
+      domain = new URL(targetURL).hostname
+    } catch (e) {
+      return
     }
-
-    var domain = new URL(url).hostname
 
     value.push(domain)
 
@@ -39,7 +63,7 @@ ignoreButton.addEventListener('click', function () {
 
     // redirect back to the original page
 
-    window.location = url
+    window.location = targetURL
   })
 })
 

@@ -755,3 +755,61 @@
     display: none !important;
   }
 }
+
+.pdf-error-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, rgb(20 22 32 / 0.45), transparent);
+  backdrop-filter: blur(14px);
+  z-index: 10000;
+}
+
+.pdf-error-overlay[hidden] {
+  display: none;
+}
+
+.pdf-error-card {
+  width: min(420px, calc(100vw - 64px));
+  padding: 32px 30px 26px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-error-pebble {
+  width: 58px;
+  height: 58px;
+  border-radius: 46% 54% 42% 58% / 55% 44% 56% 45%;
+  background: linear-gradient(135deg, hsl(278, 55%, 62%), hsl(205, 70%, 55%));
+  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / 0.4), 0 6px 20px -4px rgb(40 40 80 / 0.45);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.pdf-error-card h1 {
+  font-size: 1.15em;
+  margin: 0;
+}
+
+#pdf-error-detail {
+  margin: 0 0 6px;
+  font-size: 0.85em;
+  color: var(--ink-soft, rgb(60 62 78 / 0.72));
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.pdf-error-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+}
