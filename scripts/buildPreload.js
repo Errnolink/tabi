@@ -11,6 +11,7 @@ const modules = [
   'js/util/settings/settingsPreload.js',
   'js/preload/containersPage.js',
   'js/preload/importPage.js',
+  'js/preload/userscriptsPage.js',
   'js/preload/passwordFill.js',
   'js/preload/translate.js',
 ]

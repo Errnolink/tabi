@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Userscripts</title>
+    <link rel="stylesheet" href="../../css/tokens.css" />
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
+    <link rel="stylesheet" href="userscripts.css" />
+    <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
+  </head>
+  <body>
+    <div class="sea-container">
+      <header class="page-hero">
+        <div class="hero-badge">
+          <i class="i carbon:code"></i>
+          <span>Userscripts</span>
+        </div>
+        <h1 class="page-title" data-string="userscriptsPageTitle">Userscripts</h1>
+        <p class="page-desc" data-string="userscriptsPageDescription"></p>
+      </header>
+
+      <div class="userscripts-main" id="userscripts-page">
+        <div id="disabled-banner" class="inline-sheet pebble-card userscripts-banner" hidden>
+          <i class="i carbon:warning-alt banner-icon"></i>
+          <p data-string="userscriptsDisabledBanner"></p>
+        </div>
+
+        <div class="userscripts-toolbar">
+          <button id="check-updates" class="btn-tonal">
+            <i class="i carbon:renew"></i>
+            <span data-string="userscriptsCheckUpdates">Check for updates</span>
+          </button>
+          <span id="userscripts-status" role="status"></span>
+        </div>
+
+        <section id="suggested-section" hidden>
+          <h2 class="section-heading" data-string="userscriptsSuggestedHeading">Suggested</h2>
+          <div id="suggested-list"></div>
+        </section>
+
+        <div id="script-list"></div>
+
+        <div id="empty-state" class="pebble-card userscripts-empty" hidden>
+          <i class="i carbon:code empty-pebble"></i>
+          <h2 class="empty-title" data-string="userscriptsEmptyTitle"></h2>
+          <p class="empty-desc" data-string="userscriptsEmptyDescription"></p>
+          <div class="empty-action">
+            <a class="btn-jewel" href="https://greasyfork.org" data-string="userscriptsEmptyLink"></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../dist/localization.build.js"></script>
+    <script src="../../js/util/settings/settingsContent.js"></script>
+    <script src="../../js/util/theme.js"></script>
+    <script src="userscripts.js"></script>
+  </body>
+</html>

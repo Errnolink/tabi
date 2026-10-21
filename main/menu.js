@@ -127,6 +127,15 @@ function buildAppMenu (options = {}) {
     }
   }
 
+  var userscriptsAction = {
+    label: l('appMenuUserscripts'),
+    click: function (item, window) {
+      sendIPCToWindow(window, 'addTab', {
+        url: 'min://app/pages/userscripts/index.html'
+      })
+    }
+  }
+
   var template = [
     ...(options.secondary ? tabTaskActions : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
@@ -137,6 +146,8 @@ function buildAppMenu (options = {}) {
     ...(options.secondary ? [importAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [extensionsAction] : []),
+    ...(options.secondary ? [{ type: 'separator' }] : []),
+    ...(options.secondary ? [userscriptsAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [preferencesAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
@@ -156,6 +167,7 @@ function buildAppMenu (options = {}) {
             containersAction,
             importAction,
             extensionsAction,
+            userscriptsAction,
             {
               label: 'Services',
               role: 'services',

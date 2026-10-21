@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Install userscript</title>
+    <link rel="stylesheet" href="../../css/tokens.css" />
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
+    <link rel="stylesheet" href="userscripts.css" />
+    <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
+  </head>
+  <body>
+    <div class="sea-container">
+      <header class="page-hero">
+        <div class="hero-badge">
+          <i class="i carbon:code"></i>
+          <span>Userscripts</span>
+        </div>
+        <h1 class="page-title" data-string="userscriptInstallPageTitle">Install userscript</h1>
+      </header>
+
+      <div class="install-main">
+        <div id="install-view" class="pebble-card install-card" hidden>
+          <h2 class="install-heading">
+            <i class="i carbon:code"></i>
+            <span data-string="userscriptInstallHeading"></span>
+          </h2>
+          <p id="install-source" class="install-source"></p>
+
+          <div class="install-field">
+            <p class="install-field-label" data-string="userscriptsPageTitle"></p>
+            <p id="install-name" class="install-field-value"></p>
+          </div>
+          <div class="install-field">
+            <p class="install-field-label" data-string="userscriptInstallFieldVersion"></p>
+            <p id="install-version" class="install-field-value mono"></p>
+          </div>
+          <div class="install-field" id="install-author-field">
+            <p class="install-field-label" data-string="userscriptInstallFieldAuthor"></p>
+            <p id="install-author" class="install-field-value"></p>
+          </div>
+          <div class="install-field" id="install-description-field">
+            <p class="install-field-label" data-string="userscriptInstallFieldDescription"></p>
+            <p id="install-description" class="install-field-value"></p>
+          </div>
+          <div class="install-field">
+            <p class="install-field-label" data-string="userscriptInstallFieldRunsOn"></p>
+            <div id="install-matches" class="install-field-value mono"></div>
+          </div>
+          <div class="install-field">
+            <p class="install-field-label" data-string="userscriptInstallFieldPermissions"></p>
+            <div id="install-grants" class="grant-chips"></div>
+          </div>
+
+          <div class="install-actions">
+            <button id="install-cancel" class="btn-tonal" data-string="userscriptInstallCancel">Cancel</button>
+            <button id="install-confirm" class="btn-jewel" data-string="userscriptInstallConfirm">Install</button>
+          </div>
+        </div>
+
+        <div id="error-view" class="pebble-card install-card" hidden>
+          <div class="install-error">
+            <span id="error-text"></span>
+            <button id="error-retry" class="btn-tonal" data-string="userscriptInstallRetry">Try again</button>
+          </div>
+        </div>
+
+        <div id="success-view" class="pebble-card install-card" hidden>
+          <div class="install-success">
+            <i class="i carbon:checkmark-filled"></i>
+            <span class="install-success-title" data-string="userscriptInstallSuccess"></span>
+            <span id="success-name" class="install-success-name"></span>
+            <div class="install-actions">
+              <button id="success-back" class="btn-tonal" data-string="userscriptInstallGoBack">Go back</button>
+              <button id="success-manage" class="btn-jewel" data-string="userscriptInstallManage">Manage userscripts</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="loading-view" class="install-loading">
+          <i class="i carbon:renew"></i>
+          <span data-string="userscriptInstallFetching"></span>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../dist/localization.build.js"></script>
+    <script src="../../js/util/settings/settingsContent.js"></script>
+    <script src="../../js/util/theme.js"></script>
+    <script src="install.js"></script>
+  </body>
+</html>
