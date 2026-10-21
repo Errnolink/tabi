@@ -251,6 +251,8 @@ function destroyView (id) {
     return
   }
 
+  stopBoundsAnimation(id)
+
   windows.getAll().forEach(function (window) {
     if (windows.getState(window).selectedView === id) {
       window.getContentView().removeChildView(viewMap[id])
@@ -275,9 +277,16 @@ function setView (id, senderContents) {
 
   // changing views can cause flickering, so we only want to call it if the view is actually changing
   // see https://github.com/minbrowser/min/issues/1966
-  if (windows.getState(win).selectedView !== viewMap[id]) {
+  if (windows.getState(win).selectedView !== id) {
     // remove all prior views
-    getPageViews(win).forEach(child => win.getContentView().removeChildView(child))
+    getPageViews(win).forEach(function (child) {
+      for (var vid in viewMap) {
+        if (viewMap[vid] === child) {
+          stopBoundsAnimation(vid)
+        }
+      }
+      win.getContentView().removeChildView(child)
+    })
     if (viewStateMap[id].loadedInitialURL) {
       win.getContentView().addChildView(viewMap[id])
     } else {
@@ -285,6 +294,16 @@ function setView (id, senderContents) {
     }
     windows.getState(win).selectedView = id
     extensionsNotifyViewSelected(viewMap[id])
+  }
+}
+
+var boundsAnimations = {}
+var lastBoundsSeq = {}
+
+function stopBoundsAnimation (id) {
+  if (boundsAnimations[id]) {
+    clearInterval(boundsAnimations[id])
+    delete boundsAnimations[id]
   }
 }
 
@@ -296,11 +315,36 @@ function setBounds (id, bounds, options) {
   if (options && typeof options.radius === 'number') {
     view.setBorderRadius(options.radius)
   }
+  stopBoundsAnimation(id)
   if (options && options.animate) {
-    view.setBounds(bounds, { animate: { duration: 380, easing: 'ease-out' } })
+    var from = view.getBounds()
+    if (from.x === bounds.x && from.y === bounds.y && from.width === bounds.width && from.height === bounds.height) {
+      view.setBounds(bounds)
+    } else {
+      var start = Date.now()
+      var duration = 380
+      boundsAnimations[id] = setInterval(function () {
+        if (!viewMap[id] || !boundsAnimations[id]) {
+          stopBoundsAnimation(id)
+          return
+        }
+        var t = Math.min(1, (Date.now() - start) / duration)
+        var v = 1 - Math.pow(1 - t, 3)
+        viewMap[id].setBounds({
+          x: Math.round(from.x + (bounds.x - from.x) * v),
+          y: Math.round(from.y + (bounds.y - from.y) * v),
+          width: Math.round(from.width + (bounds.width - from.width) * v),
+          height: Math.round(from.height + (bounds.height - from.height) * v)
+        })
+        if (t >= 1) {
+          stopBoundsAnimation(id)
+        }
+      }, 16)
+    }
   } else {
     view.setBounds(bounds)
   }
+  lastBoundsSeq[id] = (lastBoundsSeq[id] || 0) + 1
 }
 
 function focusView (id) {
@@ -319,6 +363,7 @@ function hideCurrentView (senderContents) {
   const win = windows.windowFromContents(senderContents).win
   const currentId = windows.getState(win).selectedView
   if (currentId) {
+    stopBoundsAnimation(currentId)
     win.getContentView().removeChildView(viewMap[currentId])
     windows.getState(win).selectedView = null
     if (win.isFocused()) {
@@ -361,6 +406,7 @@ function detachView (id) {
   if (!view) {
     return
   }
+  stopBoundsAnimation(id)
   var isSelected = windows.getAll().some(function (window) {
     return windows.getState(window).selectedView === id
   })
@@ -379,6 +425,15 @@ ipc.on('detachView', function (e, id) {
 ipc.on('setView', function (e, args) {
   setView(args.id, e.sender)
   setBounds(args.id, args.bounds, args)
+  var seq = lastBoundsSeq[args.id]
+  setTimeout(function () {
+    if (viewMap[args.id] && lastBoundsSeq[args.id] === seq) {
+      var win = windows.windowFromContents(e.sender)
+      if (win && windows.getState(win.win).selectedView === args.id) {
+        setBounds(args.id, args.bounds, {})
+      }
+    }
+  }, 80)
   if (args.focus && BrowserWindow.fromWebContents(e.sender) && BrowserWindow.fromWebContents(e.sender).isFocused()) {
     const couldFocus = focusView(args.id)
     if (!couldFocus) {
