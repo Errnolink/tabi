@@ -1,8 +1,12 @@
 /*
 Container sessions. Each container is a persistent Electron partition, so cookies,
 storage and cache are fully separated between containers. The registry lives in
-userData/containers.json; the Default container is an alias over the partition
-Min already uses for all tabs (persist:webcontent), so existing logins keep working.
+userData/containers.json; the container with id 'default' is an alias over the
+partition Min already uses for all tabs (persist:webcontent), so existing logins
+keep working. The registry tracks a defaultId for the default *role*; it starts
+pointing at the id-'default' container and can be moved to any other container
+("make default"), including as part of deleting the current default. Container
+ids and partitions never change; only the role does.
 */
 
 /* global fs, path, ipc, app, session, windows, webContents, getWindowWebContents, userDataPath */
@@ -34,7 +38,7 @@ const CONTAINER_COLORS = {
 
 const CONTAINER_ICONS = ['fingerprint', 'briefcase', 'dollar', 'cart', 'vacation', 'gift', 'food', 'fruit', 'pet', 'tree', 'chill', 'circle', 'fence']
 
-const containerRegistry = { version: 1, containers: [] }
+const containerRegistry = { version: 1, containers: [], defaultId: DEFAULT_CONTAINER.id }
 const containerSessions = new Map() // partition string -> session
 const containerPartitionAddedListeners = []
 var lastContainerTabCounts = {}
@@ -42,20 +46,32 @@ var containersQuitHandled = false
 
 function loadContainersRegistry () {
   var valid = true
+  var defaultId = DEFAULT_CONTAINER.id
   try {
     var data = JSON.parse(fs.readFileSync(containersPath, 'utf-8'))
     if (data && Array.isArray(data.containers)) {
       containerRegistry.containers = data.containers
+      if (typeof data.defaultId === 'string') {
+        defaultId = data.defaultId
+      }
     } else {
       valid = false
     }
   } catch (e) {
     valid = false
   }
-  if (!containerRegistry.containers.some(c => c.id === DEFAULT_CONTAINER.id)) {
+  if (containerRegistry.containers.length === 0) {
+    // fresh registry only; once the id-'default' container is deleted it must
+    // not come back, since ids are stable
     containerRegistry.containers.unshift(Object.assign({}, DEFAULT_CONTAINER))
+    defaultId = DEFAULT_CONTAINER.id
     valid = false
   }
+  if (!containerRegistry.containers.some(c => c.id === defaultId)) {
+    defaultId = containerRegistry.containers[0].id
+    valid = false
+  }
+  containerRegistry.defaultId = defaultId
   if (valid) {
     containerRegistry.containers.forEach(function (c) {
       if (!c.partition || typeof c.partition !== 'string') {
@@ -107,13 +123,44 @@ function onContainerPartitionAdded (fn) {
   }
 }
 
+function currentDefaultId () {
+  if (containerRegistry.containers.some(c => c.id === containerRegistry.defaultId)) {
+    return containerRegistry.defaultId
+  }
+  if (containerRegistry.containers.length > 0) {
+    containerRegistry.defaultId = containerRegistry.containers[0].id
+    saveContainersRegistry()
+    return containerRegistry.defaultId
+  }
+  return DEFAULT_CONTAINER.id
+}
+
+function registryState () {
+  return {
+    containers: containerRegistry.containers,
+    defaultId: currentDefaultId()
+  }
+}
+
+function setDefaultContainer (id) {
+  if (!containerRegistry.containers.some(c => c.id === id)) {
+    throw new Error('container does not exist')
+  }
+  containerRegistry.defaultId = id
+  saveContainersRegistry()
+  broadcastContainersChanged()
+
+  return id
+}
+
 function broadcastContainersChanged () {
+  var state = registryState()
   windows.openWindows.forEach(function (w) {
     if (w.closed) {
       return
     }
     try {
-      getWindowWebContents(w.win).send('containers-changed', containerRegistry.containers)
+      getWindowWebContents(w.win).send('containers-changed', state)
     } catch (e) {
       // the window's UI view can already be torn down during shutdown
     }
@@ -123,7 +170,7 @@ function broadcastContainersChanged () {
     try {
       var url = contents.getURL()
       if (url && url.startsWith('min://app/pages/containers')) {
-        contents.send('containers-page-changed', containerRegistry.containers)
+        contents.send('containers-page-changed', state)
       }
     } catch (e) { }
   })
@@ -260,13 +307,57 @@ function retryPendingContainerRemovals () {
   }
 }
 
-function removeContainer (id) {
+function clearContainerData (id) {
   var container = containerRegistry.containers.find(c => c.id === id)
   if (!container) {
     throw new Error('container does not exist')
   }
-  if (container.builtIn) {
-    throw new Error('the default container cannot be removed')
+  var ses = getContainerSession(container.partition)
+
+  return Promise.allSettled([
+    ses.clearData(),
+    ses.clearStorageData(),
+    ses.clearCache(),
+    ses.cookies.flushStore()
+  ]).then(function (results) {
+    results.forEach(function (result) {
+      if (result.status === 'rejected') {
+        console.warn('failed to clear container data', id, result.reason)
+      }
+    })
+    notifyContainerCleared(container.id)
+
+    return true
+  })
+}
+
+/* the UI reloads every open tab of the container once its views exist again */
+function notifyContainerCleared (id) {
+  windows.openWindows.forEach(function (w) {
+    if (w.closed) {
+      return
+    }
+    try {
+      getWindowWebContents(w.win).send('containers-cleared', id)
+    } catch (e) { }
+  })
+}
+
+function removeContainer (id, newDefaultId) {
+  var container = containerRegistry.containers.find(c => c.id === id)
+  if (!container) {
+    throw new Error('container does not exist')
+  }
+
+  var wasDefault = containerRegistry.defaultId === id
+  if (wasDefault) {
+    if (containerRegistry.containers.length < 2) {
+      throw new Error('another container must exist before the default can be removed')
+    }
+    if (!newDefaultId || newDefaultId === id || !containerRegistry.containers.some(c => c.id === newDefaultId)) {
+      throw new Error('a replacement default container must be chosen')
+    }
+    setDefaultContainer(newDefaultId)
   }
 
   containerRegistry.containers = containerRegistry.containers.filter(c => c.id !== id)
@@ -275,6 +366,15 @@ function removeContainer (id) {
 
   var ses = containerSessions.get(container.partition)
   containerSessions.delete(container.partition)
+
+  if (container.partition === DEFAULT_CONTAINER.partition) {
+    // the shared partition can never be destroyed or have its dir deleted;
+    // once its container is gone it just stays empty and unused
+    if (ses) {
+      ses.clearData().catch(err => console.warn('failed to clear container data', id, err))
+    }
+    return true
+  }
 
   var dirName = 'container-' + container.id
   if (ses) {
@@ -291,11 +391,11 @@ function removeContainer (id) {
 }
 
 ipc.on('containers:list-sync', function (e) {
-  e.returnValue = containerRegistry.containers
+  e.returnValue = registryState()
 })
 
 ipc.handle('containers:list', function () {
-  return containerRegistry.containers
+  return registryState()
 })
 
 ipc.on('containers:tabCounts', function (e, counts) {
@@ -314,8 +414,12 @@ ipc.handle('containers:update', function (e, id, data) {
   return updateContainer(id, data)
 })
 
-ipc.handle('containers:remove', function (e, id) {
-  return removeContainer(id)
+ipc.handle('containers:remove', function (e, id, newDefaultId) {
+  return removeContainer(id, newDefaultId)
+})
+
+ipc.handle('containers:clear', function (e, id) {
+  return clearContainerData(id)
 })
 
 /* bridge for the container manager page (sandboxed, so it goes through postMessage + preload) */
@@ -336,7 +440,7 @@ ipc.handle('containers:page', function (e, payload) {
   }
 
   if (payload.op === 'list') {
-    return containerRegistry.containers
+    return registryState()
   }
   if (payload.op === 'vocabulary') {
     return { colors: CONTAINER_COLORS, icons: CONTAINER_ICONS }
@@ -351,7 +455,13 @@ ipc.handle('containers:page', function (e, payload) {
     return updateContainer(payload.args.id, payload.args.data)
   }
   if (payload.op === 'remove') {
-    return removeContainer(payload.args.id)
+    return removeContainer(payload.args.id, payload.args.newDefaultId)
+  }
+  if (payload.op === 'clear') {
+    return clearContainerData(payload.args.id)
+  }
+  if (payload.op === 'setDefault') {
+    return setDefaultContainer(payload.args.id)
   }
   return null
 })

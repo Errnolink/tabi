@@ -4,6 +4,8 @@ Renderer-side container API. The registry is persisted by the main process
 are always created with the right partition.
 */
 
+/* global ipc */
+
 /* Firefox's container vocabulary (10 colors, 13 icons), mapped to Min's carbon icon font */
 const CONTAINER_COLORS = {
   blue: '#37adff',
@@ -36,7 +38,21 @@ const CONTAINER_CARBON_ICONS = {
   fence: 'carbon:border-full'
 }
 
-var currentList = ipc.sendSync('containers:list-sync')
+/* the main process sends { containers, defaultId }; tolerate a plain array so a
+   stale main bundle can never leave the UI without a container list */
+function normalizeRegistryState (state) {
+  if (Array.isArray(state)) {
+    return { containers: state, defaultId: 'default' }
+  }
+  return {
+    containers: (state && state.containers) || [],
+    defaultId: (state && state.defaultId) || 'default'
+  }
+}
+
+var bootState = normalizeRegistryState(ipc.sendSync('containers:list-sync'))
+var currentList = bootState.containers
+var currentDefaultId = bootState.defaultId
 var changeListeners = []
 var tabCountTimeout = null
 
@@ -50,8 +66,20 @@ function list () {
   return currentList
 }
 
+function defaultId () {
+  return currentDefaultId
+}
+
+function defaultContainer () {
+  return currentList.find(c => c.id === currentDefaultId) || currentList[0] || null
+}
+
+function isDefault (id) {
+  return sanitizeContainerId(id) === currentDefaultId
+}
+
 function get (id) {
-  return currentList.find(c => c.id === id) || currentList.find(c => c.id === 'default')
+  return currentList.find(c => c.id === id) || defaultContainer()
 }
 
 function partitionFor (id) {
@@ -59,9 +87,13 @@ function partitionFor (id) {
   return container ? container.partition : 'persist:webcontent'
 }
 
-/* returns the id if the container still exists, 'default' otherwise */
+/* returns the id if the container still exists, the current default's id otherwise.
+   The literal 'default' keeps meaning the container with id 'default' while it exists */
 function sanitizeContainerId (id) {
-  return currentList.some(c => c.id === id) ? id : 'default'
+  if (currentList.some(c => c.id === id)) {
+    return id
+  }
+  return defaultContainer() ? defaultContainer().id : 'default'
 }
 
 function add (data) {
@@ -79,10 +111,10 @@ function update (id, data) {
   })
 }
 
-function remove (id) {
+function remove (id, newDefaultId) {
   // re-homing happens in the containers-changed listener so that every
   // window re-homes its tabs, not just the one that requested the removal
-  return ipc.invoke('containers:remove', id)
+  return ipc.invoke('containers:remove', id, newDefaultId)
 }
 
 /* moves tabs referencing containers that no longer exist to Default and
@@ -106,7 +138,7 @@ function rehomeTabsOfRemovedContainers () {
 
   affectedTabIds.forEach(function (tabId) {
     tasks.getTaskContainingTab(tabId).tabs.update(tabId, {
-      containerId: 'default'
+      containerId: defaultId()
     })
   })
 
@@ -146,7 +178,20 @@ function containerForNewTab (taskId) {
   if (task && task.defaultContainerId && currentList.some(c => c.id === task.defaultContainerId)) {
     return task.defaultContainerId
   }
-  return 'default'
+  return defaultId()
+}
+
+/* reloads every tab of the container that has a live view, after its data was cleared */
+function reloadTabsOfContainer (containerId) {
+  var webviews = require('webviews.js')
+
+  tasks.forEach(function (task) {
+    task.tabs.forEach(function (tab) {
+      if (sanitizeContainerId(tab.containerId) === containerId && webviews.hasViewForTab(tab.id)) {
+        webviews.callAsync(tab.id, 'reload')
+      }
+    })
+  })
 }
 
 /* creates a new tab with the same URL in the target container and closes the old one */
@@ -206,10 +251,16 @@ function sendTabCounts () {
   }, 100)
 }
 
-ipc.on('containers-changed', function (e, newList) {
-  currentList = newList
+ipc.on('containers-changed', function (e, state) {
+  var normalized = normalizeRegistryState(state)
+  currentList = normalized.containers
+  currentDefaultId = normalized.defaultId
   rehomeTabsOfRemovedContainers()
   emitChanged()
+})
+
+ipc.on('containers-cleared', function (e, containerId) {
+  reloadTabsOfContainer(containerId)
 })
 
 tasks.on('*', sendTabCounts)
@@ -221,6 +272,8 @@ module.exports = {
   get,
   partitionFor,
   sanitizeContainerId,
+  defaultId,
+  isDefault,
   add,
   update,
   remove,

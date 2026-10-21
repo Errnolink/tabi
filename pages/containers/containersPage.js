@@ -183,7 +183,7 @@ function buildRow (container) {
       var deleteDefaultButton = document.createElement('button')
       deleteDefaultButton.className = 'container-delete-btn chip-coral'
       deleteDefaultButton.textContent = l('containersDelete')
-      deleteDefaultButton.title = l('containersDeleteWarning').replace('%s', container.name)
+      deleteDefaultButton.title = l('containersDeleteDefaultPrompt')
       deleteDefaultButton.addEventListener('click', function () {
         openDeletePicker(container)
       })
@@ -437,13 +437,11 @@ if (deleteCancelBtn) {
 var deleteConfirmBtn = document.getElementById('delete-picker-confirm')
 if (deleteConfirmBtn) {
   deleteConfirmBtn.addEventListener('click', function () {
-    if (!state.armedDeleteId || !state.moveTargetId) {
+    var targetId = state.moveTargetId
+    if (!state.armedDeleteId || !otherContainers().some(c => c.id === targetId)) {
       return
     }
-    var id = state.armedDeleteId
-    var moveTarget = state.moveTargetId
-    hideDeletePicker()
-    callMain('remove', { id: id, moveTargetId: moveTarget }).catch(function (err) {
+    callMain('remove', { id: state.armedDeleteId, newDefaultId: targetId }).then(hideDeletePicker).catch(function (err) {
       console.warn('failed to remove default container', err)
     })
   })
@@ -459,8 +457,9 @@ document.getElementById('container-name-input').addEventListener('keypress', fun
 callMain('vocabulary').then(function (vocab) {
   state.colors = vocab.colors
   state.icons = vocab.icons
-  return callMain('list').then(function (list) {
-    state.containers = list
+  return callMain('list').then(function (registry) {
+    state.containers = registry.containers
+    state.defaultId = registry.defaultId
     return refreshCounts()
   }).then(render)
 })

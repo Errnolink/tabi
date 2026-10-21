@@ -9,8 +9,8 @@ function selectedTab () {
 
 function update () {
   const tab = selectedTab()
-  const container = tab && !tab.private ? containers.get(tab.containerId || 'default') : null
-  if (!container || container.id === 'default') {
+  const container = tab && !tab.private ? containers.get(tab.containerId) : null
+  if (!container || containers.isDefault(container.id)) {
     chip.hidden = true
     return
   }
@@ -27,14 +27,15 @@ function initialize () {
     if (!tab) {
       return
     }
+    const currentId = containers.sanitizeContainerId(tab.containerId)
     const rect = chip.getBoundingClientRect()
     remoteMenu.open([
       containers.list().map(container => ({
         label: container.name,
         swatch: container.color,
-        checked: container.id === (tab.containerId || 'default'),
+        checked: container.id === currentId,
         click: () => {
-          if (container.id !== (tab.containerId || 'default')) {
+          if (container.id !== currentId) {
             containers.reopenTabInContainer(tab.id, container.id)
           }
         }

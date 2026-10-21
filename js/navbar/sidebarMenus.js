@@ -66,8 +66,8 @@ function tabMenu (tabId) {
         label: l('tabMenuOpenInContainer'),
         icon: 'carbon:layers',
         enabled: !tab.private,
-        submenu: containerItems(tab.containerId || 'default', function (containerId) {
-          if (containerId !== (tab.containerId || 'default')) {
+        submenu: containerItems(containers.sanitizeContainerId(tab.containerId), function (containerId) {
+          if (containerId !== containers.sanitizeContainerId(tab.containerId)) {
             containers.reopenTabInContainer(tabId, containerId)
           }
         })
@@ -103,7 +103,7 @@ function bucketMenu (taskId) {
       {
         label: l('bucketMenuDefaultContainer'),
         icon: 'carbon:layers',
-        submenu: containerItems(task.defaultContainerId || 'default', containerId => containers.setBucketDefault(taskId, containerId))
+        submenu: containerItems(containers.sanitizeContainerId(task.defaultContainerId), containerId => containers.setBucketDefault(taskId, containerId))
       },
       { label: task.collapsed ? l('bucketMenuExpand') : l('bucketMenuCollapse'), icon: task.collapsed ? 'carbon:chevron-down' : 'carbon:chevron-up', click: () => sidebar.toggleBucket(taskId) },
       { label: l('bucketMenuReloadAll'), icon: 'carbon:renew', click: () => tabActions.reloadTask(taskId) }

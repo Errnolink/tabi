@@ -28,6 +28,6 @@ window.addEventListener('message', function (e) {
   })
 })
 
-ipc.on('containers-page-changed', function (e, list) {
-  window.postMessage({ message: CONTAINERS_PAGE_PREFIX + 'changed', list: list }, window.location.toString())
+ipc.on('containers-page-changed', function (e, state) {
+  window.postMessage({ message: CONTAINERS_PAGE_PREFIX + 'changed', state: state }, window.location.toString())
 })
