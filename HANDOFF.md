@@ -84,10 +84,34 @@ Chef writes issues in `issues.md` (repo root), one per line, screenshots as `iss
 
 Also in round 1: page menu Reload/Save/Print/Copy link/View source (`575df2a`). Containers boot crash during an agent's broken edit briefly hid Chef's tabs; the session survived because `sessionRestore.save` refuses to write before restore (backup: `%APPDATA%\xb-development\sessionRestore.keep-1159.json`).
 
-### Open after round 1
+### Round 2 (2026-10-21), screenshot archived at `Documents/research/xb-browser-ux/issues-2026-10-21-r2/`
 
-- 2026-10-21: Chef approved from the #6 pick list: Ghostery adblocker, URL cleaning, DoH, tab hover cards. Rejected: Helium bangs, PiP auto-enter. Approved the userscript manager (keep extension support beside it) and merge buckets. All six are queued in `issues.md`.
+Ran as an orchestrated wave (isolated agents, merged by the main session, live-verified by separate verifier agents; reports `verify-report*.md` in the session's local dir were summarised here).
+
+1. Userscript manager. `93842c8d`, `07408cd9`, `16697e29`, `3e04ed9e`. Store in `main/userscriptStore*.js` (userData/userscripts), manager + install prompt in `pages/userscripts/`, shared parser/matcher `js/util/userscriptMeta.js`. Granted scripts run in isolated world 977 and reach GM only through `__tabiGM__` (contextBridge) → `ipc.handle('userscript-gm-request')`, which checks main frame + @match + grant; @connect is default-deny. `document-start` scripts inject from the preload via `sendSync`; @require/@resource are fetched (https only) at install/update. Greasy Fork detects Tabi through a `window.external.Tampermonkey` stub. CPfT is a Suggested install, not auto-run. Bug fixed on the way: `loadURL(install)` inside `did-start-navigation` aborted (ERR_ABORTED); it is deferred with `setImmediate`.
+2. Ghostery adblocker. `65637105`, `e0cc3bc3`. `main/adblock.js` (engine cached in userData, daily refresh, cosmetics preload per session), one `onBeforeRequest` chain in `main/filtering.js`. Old abp-filter-parser removed. With uBO installed, phishing blocking and URL cleaning keep running through webContents navigation hooks.
+3. URL cleaning. `main/urlCleaning.js`: params, redirect unwrapping, de-AMP, only on main/sub-frame navigations; x.com/t.co untouched.
+4. DoH. `main/secureDns.js`, setting `dnsOverHttps`, live without restart.
+5. Tab hover cards. `js/navbar/tabHoverCard.js`. Stale thumbnails fixed in `0c91df3f`: every capture now bumps `thumbVersion` (temporary tab property); one store `js/thumbnailStore.js` serves hover card, overview and placeholder.
+6. Merge tab groups. `0fc50489` (`tabActions.mergeTasks`).
+7. PDF reader. `65d02849`, `599cc36c`. Root cause of the blank viewer: pdf.js 4 requires the viewer container to be a `<div>` (it was `<main>`); `.mjs` is served as `text/javascript`.
+8. Homepage. `0e0d6f52` (`js/newTabPage/*`): wallpaper presets/upload, shortcut tiles, bookmarks, clock; favicons from the places cache, no Google favicon service.
+9. Settings + performance. `4185724a`, `880c5eef`, `1ccd3a40`, `b1f8240e`. Settings rebuilt with a section per file under `pages/settings/`. Silent setting drops: the relay guard used `tabs.get(tabId)` (selected group only) and threw for internal pages in other groups; now it checks the sender frame URL, and filtering writes merge per key. Perf: no 15 s capture loop, usage-statistics writer deleted, dirty-flag session saves, lazy collapsed groups, overview opens without waiting for a capture.
+10–12. Wording and containers. `cedbc5df`. "Buckets" → "Tab groups" in all UI text (code keys unchanged), inline container create (name + colour), chip popover explains containers, tooltips match real shortcuts.
+13. Memory and loading. Adaptive sleep: `tabSleepMinutes` scaled ×0.25–×6 by available RAM; pressure = available < max(1 GB, 8% of total) measured with `os.freemem()` (on Windows `getSystemMemoryInfo().free` excludes standby and read < 1 GB on a 32 GB box, which killed warm-up and destroyed tabs early). Kept-alive tier (`webviews.keepAlive`) reclaimed LRU under pressure; never sleeps a tab visible in any window. Hover warm-up after 500 ms, max 2.
+
+Also in round 2:
+- Refocus to Tabi (`3e79be07`): general-purpose defaults, README/AGENTS. Repo public at `Errnolink/tabi`.
+- Auto-update (`18792638`): NSIS per-user installer + electron-updater from GitHub Releases, `npm run releaseTabi [-- --publish]`. Dev and the portable zip never run the updater.
+- Security: Electron 43.8.3 for the eMudhra SPKI blocklist (`24182f2e`); CSP on min:// pages; `pdf-file` endpoint only serves local drive PDFs to the viewer; Electron fuses (RunAsNode, NODE_OPTIONS, inspect args off) in packaged builds only.
+- Google sign-in (`38c41ac5`): plain Chrome UA everywhere; on accounts.google.com a full Firefox persona (header UA, `webContents.setUserAgent`, no Sec-CH-UA, `navigator.userAgentData` removed by a preload). Google also rate-limits repeated automated attempts with a CAPTCHA; that is risk scoring, not the browser.
+- X layout split-brain (`ca2e8881`): interrupting Electron's animated `setBounds` with a view swap wedged the renderer's size, so X laid out for the wrong width. `main/viewManager.js` runs its own cancelable tween now.
+- Audit (`local audit.md`, 62 findings) fixed in slices A–F + consolidation: permission chip (camera/mic/notifications prompts were never shown), tabAudio re-wired (mute, PiP, audio exemption), view events for tabs in other groups, focus no longer stolen by hover/menus, Clear browsing data (Ctrl+Shift+Delete), default-browser row, Chrome shortcuts, persistent downloads (Ctrl+J), auto-file rules editor with X preset, bounded quit (`e6413c22`), unit tests `npm run test:unit` (node:test, 56 tests), large files split into modules.
+
+### Open after round 2
+
 - Containers: extension instances for a deleted default partition are not torn down. `containersDefaultLabel` is stale in non-English locales.
+- Installer is unsigned (Chef declined paid signing): first install shows SmartScreen "More info → Run anyway"; update trust rests on the GitHub account.
 
 ## Dev instance notes
 
