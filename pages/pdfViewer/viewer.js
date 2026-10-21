@@ -1,620 +1,666 @@
-import '../../node_modules/pdfjs-dist/build/pdf.min.mjs'
-import '../../node_modules/pdfjs-dist/web/pdf_viewer.mjs'
+import * as pdfjsLib from '../../node_modules/pdfjs-dist/build/pdf.min.mjs'
+import * as pdfjsViewer from '../../node_modules/pdfjs-dist/web/pdf_viewer.mjs'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '../../node_modules/pdfjs-dist/build/pdf.worker.mjs'
+pdfjsLib.GlobalWorkerOptions.workerSrc = '../../node_modules/pdfjs-dist/build/pdf.worker.min.mjs'
 
-var url = new URLSearchParams(window.location.search.replace('?', '')).get('url')
+const rawUrl = new URLSearchParams(window.location.search.replace('?', '')).get('url')
+if (!rawUrl) {
+  throw new Error('Missing URL parameter for PDF viewer')
+}
 
-var eventBus = new pdfjsViewer.EventBus()
+const docUrl = rawUrl.startsWith('file://') ? ('min://app/pdf-file?url=' + encodeURIComponent(rawUrl)) : rawUrl
 
-/* page counter UI */
-var pageCounter = {
-  init: function () {
-    pageCounter.container = document.getElementById('page-counter')
-    pageCounter.input = pageCounter.container.getElementsByTagName('input')[0]
-    pageCounter.totalEl = pageCounter.container.querySelector('#total')
+const eventBus = new pdfjsViewer.EventBus()
 
-    pageCounter.container.addEventListener('click', function () {
-      pageCounter.input.focus()
-      pageCounter.input.select()
-    })
+const linkService = new pdfjsViewer.PDFLinkService({
+  eventBus,
+  externalLinkTarget: pdfjsViewer.LinkTarget.BLANK
+})
 
-    pageCounter.input.addEventListener('change', function (e) {
-      var pageIndex = parseInt(this.value) - 1
-      if (pageViews[pageIndex] && pageViews[pageIndex].div) {
-        pageViews[pageIndex].div.scrollIntoView()
-      }
-      updateVisiblePages()
-      pageCounter.update()
-      pageCounter.input.blur()
-    })
-  },
-  update: function () {
-    pageCounter.input.value = currentPage + 1
-    pageCounter.totalEl.textContent = pageCount
+const findController = new pdfjsViewer.PDFFindController({
+  eventBus,
+  linkService,
+  updateMatchesCountOnProgress: true
+})
+
+const container = document.getElementById('viewer-container')
+const viewer = document.getElementById('viewer')
+
+const pdfViewer = new pdfjsViewer.PDFViewer({
+  container,
+  viewer,
+  eventBus,
+  linkService,
+  findController,
+  textLayerMode: 1,
+  annotationMode: 2,
+  removePageBorders: false
+})
+
+linkService.setViewer(pdfViewer)
+
+const thumbnailContainer = document.getElementById('thumbnail-view')
+let thumbnailViewer = null
+
+if (thumbnailContainer) {
+  thumbnailViewer = new pdfjsViewer.PDFThumbnailViewer({
+    container: thumbnailContainer,
+    eventBus,
+    linkService,
+    renderingQueue: pdfViewer.renderingQueue
+  })
+  if (pdfViewer.renderingQueue) {
+    pdfViewer.renderingQueue.setThumbnailViewer(thumbnailViewer)
   }
 }
 
-pageCounter.init()
+const progressBar = document.getElementById('progress-bar')
 
-/* progress bar UI */
-
-var progressBar = {
-  element: document.getElementById('progress-bar'),
-  enabled: false,
-  progress: 0,
-  incrementProgress: function (progress) { // progress: amount by which to increase the progress bar (number 0-1, 1 = 100%)
-    progressBar.progress += progress
-
-    if (!progressBar.enabled) {
-      return
-    }
-
-    if (progressBar.progress >= 1) {
-      progressBar.enabled = false
-      progressBar.element.style.transform = 'translateX(0%)'
-      setTimeout(function () {
-        progressBar.element.hidden = true
-      }, 200)
-      return
-    }
-
-    progressBar.element.hidden = false
-
-    var width = progressBar.progress * 90
-    progressBar.element.style.transform = 'translateX(-' + (100 - width) + '%)'
-  },
-  init: function () {
-    setTimeout(function () {
-      if (!pdf) {
-        progressBar.enabled = true
-        progressBar.incrementProgress(0.05)
-
-        var loadingFakeInterval = setInterval(function () { // we can't reliably determine actual download progress, so instead we make the bar move very slowly until the first page has loaded, then show how many pages have rendered
-          if (progressBar.progress < 0.125) {
-            progressBar.incrementProgress(0.002)
-          } else {
-            clearInterval(loadingFakeInterval)
-          }
-        }, 250)
-      }
-    }, 3000)
+function setProgress (ratio) {
+  if (!progressBar) return
+  if (ratio >= 1) {
+    progressBar.style.transform = 'scaleX(1)'
+    setTimeout(() => {
+      progressBar.style.opacity = '0'
+    }, 200)
+  } else {
+    progressBar.style.opacity = '1'
+    progressBar.style.transform = 'scaleX(' + Math.max(0.05, ratio) + ')'
   }
 }
 
-progressBar.init()
+const loadingTask = pdfjsLib.getDocument({
+  url: docUrl,
+  withCredentials: true
+})
 
-var downloadButton = document.getElementById('download-button')
+loadingTask.onProgress = function (progress) {
+  if (progress.total > 0) {
+    setProgress(progress.loaded / progress.total)
+  }
+}
 
-downloadButton.addEventListener('click', function () {
+let pdfDocument = null
+
+loadingTask.promise.then(async function (_pdfDocument) {
+  pdfDocument = _pdfDocument
+  setProgress(1)
+
+  pdfViewer.setDocument(pdfDocument)
+  linkService.setDocument(pdfDocument)
+  findController.setDocument(pdfDocument)
+  if (thumbnailViewer) {
+    thumbnailViewer.setDocument(pdfDocument)
+  }
+
+  const pageTotalEl = document.getElementById('page-total')
+  if (pageTotalEl) {
+    pageTotalEl.textContent = pdfDocument.numPages
+  }
+
+  const pageInput = document.getElementById('page-input')
+  if (pageInput) {
+    pageInput.max = pdfDocument.numPages
+  }
+
+  try {
+    const meta = await pdfDocument.getMetadata()
+    if (meta?.info?.Title) {
+      document.title = meta.info.Title
+    } else {
+      const parts = rawUrl.split(/[/\\]/)
+      document.title = decodeURIComponent(parts[parts.length - 1].split('?')[0]) || 'PDF'
+    }
+  } catch (e) {
+    const parts = rawUrl.split(/[/\\]/)
+    document.title = decodeURIComponent(parts[parts.length - 1].split('?')[0]) || 'PDF'
+  }
+
+  try {
+    const outline = await pdfDocument.getOutline()
+    renderOutline(outline, document.getElementById('outline-view'))
+  } catch (e) {
+    renderOutline(null, document.getElementById('outline-view'))
+  }
+}).catch(function (err) {
+  console.error('Failed to load PDF', err)
   downloadPDF()
 })
 
-document.querySelectorAll('.side-gutter').forEach(function (el) {
-  el.addEventListener('mouseenter', function () {
-    showViewerUI()
-  })
-  el.addEventListener('mouseleave', function () {
-    hideViewerUI()
+eventBus.on('pagesinit', function () {
+  pdfViewer.currentScaleValue = 'page-width'
+
+  const saved = parseInt(localStorage.getItem('xb_pdf_last_page_' + rawUrl), 10)
+  if (saved && saved >= 1 && saved <= pdfViewer.pagesCount) {
+    pdfViewer.currentPageNumber = saved
+  }
+})
+
+eventBus.on('pagechanging', function (evt) {
+  const pageInput = document.getElementById('page-input')
+  if (pageInput) {
+    pageInput.value = evt.pageNumber
+  }
+  if (thumbnailViewer && sidebarOpen) {
+    thumbnailViewer.scrollThumbnailIntoView(evt.pageNumber)
+  }
+  try {
+    localStorage.setItem('xb_pdf_last_page_' + rawUrl, String(evt.pageNumber))
+  } catch (e) {}
+})
+
+eventBus.on('scalechanging', function (evt) {
+  const label = document.getElementById('zoom-label')
+  if (label) {
+    if (evt.presetValue === 'page-width') {
+      label.textContent = l('PDFZoomFitWidth') || 'Fit width'
+    } else if (evt.presetValue === 'page-fit') {
+      label.textContent = l('PDFZoomFitPage') || 'Fit page'
+    } else if (evt.presetValue === 'auto') {
+      label.textContent = l('PDFZoomAuto') || 'Automatic'
+    } else {
+      label.textContent = Math.round(evt.scale * 100) + '%'
+    }
+  }
+
+  document.querySelectorAll('#zoom-dropdown .dropdown-item').forEach(function (item) {
+    const val = item.getAttribute('data-zoom')
+    if (val === evt.presetValue || Math.abs(parseFloat(val) - evt.scale) < 0.01) {
+      item.classList.add('selected')
+    } else {
+      item.classList.remove('selected')
+    }
   })
 })
 
-function showViewerUI () {
-  document.querySelectorAll('.viewer-ui').forEach(el => el.classList.remove('hidden'))
-  pageCounter.update()
-}
-
-const hideViewerUI = debounce(function () {
-  if (!document.querySelector('.side-gutter:hover')) {
-    document.querySelectorAll('.viewer-ui').forEach(el => el.classList.add('hidden'))
-  }
-}, 600)
-
-function updateGutterWidths () {
-  var gutterWidth
-  if (!pageViews[0]) { // PDF hasn't loaded yet
-    gutterWidth = 64
-  } else {
-    gutterWidth = Math.round(Math.max(64, (window.innerWidth - pageViews[0].viewport.width) / 2)) - 2
-  }
-
-  document.querySelectorAll('.side-gutter').forEach(function (el) {
-    el.style.width = gutterWidth + 'px'
+const pageInput = document.getElementById('page-input')
+if (pageInput) {
+  pageInput.addEventListener('change', function () {
+    const p = parseInt(this.value, 10)
+    if (p >= 1 && p <= pdfViewer.pagesCount) {
+      pdfViewer.currentPageNumber = p
+    } else {
+      this.value = pdfViewer.currentPageNumber
+    }
+  })
+  pageInput.addEventListener('click', function () {
+    this.select()
   })
 }
 
-function createContainer () {
-  var el = document.createElement('div')
-  el.classList.add('page-container')
-  document.body.appendChild(el)
-  return el
-}
-
-var pageBuffer = 15
-
-/* adapted from PDFPageView.draw(), without actually painting the page onto the canvas */
-function setupPageDom (pageView) {
-  var pdfPage = pageView.pdfPage
-  var div = pageView.div
-  var canvasWrapper = document.createElement('div')
-  canvasWrapper.style.width = div.style.width
-  canvasWrapper.style.height = div.style.height
-  canvasWrapper.classList.add('canvasWrapper')
-  if (pageView.annotationLayer && pageView.annotationLayer.div && !pageView.annotationLayer.div.parentNode) {
-    div.appendChild(pageView.annotationLayer.div)
-  }
-  if (pageView.annotationLayer && pageView.annotationLayer.div) {
-    div.insertBefore(canvasWrapper, pageView.annotationLayer.div)
-  } else {
-    div.appendChild(canvasWrapper)
-  }
-  var textLayer = null
-  if (pageView.textLayerFactory) {
-    var textLayerDiv = document.createElement('div')
-    textLayerDiv.className = 'textLayer'
-    textLayerDiv.style.width = canvasWrapper.style.width
-    textLayerDiv.style.height = canvasWrapper.style.height
-    if (pageView.annotationLayer && pageView.annotationLayer.div) {
-      div.insertBefore(textLayerDiv, pageView.annotationLayer.div)
-    } else {
-      div.appendChild(textLayerDiv)
+const prevBtn = document.getElementById('page-prev')
+if (prevBtn) {
+  prevBtn.addEventListener('click', function () {
+    if (pdfViewer.currentPageNumber > 1) {
+      pdfViewer.currentPageNumber--
     }
-    textLayer = pageView.textLayerFactory.createTextLayerBuilder(textLayerDiv, pageView.id - 1, pageView.viewport, pageView.enhanceTextSelection)
-  }
-  if (pageView.annotationLayerFactory) {
-    var annotationLayer = pageView.annotationLayerFactory.createAnnotationLayerBuilder(div, pdfPage, null, null, false, pageView.l10n, null, null, null, null, null)
-  }
-  pageView.textLayer = textLayer
-  pageView.annotationLayer = annotationLayer
-  setUpPageAnnotationLayer(pageView)
+  })
 }
 
-function DefaultTextLayerFactory () { }
-DefaultTextLayerFactory.prototype = {
-  createTextLayerBuilder: function (textLayerDiv, pageIndex, viewport,
-    enhanceTextSelection) {
-    return new pdfjsViewer.TextLayerBuilder({
-      textLayerDiv: textLayerDiv,
-      pageIndex: pageIndex,
-      viewport: viewport,
-      enhanceTextSelection: true,
-      eventBus: eventBus
+const nextBtn = document.getElementById('page-next')
+if (nextBtn) {
+  nextBtn.addEventListener('click', function () {
+    if (pdfViewer.currentPageNumber < pdfViewer.pagesCount) {
+      pdfViewer.currentPageNumber++
+    }
+  })
+}
+
+const zoomMenuBtn = document.getElementById('zoom-menu-btn')
+const zoomDropdown = document.getElementById('zoom-dropdown')
+
+function toggleZoomDropdown () {
+  if (!zoomDropdown) return
+  zoomDropdown.hidden = !zoomDropdown.hidden
+  const settingsDropdown = document.getElementById('settings-dropdown')
+  if (settingsDropdown && !zoomDropdown.hidden) {
+    settingsDropdown.hidden = true
+  }
+}
+
+if (zoomMenuBtn) {
+  zoomMenuBtn.addEventListener('click', function (e) {
+    e.stopPropagation()
+    toggleZoomDropdown()
+  })
+}
+
+document.querySelectorAll('#zoom-dropdown .dropdown-item').forEach(function (item) {
+  item.addEventListener('click', function () {
+    const zoomVal = this.getAttribute('data-zoom')
+    if (['page-width', 'page-fit', 'auto'].includes(zoomVal)) {
+      pdfViewer.currentScaleValue = zoomVal
+    } else {
+      pdfViewer.currentScale = parseFloat(zoomVal)
+    }
+    if (zoomDropdown) {
+      zoomDropdown.hidden = true
+    }
+  })
+})
+
+const zoomInBtn = document.getElementById('zoom-in')
+if (zoomInBtn) {
+  zoomInBtn.addEventListener('click', function () {
+    pdfViewer.currentScale = Math.min(5.0, (pdfViewer.currentScale || 1.0) * 1.25)
+  })
+}
+
+const zoomOutBtn = document.getElementById('zoom-out')
+if (zoomOutBtn) {
+  zoomOutBtn.addEventListener('click', function () {
+    pdfViewer.currentScale = Math.max(0.25, (pdfViewer.currentScale || 1.0) * 0.8)
+  })
+}
+
+const rotateBtn = document.getElementById('rotate-btn')
+if (rotateBtn) {
+  rotateBtn.addEventListener('click', function () {
+    pdfViewer.pagesRotation = (pdfViewer.pagesRotation + 90) % 360
+  })
+}
+
+const findBar = document.getElementById('find-bar')
+const findInput = document.getElementById('find-input')
+const findCount = document.getElementById('find-count')
+const findBtn = document.getElementById('find-btn')
+let isFindBarOpen = false
+
+function openFindBar () {
+  if (!findBar) return
+  findBar.hidden = false
+  isFindBarOpen = true
+  showToolbar()
+  if (findInput) {
+    findInput.focus()
+    findInput.select()
+    if (findInput.value) {
+      findController.executeCommand('find', {
+        query: findInput.value,
+        phraseSearch: true,
+        highlightAll: true,
+        findPrevious: false
+      })
+    }
+  }
+}
+
+function closeFindBar () {
+  if (!findBar) return
+  findBar.hidden = true
+  isFindBarOpen = false
+  findController.executeCommand('find', {
+    query: '',
+    phraseSearch: true,
+    highlightAll: false,
+    findPrevious: false
+  })
+  if (findCount) {
+    findCount.textContent = ''
+  }
+  container.focus()
+}
+
+if (findBtn) {
+  findBtn.addEventListener('click', function () {
+    if (isFindBarOpen) {
+      closeFindBar()
+    } else {
+      openFindBar()
+    }
+  })
+}
+
+if (findInput) {
+  findInput.addEventListener('input', function () {
+    const query = this.value
+    if (!query) {
+      if (findCount) findCount.textContent = ''
+      findController.executeCommand('find', { query: '', highlightAll: false })
+      return
+    }
+    findController.executeCommand('find', {
+      query: query,
+      phraseSearch: true,
+      highlightAll: true,
+      findPrevious: false
     })
-  }
+  })
+
+  findInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      findController.executeCommand('again', { findPrevious: e.shiftKey })
+    } else if (e.key === 'Escape') {
+      closeFindBar()
+    }
+  })
 }
 
-var pageViews = []
-var pdf = null
+const findPrevBtn = document.getElementById('find-prev')
+if (findPrevBtn) {
+  findPrevBtn.addEventListener('click', function () {
+    findController.executeCommand('again', { findPrevious: true })
+  })
+}
 
-const updateCachedPages = throttle(function () {
-  if (currentPage == null) {
+const findNextBtn = document.getElementById('find-next')
+if (findNextBtn) {
+  findNextBtn.addEventListener('click', function () {
+    findController.executeCommand('again', { findPrevious: false })
+  })
+}
+
+const findCloseBtn = document.getElementById('find-close')
+if (findCloseBtn) {
+  findCloseBtn.addEventListener('click', closeFindBar)
+}
+
+eventBus.on('updatefindmatchescount', function (data) {
+  if (!findInput || !findInput.value || !findCount) {
+    if (findCount) findCount.textContent = ''
+    return
+  }
+  if (data.matchesCount.total > 0) {
+    findCount.textContent = data.matchesCount.current + ' of ' + data.matchesCount.total
+  } else {
+    findCount.textContent = '0 of 0'
+  }
+})
+
+eventBus.on('updatefindcontrolstate', function (data) {
+  if (!findInput || !findInput.value || !findCount) return
+  if (data.state === pdfjsViewer.FindState.NOT_FOUND) {
+    findCount.textContent = '0 of 0'
+  }
+})
+
+const sidebar = document.getElementById('sidebar')
+const tabOutline = document.getElementById('tab-outline')
+const tabThumbnails = document.getElementById('tab-thumbnails')
+const outlineView = document.getElementById('outline-view')
+const thumbnailView = document.getElementById('thumbnail-view')
+const sidebarToggle = document.getElementById('sidebar-toggle')
+const sidebarClose = document.getElementById('sidebar-close')
+let sidebarOpen = false
+
+function toggleSidebar () {
+  if (!sidebar) return
+  sidebarOpen = !sidebarOpen
+  if (sidebarOpen) {
+    sidebar.classList.add('open')
+    document.body.classList.add('sidebar-open')
+    if (sidebarToggle) sidebarToggle.classList.add('active')
+    if (thumbnailViewer && !thumbnailView.classList.contains('hidden')) {
+      thumbnailViewer.scrollThumbnailIntoView(pdfViewer.currentPageNumber)
+    }
+  } else {
+    sidebar.classList.remove('open')
+    document.body.classList.remove('sidebar-open')
+    if (sidebarToggle) sidebarToggle.classList.remove('active')
+  }
+  setTimeout(function () {
+    if (['page-width', 'page-fit', 'auto'].includes(pdfViewer.currentScaleValue)) {
+      pdfViewer.currentScaleValue = pdfViewer.currentScaleValue
+    }
+  }, 250)
+}
+
+if (sidebarToggle) {
+  sidebarToggle.addEventListener('click', toggleSidebar)
+}
+
+if (sidebarClose) {
+  sidebarClose.addEventListener('click', function () {
+    if (sidebarOpen) toggleSidebar()
+  })
+}
+
+if (tabOutline) {
+  tabOutline.addEventListener('click', function () {
+    tabOutline.classList.add('active')
+    tabThumbnails.classList.remove('active')
+    outlineView.classList.remove('hidden')
+    thumbnailView.classList.add('hidden')
+  })
+}
+
+if (tabThumbnails) {
+  tabThumbnails.addEventListener('click', function () {
+    tabThumbnails.classList.add('active')
+    tabOutline.classList.remove('active')
+    thumbnailView.classList.remove('hidden')
+    outlineView.classList.add('hidden')
+    if (thumbnailViewer) {
+      thumbnailViewer.scrollThumbnailIntoView(pdfViewer.currentPageNumber)
+    }
+  })
+}
+
+function renderOutline (outline, containerEl) {
+  if (!containerEl) return
+  containerEl.innerHTML = ''
+  if (!outline || outline.length === 0) {
+    const empty = document.createElement('div')
+    empty.className = 'sidebar-empty'
+    empty.textContent = l('PDFNoOutline') || 'No outline available'
+    containerEl.appendChild(empty)
+    if (tabThumbnails) {
+      tabThumbnails.click()
+    }
     return
   }
 
-  if (!pageViews[currentPage].canvas) {
-    redrawPageCanvas(currentPage)
-  }
+  function createList (items) {
+    const ul = document.createElement('ul')
+    ul.className = 'outline-list'
+    items.forEach(function (item) {
+      const li = document.createElement('li')
+      li.className = 'outline-item'
 
-  for (var i = 0; i < pageViews.length; i++) {
-    (function (i) {
-      if (i === currentPage) {
-        // already checked above
-        return
-      }
-      if (Math.abs(i - currentPage) > pageBuffer && pageViews[i].canvas) {
-        pageViews[i].canvas.remove()
-        pageViews[i].canvas = null
-      }
-      if (Math.abs(i - currentPage) < pageBuffer && !pageViews[i].canvas) {
-        redrawPageCanvas(i)
-      }
-    })(i)
-  }
-}, 500)
+      const row = document.createElement('div')
+      row.className = 'outline-row'
 
-var pageCount
-
-function setUpPageAnnotationLayer (pageView) {
-  if (pageView.annotationLayer) {
-    pageView.annotationLayer.linkService.goToDestination = async function (dest) {
-      // Adapted from https://github.com/mozilla/pdf.js/blob/8ac0ccc2277a7c0c85d6fec41c0f3fc3d1a2d232/web/pdf_link_service.js#L238
-      let explicitDest
-      if (typeof dest === 'string') {
-        explicitDest = await pdf.getDestination(dest)
+      const hasChildren = item.items && item.items.length > 0
+      if (hasChildren) {
+        const toggle = document.createElement('button')
+        toggle.className = 'outline-toggle i carbon:chevron-down'
+        toggle.addEventListener('click', function (e) {
+          e.stopPropagation()
+          li.classList.toggle('collapsed')
+          toggle.classList.toggle('carbon:chevron-right')
+          toggle.classList.toggle('carbon:chevron-down')
+        })
+        row.appendChild(toggle)
       } else {
-        explicitDest = await dest
+        const spacer = document.createElement('span')
+        spacer.className = 'outline-spacer'
+        row.appendChild(spacer)
       }
 
-      const destRef = explicitDest[0]
-      let pageNumber
-
-      if (typeof destRef === 'object' && destRef !== null) {
-        pageNumber = await pdf.getPageIndex(destRef)
-      } else if (Number.isInteger(destRef)) {
-        pageNumber = destRef + 1
-      }
-
-      pageViews[pageNumber].div.scrollIntoView()
-    }
-  }
-}
-
-pdfjsLib.getDocument({ url: url, withCredentials: true }).promise.then(async function (_pdf) {
-  pdf = _pdf
-
-  pageCount = pdf.numPages
-
-  if (pageCount < 25) {
-    pageBuffer = 25
-  } else {
-    pageBuffer = 4
-  }
-
-  pdf.getMetadata().then(function (metadata) {
-    document.title = metadata.Title || url.split('/').slice(-1)
-  })
-
-  for (var i = 1; i <= pageCount; i++) {
-    var pageNumber = i
-
-    await pdf.getPage(pageNumber).then(function (page) {
-      progressBar.incrementProgress(1 / pageCount)
-
-      var defaultScale = 1.15
-      var minimumPageWidth = 625 // px
-
-      var scale = defaultScale
-
-      var viewport = page.getViewport({ scale: scale })
-
-      if (viewport.width * 1.5 > window.innerWidth) {
-        scale = (window.innerWidth / viewport.width) * 0.75
-
-        viewport = page.getViewport({ scale: scale })
-      }
-
-      if (viewport.width * 1.33 < minimumPageWidth) {
-        scale = (minimumPageWidth / viewport.width) * scale * 0.75
-        viewport = page.getViewport({ scale: scale })
-      }
-
-      if (pageCount > 200) {
-        scale = Math.min(scale, 1.1)
-        viewport = page.getViewport({ scale: scale })
-      }
-
-      var pageContainer = createContainer()
-      var pdfPageView = new pdfjsViewer.PDFPageView({
-        container: pageContainer,
-        id: pageNumber,
-        scale: scale,
-        defaultViewport: viewport,
-        eventBus: eventBus,
-        textLayerFactory: new DefaultTextLayerFactory(),
-        // annotationLayerFactory: new pdfjsViewer.DefaultAnnotationLayerFactory()
+      const link = document.createElement('a')
+      link.className = 'outline-link'
+      link.textContent = item.title
+      link.href = '#'
+      link.addEventListener('click', function (e) {
+        e.preventDefault()
+        if (item.dest) {
+          linkService.goToDestination(item.dest)
+        } else if (item.url) {
+          window.open(item.url, '_blank')
+        }
       })
-      pdfPageView.setPdfPage(page)
-      pageViews.push(pdfPageView)
+      row.appendChild(link)
+      li.appendChild(row)
 
-      if (pageNumber === 1) {
-        updateGutterWidths()
+      if (hasChildren) {
+        li.appendChild(createList(item.items))
       }
-
-      (function (pageNumber, pdfPageView) {
-        setTimeout(function () {
-          if (pageNumber < pageBuffer || (currentPage && Math.abs(currentPage - pageNumber) < pageBuffer)) {
-            pageContainer.classList.add('loading')
-            pdfPageView.draw().then(function () { setUpPageAnnotationLayer(pdfPageView) }).then(function () {
-              pageContainer.classList.remove('loading')
-              if (pageNumber === 1) {
-                showViewerUI()
-                setTimeout(function () {
-                  hideViewerUI()
-                }, 4000)
-              }
-            })
-            setTimeout(function () {
-              pageContainer.classList.remove('loading')
-            }, 2000)
-          } else {
-            setupPageDom(pdfPageView)
-            requestIdleCallback(function () {
-              pdfPageView.pdfPage.getTextContent({ normalizeWhitespace: true }).then(function (text) {
-                pdfPageView.textLayer.setTextContent(text)
-                pdfPageView.textLayer.render(0)
-                pdfPageView.annotationLayer.render(pdfPageView.viewport, 'display')
-              })
-            }, { timeout: 10000 })
-          }
-        }, 100 * (pageNumber - 1))
-      })(pageNumber, pdfPageView)
+      ul.appendChild(li)
     })
-  }
-}).catch(function (e) {
-  console.warn('error while loading PDF', e)
-  // we can't display a preview, offer to download instead
-  downloadPDF()
-})
-
-var isFindInPage = false
-
-var currentPage = null
-
-function updateVisiblePages () {
-  if (isPrinting) {
-    return
+    return ul
   }
 
-  var pageRects = new Array(pageViews.length)
-
-  for (var i = 0; i < pageViews.length; i++) {
-    pageRects[i] = pageViews[i].div.getBoundingClientRect()
-  }
-
-  var ih = window.innerHeight + 80
-  var innerHeight = window.innerHeight
-
-  var visiblePages = []
-
-  for (var i = 0; i < pageViews.length; i++) {
-    var rect = pageRects[i]
-    var textLayer = pageViews[i].textLayer
-
-    if (!isFindInPage && (rect.bottom < -80 || rect.top > ih)) {
-      pageViews[i].div.style.visibility = 'hidden'
-      if (textLayer) {
-        textLayer.div.style.display = 'none'
-      }
-    } else {
-      pageViews[i].div.style.visibility = 'visible'
-      if (textLayer) {
-        textLayer.div.style.display = 'block'
-      }
-
-      if ((rect.top >= 0 && (innerHeight - rect.top) > innerHeight / 2) || (rect.bottom <= innerHeight && rect.bottom > innerHeight / 2) || (rect.top <= 0 && rect.bottom >= innerHeight)) {
-        currentPage = i
-      }
-    }
-  }
-
-  if (currentPage !== undefined) {
-    updateCachedPages(currentPage)
-  }
-}
-
-window.addEventListener('scroll', throttle(function () {
-  pageCounter.update()
-  updateVisiblePages()
-}, 50))
-
-/* keep the UI size constant, regardless of the zoom level.
-It would probably be better to add API's in Min for this. */
-
-window.addEventListener('resize', function () {
-  // this works in Chromium and Safari, but not in Firefox, and it will probably break at some point.
-  window.zoomLevel = window.outerWidth / window.innerWidth
-
-  // make UI elements stay a constant size regardless of zoom level
-  document.querySelectorAll('.viewer-ui').forEach(function (el) {
-    el.style.zoom = 1 / zoomLevel
-  })
-
-  updateGutterWidths()
-})
-
-function redrawPageCanvas (i, cb) {
-  var canvasWrapperNode = pageViews[i].div.getElementsByClassName('canvasWrapper')[0]
-  if (!canvasWrapperNode) {
-    return
-  }
-  pageViews[i].reset()
-  pageViews[i].draw().then(function () { setUpPageAnnotationLayer(pageViews[i]) }).then(cb)
-}
-
-var isRedrawing = false
-
-function redrawAllPages () {
-  if (isRedrawing) {
-    console.log('ignoring redraw')
-    return
-  }
-
-  isRedrawing = true
-
-  var completedPages = 0
-  function pageCompleteCallback () {
-    completedPages++
-    if (completedPages === Math.min(pageCount, pageBuffer)) {
-      isRedrawing = false
-    }
-  }
-
-  var visiblePageList = []
-  var invisiblePageList = []
-
-  // redraw the currently visible pages first
-
-  for (var i = 0; i < pageViews.length; i++) {
-    if (!pageViews[i].canvas) {
-      continue
-    }
-    var rect = pageViews[i].div.getBoundingClientRect()
-    // if the page is visible, add it to the beginning of the redraw list
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      visiblePageList.push(pageViews[i])
-    } else {
-      invisiblePageList.push(pageViews[i])
-    }
-  }
-
-  var redrawList = visiblePageList.concat(invisiblePageList)
-
-  for (var i = 0; i < redrawList.length; i++) {
-    (function (i) {
-      requestIdleCallback(function () {
-        redrawPageCanvas(redrawList[i].id - 1, pageCompleteCallback)
-      })
-    })(i)
-  }
-}
-
-var lastPixelRatio = window.devicePixelRatio
-window.addEventListener('resize', debounce(function () {
-  // update visible pages in case the page size was increased
-  updateVisiblePages()
-
-  if (window.devicePixelRatio !== lastPixelRatio) { // if the page was zoomed
-    lastPixelRatio = window.devicePixelRatio
-
-    redrawAllPages()
-    console.log('redraw triggered')
-  }
-}, 750))
-
-// https://remysharp.com/2010/07/21/throttling-function-calls
-
-function debounce (fn, delay) {
-  var timer = null
-  return function () {
-    var context = this
-    var args = arguments
-    clearTimeout(timer)
-    timer = setTimeout(function () {
-      fn.apply(context, args)
-    }, delay)
-  }
-}
-
-function throttle (fn, threshhold, scope) {
-  threshhold || (threshhold = 250)
-  var last,
-    deferTimer
-  return function () {
-    var context = scope || this
-
-    var now = +new Date()
-    var args = arguments
-    if (last && now < last + threshhold) {
-      // hold on to it
-      clearTimeout(deferTimer)
-      deferTimer = setTimeout(function () {
-        last = now
-        fn.apply(context, args)
-      }, threshhold)
-    } else {
-      last = now
-      fn.apply(context, args)
-    }
-  }
+  containerEl.appendChild(createList(outline))
 }
 
 function downloadPDF () {
-  window.postMessage({ message: 'downloadFile', url })
-}
-
-/* printing */
-
-var isPrinting = false
-
-var printPreviousScaleList = []
-
-function afterPrintComplete () {
-  for (var i = 0; i < pageViews.length; i++) {
-    pageViews[i].viewport = pageViews[i].viewport.clone({ scale: printPreviousScaleList[i] * (4 / 3) })
-    pageViews[i].cssTransform({target: pageViews[i].canvas})
-  }
-  printPreviousScaleList = []
-  isPrinting = false
-  updateVisiblePages()
-  redrawAllPages()
+  window.postMessage({ message: 'downloadFile', url: rawUrl }, '*')
 }
 
 function printPDF () {
-  var begunCount = 0
-  var doneCount = 0
+  window.print()
+}
 
-  isPrinting = true
+const downloadBtn = document.getElementById('download-button')
+if (downloadBtn) {
+  downloadBtn.addEventListener('click', downloadPDF)
+}
 
-  function onAllRenderingDone () {
-    // we can print the document now
-    setTimeout(function () {
-      window.print()
-    }, 100)
+const printBtn = document.getElementById('print-button')
+if (printBtn) {
+  printBtn.addEventListener('click', printPDF)
+}
+
+const openExternalBtn = document.getElementById('open-external-button')
+if (openExternalBtn) {
+  openExternalBtn.addEventListener('click', function () {
+    window.open(rawUrl, '_blank')
+  })
+}
+
+const toolbar = document.getElementById('floating-toolbar')
+let isToolbarHovered = false
+let lastScrollTop = 0
+
+function showToolbar () {
+  if (toolbar) toolbar.classList.remove('hidden-toolbar')
+}
+
+function hideToolbar () {
+  if (!toolbar) return
+  const zoomDropdown = document.getElementById('zoom-dropdown')
+  const settingsDropdown = document.getElementById('settings-dropdown')
+  const isDropdownOpen = (zoomDropdown && !zoomDropdown.hidden) || (settingsDropdown && !settingsDropdown.hidden)
+  if (isToolbarHovered || isDropdownOpen || isFindBarOpen) {
+    return
+  }
+  toolbar.classList.add('hidden-toolbar')
+}
+
+if (toolbar) {
+  toolbar.addEventListener('mouseenter', function () {
+    isToolbarHovered = true
+    showToolbar()
+  })
+  toolbar.addEventListener('mouseleave', function () {
+    isToolbarHovered = false
+  })
+}
+
+container.addEventListener('scroll', function () {
+  const st = container.scrollTop
+  const delta = st - lastScrollTop
+  if (st <= 30) {
+    showToolbar()
+  } else if (delta > 15) {
+    hideToolbar()
+  } else if (delta < -15) {
+    showToolbar()
+  }
+  lastScrollTop = st
+}, { passive: true })
+
+window.addEventListener('mousemove', function (e) {
+  if (e.clientY <= 55) {
+    showToolbar()
+  }
+})
+
+document.addEventListener('click', function (e) {
+  if (zoomDropdown && !zoomDropdown.hidden && !zoomDropdown.contains(e.target) && e.target !== zoomMenuBtn && !zoomMenuBtn.contains(e.target)) {
+    zoomDropdown.hidden = true
+  }
+})
+
+window.addEventListener('keydown', function (e) {
+  const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+    e.preventDefault()
+    openFindBar()
+    return
   }
 
-  function onPageRenderComplete () {
-    doneCount++
-    if (doneCount === begunCount) {
-      onAllRenderingDone()
+  if (e.key === 'Escape') {
+    if (isFindBarOpen) {
+      closeFindBar()
+      return
+    }
+    if (zoomDropdown && !zoomDropdown.hidden) {
+      zoomDropdown.hidden = true
+      return
+    }
+    const settingsDropdown = document.getElementById('settings-dropdown')
+    if (settingsDropdown && !settingsDropdown.hidden) {
+      settingsDropdown.hidden = true
+      return
+    }
+    if (sidebarOpen) {
+      toggleSidebar()
+      return
     }
   }
 
-  // we can't print very large documents because of memory usage, so offer to download the file instead
-  if (pageCount > 100) {
-    isPrinting = false
-    downloadPDF()
-  } else {
-    var minimumAcceptableScale = 3.125 / devicePixelRatio
-    // redraw each page at a high-enough scale for printing
-    for (var i = 0; i < pageViews.length; i++) {
-      (function (i) {
-        printPreviousScaleList.push(pageViews[i].scale)
-        var needsScaleChange = pageViews[i].scale < minimumAcceptableScale
-
-        if (needsScaleChange) {
-          pageViews[i].viewport = pageViews[i].viewport.clone({ scale: minimumAcceptableScale * (4 / 3) })
-        }
-
-        if (needsScaleChange || !pageViews[i].canvas) {
-          begunCount++
-          redrawPageCanvas(i, function () {
-            if (needsScaleChange) {
-              pageViews[i].cssTransform({target: pageViews[i].canvas})
-            }
-            onPageRenderComplete()
-          })
-        }
-      })(i)
-    }
-    if (begunCount === 0) {
-      // we don't have to redraw any pages
-      onAllRenderingDone()
-    }
+  if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+    e.preventDefault()
+    pdfViewer.currentScale = Math.min(5.0, (pdfViewer.currentScale || 1.0) * 1.25)
+    return
   }
-}
 
-var mediaQueryList = window.matchMedia('print')
-mediaQueryList.onchange = function (mql) {
-  if (!mql.matches) {
-    setTimeout(function () {
-      afterPrintComplete()
-    }, 1000)
+  if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+    e.preventDefault()
+    pdfViewer.currentScale = Math.max(0.25, (pdfViewer.currentScale || 1.0) * 0.8)
+    return
   }
-}
 
-/* find in page mode - make all pages visible so that Chromium's search can search the whole PDF */
+  if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+    e.preventDefault()
+    pdfViewer.currentScaleValue = 'page-width'
+    return
+  }
 
-function startFindInPage () {
-  isFindInPage = true
-
-  for (var i = 0; i < pageViews.length; i++) {
-    pageViews[i].div.style.visibility = 'visible'
-    if (pageViews[i].textLayer) {
-      pageViews[i].textLayer.div.style.display = 'block'
+  if (!isInput) {
+    if (e.key === 'ArrowDown') {
+      container.scrollTop += 60
+    } else if (e.key === 'ArrowUp') {
+      container.scrollTop -= 60
+    } else if (e.key === 'PageDown') {
+      e.preventDefault()
+      container.scrollTop += container.clientHeight * 0.85
+    } else if (e.key === 'PageUp') {
+      e.preventDefault()
+      container.scrollTop -= container.clientHeight * 0.85
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      pdfViewer.currentPageNumber = 1
+      container.scrollTop = 0
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      pdfViewer.currentPageNumber = pdfViewer.pagesCount
     }
   }
-}
+})
 
-function endFindInPage () {
-  isFindInPage = false
-  updateVisiblePages()
-}
-
-/* these functions are called from the parent process */
+window.addEventListener('resize', function () {
+  if (['page-width', 'page-fit', 'auto'].includes(pdfViewer.currentScaleValue)) {
+    pdfViewer.currentScaleValue = pdfViewer.currentScaleValue
+  }
+})
 
 window.parentProcessActions = {
-  downloadPDF: downloadPDF,
+  startFindInPage: openFindBar,
+  endFindInPage: closeFindBar,
   printPDF: printPDF,
-  startFindInPage: startFindInPage,
-  endFindInPage: endFindInPage
+  downloadPDF: downloadPDF
 }

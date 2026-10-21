@@ -1,4 +1,4 @@
-/* handles viewing pdf files using pdf.js. Recieves events from main.js will-download */
+
 
 const webviews = require('webviews.js')
 const urlParser = require('util/urlParser.js')
@@ -56,8 +56,13 @@ const PDFViewer = {
   initialize: function () {
     ipc.on('openPDF', PDFViewer.handlePDFOpenEvent)
 
-    // This is a defense-in-depth measure to prevent content inside the viewer page from manipulating the url query parma
-    // Without this, if content from origin A escaped the sandbox, it could rewrite the param to origin B, and then fetch cross-origin content from that origin
+    webviews.bindEvent('did-start-navigation', function (tabId, url, isInPlace, isMainFrame) {
+      if (isMainFrame && url.startsWith('file://') && /\.pdf($|\?|#)/i.test(url) && !url.startsWith(PDFViewer.url.base)) {
+        var PDFurl = PDFViewer.url.base + PDFViewer.url.queryString.replace('%l', encodeURIComponent(url))
+        webviews.update(tabId, PDFurl)
+      }
+    })
+
     webviews.bindEvent('did-navigate-in-page', function (event, url, isMainFrame, frameProcessId, frameRoutingId) {
       if (url.startsWith(PDFViewer.url.base)) {
         console.warn('Resetting PDF viewer because in-page navigation occurred')

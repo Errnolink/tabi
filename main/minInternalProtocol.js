@@ -13,7 +13,10 @@ protocol.registerSchemesAsPrivileged([
 
 function registerBundleProtocol (ses) {
   ses.protocol.handle('min', (req) => {
-    let { host, pathname } = new URL(req.url)
+    let parsed = new URL(req.url)
+    let host = parsed.host
+    let pathname = parsed.pathname
+    let searchParams = parsed.searchParams
 
     if (pathname.charAt(0) === '/') {
       pathname = pathname.substring(1)
@@ -24,6 +27,14 @@ function registerBundleProtocol (ses) {
         status: 400,
         headers: { 'content-type': 'text/html' }
       })
+    }
+
+    if (pathname === 'pdf-file') {
+      const targetUrl = searchParams.get('url')
+      if (targetUrl && targetUrl.startsWith('file://') && /\.pdf$/i.test(new URL(targetUrl).pathname)) {
+        return net.fetch(targetUrl)
+      }
+      return new Response('bad', { status: 400 })
     }
 
     // NB, this checks for paths that escape the bundle, e.g.

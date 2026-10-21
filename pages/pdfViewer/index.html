@@ -3,65 +3,108 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="theme-color" id="meta-theme" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="script-src 'self'"
-    />
-
-    <link rel="stylesheet" href="viewer.css" />
+    <link rel="stylesheet" href="../../node_modules/pdfjs-dist/web/pdf_viewer.css" />
+    <link rel="stylesheet" href="../../css/tokens.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
     <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
-    <link rel="stylesheet" href="../settingsDropdown.css" />
+    <link rel="stylesheet" href="viewer.css" />
   </head>
 
   <body>
-    <div id="progress-bar" class="viewer-ui"></div>
+    <div id="progress-bar" class="progress-bar"></div>
 
-    <div class="side-gutter" id="side-gutter-left">
-      <div
-        id="page-counter"
-        class="viewer-ui hidden"
-        data-string="PDFPageCounter"
-        data-allowHTML
-      ></div>
-    </div>
-    <div class="side-gutter" id="side-gutter-right">
-      <button
-        id="download-button"
-        class="i carbon:download viewer-ui hidden"
-      ></button>
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-tabs">
+          <button id="tab-outline" class="sidebar-tab active" data-string="PDFOutline"></button>
+          <button id="tab-thumbnails" class="sidebar-tab" data-string="PDFThumbnails"></button>
+        </div>
+        <button id="sidebar-close" class="toolbar-btn i carbon:close" data-label="close"></button>
+      </div>
+      <div id="outline-view" class="sidebar-pane"></div>
+      <div id="thumbnail-view" class="sidebar-pane hidden"></div>
+    </aside>
 
-      <button
-      id="settings-button"
-      class="i carbon:settings-adjust viewer-ui hidden"
-      data-label="viewSettings"
-    ></button>
+    <header id="floating-toolbar" class="floating-toolbar">
+      <button id="sidebar-toggle" class="toolbar-btn i carbon:catalog" data-label="PDFSidebarToggle"></button>
+      <div class="toolbar-divider"></div>
 
-      <div id="settings-dropdown" class="viewer-ui" hidden>
+      <div class="toolbar-group page-nav-group">
+        <button id="page-prev" class="toolbar-btn i carbon:chevron-left" data-label="previousPage"></button>
+        <div class="page-counter">
+          <input type="text" id="page-input" value="1" autocomplete="off" />
+          <span class="page-slash">/</span>
+          <span id="page-total">1</span>
+        </div>
+        <button id="page-next" class="toolbar-btn i carbon:chevron-right" data-label="nextPage"></button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="toolbar-group zoom-group">
+        <button id="zoom-out" class="toolbar-btn i carbon:subtract" data-label="PDFZoomOut"></button>
+        <button id="zoom-menu-btn" class="toolbar-btn zoom-label-btn">
+          <span id="zoom-label" data-string="PDFZoomFitWidth"></span>
+          <i class="i carbon:chevron-down"></i>
+        </button>
+        <button id="zoom-in" class="toolbar-btn i carbon:add" data-label="PDFZoomIn"></button>
+      </div>
+
+      <div id="zoom-dropdown" class="glass-dropdown" hidden>
+        <button class="dropdown-item selected" data-zoom="page-width" data-string="PDFZoomFitWidth"></button>
+        <button class="dropdown-item" data-zoom="page-fit" data-string="PDFZoomFitPage"></button>
+        <button class="dropdown-item" data-zoom="auto" data-string="PDFZoomAuto"></button>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-item" data-zoom="0.5">50%</button>
+        <button class="dropdown-item" data-zoom="0.75">75%</button>
+        <button class="dropdown-item" data-zoom="1.0">100%</button>
+        <button class="dropdown-item" data-zoom="1.25">125%</button>
+        <button class="dropdown-item" data-zoom="1.5">150%</button>
+        <button class="dropdown-item" data-zoom="2.0">200%</button>
+        <button class="dropdown-item" data-zoom="3.0">300%</button>
+        <button class="dropdown-item" data-zoom="4.0">400%</button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <button id="rotate-btn" class="toolbar-btn i carbon:rotate-clockwise" data-label="PDFRotate"></button>
+      <button id="find-btn" class="toolbar-btn i carbon:search" data-label="PDFFind"></button>
+
+      <div class="toolbar-divider"></div>
+
+      <button id="settings-button" class="toolbar-btn i carbon:settings-adjust" data-label="PDFDisplaySettings"></button>
+
+      <div id="settings-dropdown" class="glass-dropdown" hidden>
         <div class="setting-section theme-circles">
-          <button
-            class="theme-circle selected"
-            data-theme="light"
-            data-label="buttonReaderLightTheme"
-          ></button>
-          <button
-            class="theme-circle"
-            data-theme="sepia"
-            data-label="buttonReaderSepiaTheme"
-          ></button>
-          <button
-            class="theme-circle"
-            data-theme="dark"
-            data-label="buttonReaderDarkTheme"
-          ></button>
+          <button class="theme-circle selected" data-theme="light" data-label="buttonReaderLightTheme"></button>
+          <button class="theme-circle" data-theme="sepia" data-label="buttonReaderSepiaTheme"></button>
+          <button class="theme-circle" data-theme="dark" data-label="buttonReaderDarkTheme"></button>
         </div>
         <div class="setting-section" id="invert-pdf-section">
-          <input type="checkbox" id="invert-pdf-checkbox" /><label
-            for="invert-pdf-checkbox"
-            data-string="PDFInvertPage"
-          ></label>
+          <input type="checkbox" id="invert-pdf-checkbox" />
+          <label for="invert-pdf-checkbox" data-string="PDFInvertPage"></label>
         </div>
       </div>
+
+      <div class="toolbar-divider"></div>
+
+      <button id="download-button" class="toolbar-btn i carbon:download" data-label="PDFDownload"></button>
+      <button id="print-button" class="toolbar-btn i carbon:printer" data-label="PDFPrint"></button>
+      <button id="open-external-button" class="toolbar-btn i carbon:launch" data-label="PDFOpenDefault"></button>
+    </header>
+
+    <div id="find-bar" class="find-bar" hidden>
+      <i class="i carbon:search find-icon"></i>
+      <input type="text" id="find-input" placeholder="Find in document..." />
+      <span id="find-count" class="find-count"></span>
+      <button id="find-prev" class="find-nav-btn i carbon:chevron-up" data-label="PDFFindPrevious"></button>
+      <button id="find-next" class="find-nav-btn i carbon:chevron-down" data-label="PDFFindNext"></button>
+      <button id="find-close" class="find-nav-btn i carbon:close" data-label="close"></button>
     </div>
+
+    <main id="viewer-container" class="viewer-container">
+      <div id="viewer" class="pdfViewer"></div>
+    </main>
 
     <script src="../../dist/localization.build.js"></script>
     <script src="../../js/util/settings/settingsContent.js"></script>

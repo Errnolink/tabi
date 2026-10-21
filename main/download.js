@@ -16,6 +16,14 @@ function downloadHandler (event, item, webContents) {
     sourceWindow = windows.getCurrent()
   }
 
+  if (item.getURL().startsWith('file://') && /\.pdf($|\?|#)/i.test(item.getURL())) {
+    event.preventDefault()
+    sendIPCToWindow(sourceWindow, 'openPDF', {
+      url: item.getURL(),
+      tabId: (typeof getTabIDFromWebContents === 'function' && webContents) ? getTabIDFromWebContents(webContents) : null
+    })
+    return
+  }
   var savePathFilename
 
   // send info to download manager
@@ -88,11 +96,10 @@ function listenForDownloadHeaders (ses) {
       var attachment = isAttachment(details.responseHeaders[Object.keys(details.responseHeaders).filter(k => k.toLowerCase() === 'content-disposition')])
 
       if (typeHeader instanceof Array && typeHeader.filter(t => t.includes('application/pdf')).length > 0 && !attachment) {
-      // open in PDF viewer instead
         callback({ cancel: false })
         sendIPCToWindow(sourceWindow, 'openPDF', {
           url: details.url,
-          tabId: null
+          tabId: (typeof getTabIDFromWebContents === 'function' && details.webContents) ? getTabIDFromWebContents(details.webContents) : null
         })
         return
       }

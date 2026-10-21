@@ -2,34 +2,35 @@ var settingsButton = document.getElementById('settings-button')
 var settingsDropdown = document.getElementById('settings-dropdown')
 var invertSection = document.getElementById('invert-pdf-section')
 var invertCheckbox = document.getElementById('invert-pdf-checkbox')
+var metaThemeElement = document.getElementById('meta-theme')
+var themeSelectors = document.querySelectorAll('.theme-circle')
 
-settingsButton.addEventListener('click', function () {
+var metaThemeValues = {
+  light: '#ffffff',
+  dark: '#121318',
+  sepia: '#f7ebd1'
+}
+
+settingsButton.addEventListener('click', function (e) {
+  e.stopPropagation()
   settingsDropdown.hidden = !settingsDropdown.hidden
   if (settingsDropdown.hidden) {
-    settingsButton.classList.remove('force-visible')
+    settingsButton.classList.remove('active')
   } else {
-    settingsButton.classList.add('force-visible')
+    settingsButton.classList.add('active')
+    var zoomDropdown = document.getElementById('zoom-dropdown')
+    if (zoomDropdown) {
+      zoomDropdown.hidden = true
+    }
   }
 })
 
 document.addEventListener('click', function (e) {
   if (!settingsDropdown.contains(e.target) && e.target !== settingsButton) {
     settingsDropdown.hidden = true
-    settingsButton.classList.remove('force-visible')
+    settingsButton.classList.remove('active')
   }
 })
-
-// Most of this is similar to readerThemeSelector
-
-var metaThemeElement = document.getElementById('meta-theme')
-
-var themeSelectors = document.querySelectorAll('.theme-circle')
-
-var metaThemeValues = {
-  light: '#fff',
-  dark: 'rgb(36, 41, 47)',
-  sepia: 'rgb(247, 231, 199)'
-}
 
 function isNight () {
   var hours = new Date().getHours()
@@ -57,18 +58,24 @@ function setViewerTheme (theme) {
     }
   })
 
-  metaThemeElement.content = metaThemeValues[theme]
+  if (metaThemeElement && metaThemeValues[theme]) {
+    metaThemeElement.content = metaThemeValues[theme]
+  }
 
   document.body.setAttribute('theme', theme)
+  document.body.classList.toggle('dark-mode', theme === 'dark')
+  document.body.classList.toggle('light-mode', theme === 'light')
 
-  invertSection.hidden = !(theme === 'dark')
+  if (invertSection) {
+    invertSection.hidden = !(theme === 'dark')
+  }
 
-  setTimeout(function() {
+  setTimeout(function () {
     document.body.classList.add('theme-loaded')
   }, 16)
 }
 
-function initializeViewerTheme() {
+function initializeViewerTheme () {
   settings.get('darkMode', function (globalDarkModeEnabled) {
     settings.get('pdfDayTheme', function (pdfDayTheme) {
       settings.get('pdfNightTheme', function (pdfNightTheme) {
@@ -89,11 +96,15 @@ function initializeViewerTheme() {
 initializeViewerTheme()
 
 settings.get('PDFInvertColors', function (value) {
-  invertCheckbox.checked = (value === true)
+  if (invertCheckbox) {
+    invertCheckbox.checked = (value === true)
+  }
   document.body.setAttribute('data-invert', value || false)
 })
 
-invertCheckbox.addEventListener('click', function (e) {
-  settings.set('PDFInvertColors', this.checked)
-  document.body.setAttribute('data-invert', this.checked)
-})
+if (invertCheckbox) {
+  invertCheckbox.addEventListener('click', function () {
+    settings.set('PDFInvertColors', this.checked)
+    document.body.setAttribute('data-invert', this.checked)
+  })
+}
