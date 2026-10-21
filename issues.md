@@ -11,4 +11,10 @@ Fixed issues move to `HANDOFF.md` (Issues log) with their commit, and their scre
 4. Encrypted DNS (DoH) via `app.configureHostResolver`, with a setting.
 5. Tab hover cards: hovering a sidebar tab shows a preview card with thumbnail, title and URL.
 6. Merge buckets: "Merge into…" in the bucket menu moves every tab into the chosen bucket, then removes the empty one.
-
+7. pdf reader
+8. good homepage, with wallpaer, bookmarks, quick shortcuts ![](issues-1.png)\
+   my friends new tab page kinda looks like this so yeah
+9. performace optimistions, and fix settings page cause it looks ass and idk if the features actually work either
+10. "Buckets" is confusing: rename to tab groups (the words a Chrome or Brave user already knows).
+11. Container actions should be more user friendly.
+12. Most features are hard for a new user to understand, especially one coming from Brave.
