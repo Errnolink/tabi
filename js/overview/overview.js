@@ -480,12 +480,13 @@ const overview = {
     }
     const tab = tabs.get(tabId)
     const card = tab ? overview.cardFor(tabId) : null
-    if (!card || !tab.thumbImage) {
+    if (!card) {
       return
     }
+    forgetThumb(tabId)
     const img = card.querySelector('.ov-thumb img')
-    if (img && img.src !== tab.thumbImage) {
-      img.src = tab.thumbImage
+    if (img) {
+      loadThumb(tab, img)
     }
   },
 

@@ -4,6 +4,7 @@ var settings = require('util/settings/settings.js')
 var DEFAULT_SLEEP_MINUTES = 60
 var GB = 1024 * 1024 * 1024
 var FREE_PRESSURE_BYTES = 1 * GB
+var PRESSURE_MARGIN_BYTES = 256 * 1024 * 1024
 var lastSeen = {}
 var visibleTab = null
 var budget = null
@@ -27,11 +28,15 @@ function usedBytes () {
   return total
 }
 
+function systemMemoryPressure () {
+  return !!budget && budget.freeBytes > 0 && budget.freeBytes < FREE_PRESSURE_BYTES
+}
+
 function underMemoryPressure () {
   if (!budget) {
     return false
   }
-  if (budget.freeBytes > 0 && budget.freeBytes < FREE_PRESSURE_BYTES) {
+  if (systemMemoryPressure()) {
     return true
   }
   return !!budget.budgetBytes && usedBytes() > budget.budgetBytes
@@ -84,19 +89,28 @@ function sweepPass (now, limit) {
     return a.lastUsed - b.lastUsed
   })
 
+  var pressure = systemMemoryPressure()
+  var freeEstimate = (budget && budget.freeBytes) || 0
   var remainingBytes = usedBytes()
-  candidates.forEach(function (candidate) {
+  for (var i = 0; i < candidates.length; i++) {
+    var candidate = candidates[i]
     if (candidate.id === tabs.getSelected()) {
-      return
+      continue
     }
-    if (remainingBytes <= budgetBytes()) {
+    var bytes = (budget && budget.viewBytes && budget.viewBytes[candidate.id]) || 0
+    if (pressure) {
+      if (freeEstimate >= FREE_PRESSURE_BYTES + PRESSURE_MARGIN_BYTES) {
+        break
+      }
+      webviews.destroy(candidate.id)
+      freeEstimate += bytes
+    } else if (remainingBytes <= budgetBytes()) {
       webviews.detach(candidate.id)
     } else {
-      var bytes = (budget && budget.viewBytes && budget.viewBytes[candidate.id]) || 0
       webviews.destroy(candidate.id)
       remainingBytes -= bytes
     }
-  })
+  }
 }
 
 function sweep () {
