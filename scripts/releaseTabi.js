@@ -72,10 +72,10 @@ async function build () {
 
   const args = [
     'release', 'create', tag,
-    installerName,
-    'latest.yml',
-    installerName + '.blockmap',
-    path.basename(zipPath),
+    path.join(distDir, installerName),
+    path.join(distDir, 'latest.yml'),
+    path.join(distDir, installerName + '.blockmap'),
+    path.join(distDir, path.basename(zipPath)),
     '--repo', repo,
     '--title', 'Tabi ' + version,
     '--notes-file', notesPath
