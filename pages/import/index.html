@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Import from Another Browser</title>
+    <link rel="stylesheet" href="../../css/tokens.css" />
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
+    <link rel="stylesheet" href="import.css" />
+    <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
+  </head>
+  <body>
+    <div class="sea-container">
+      <header class="page-hero">
+        <div class="hero-badge">
+          <i class="i carbon:data-share"></i>
+          <span data-string="appMenuImportTabs">Import from Another Browser…</span>
+        </div>
+        <h1 class="page-title" data-string="importPageTitle">Import from Another Browser</h1>
+        <p class="page-desc" data-string="importPageDescription"></p>
+      </header>
+
+      <div class="import-main">
+        <section class="import-sources pebble-card">
+          <div class="sheet-glass-inner">
+            <h2 class="import-section-title" data-string="importSourcesHeading">Browsers</h2>
+            <div id="source-list" class="source-list"></div>
+          </div>
+        </section>
+
+        <section id="import-detail" class="import-detail">
+          <div id="detail-empty" class="detail-empty">
+            <i class="i carbon:open-panel-left"></i>
+            <p data-string="importTabsHeading">Open Tabs</p>
+          </div>
+
+          <div id="detail-error" class="detail-empty" hidden>
+            <i class="i carbon:close"></i>
+            <p data-string="importReadError"></p>
+          </div>
+
+          <div id="detail-content" hidden>
+            <div class="tabs-sheet pebble-card">
+              <div class="sheet-glass-inner">
+                <div class="tabs-sheet-head">
+                  <h2 class="import-section-title" data-string="importTabsHeading">Open Tabs</h2>
+                  <span id="tabs-total" class="count-chip"></span>
+                </div>
+                <div id="window-list" class="window-list"></div>
+              </div>
+            </div>
+
+            <div class="options-sheet pebble-card">
+              <div class="sheet-glass-inner">
+                <h2 class="import-section-title" data-string="importTargetHeading">Destination</h2>
+                <div class="option-row">
+                  <label class="radio-pebble">
+                    <input type="radio" name="import-target" value="perWindow" checked />
+                    <span data-string="importTargetPerWindow">One new bucket per window</span>
+                  </label>
+                </div>
+                <div class="option-row">
+                  <label class="radio-pebble">
+                    <input type="radio" name="import-target" value="existing" />
+                    <span data-string="importTargetExisting">Into existing bucket:</span>
+                    <select id="bucket-select" disabled></select>
+                  </label>
+                </div>
+                <div class="option-row container-row-choice">
+                  <label for="container-select" data-string="importContainerLabel">Container:</label>
+                  <select id="container-select"></select>
+                </div>
+                <div class="option-row" id="bookmarks-row" hidden>
+                  <label class="radio-pebble">
+                    <input type="checkbox" id="import-bookmarks" />
+                    <span data-string="importIncludeBookmarks">Also import bookmarks as a new bucket</span>
+                  </label>
+                </div>
+                <div class="import-actions">
+                  <button id="import-button" class="btn-jewel" disabled>
+                    <i class="i carbon:import-export"></i>
+                    <span id="import-button-label"></span>
+                  </button>
+                  <span id="import-status" class="import-status"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../dist/localization.build.js"></script>
+    <script src="importPage.js"></script>
+  </body>
+</html>

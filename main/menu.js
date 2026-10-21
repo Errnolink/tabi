@@ -109,6 +109,15 @@ function buildAppMenu (options = {}) {
     }
   }
 
+  var importAction = {
+    label: l('appMenuImportTabs'),
+    click: function (item, window) {
+      sendIPCToWindow(window, 'addTab', {
+        url: 'min://app/pages/import/index.html'
+      })
+    }
+  }
+
   var extensionsAction = {
     label: l('appMenuExtensions'),
     click: function (item, window) {
@@ -124,6 +133,8 @@ function buildAppMenu (options = {}) {
     ...(options.secondary ? personalDataItems : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [containersAction] : []),
+    ...(options.secondary ? [{ type: 'separator' }] : []),
+    ...(options.secondary ? [importAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [extensionsAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
@@ -143,6 +154,7 @@ function buildAppMenu (options = {}) {
             },
             preferencesAction,
             containersAction,
+            importAction,
             extensionsAction,
             {
               label: 'Services',
