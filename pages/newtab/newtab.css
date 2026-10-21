@@ -1,0 +1,178 @@
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  overflow-y: auto;
+  user-select: none;
+  background-color: #050711;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1px 1px at 28% 12%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1.5px 1.5px at 45% 25%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(2px 2px at 68% 10%, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1px 1px at 84% 22%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 18% 58%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 38% 72%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(2px 2px at 58% 55%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 78% 68%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 91% 48%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(circle at 25% 30%, rgba(80, 60, 160, 0.32) 0%, transparent 52%),
+    radial-gradient(circle at 75% 35%, rgba(30, 85, 170, 0.28) 0%, transparent 56%),
+    radial-gradient(circle at 50% 80%, rgba(120, 40, 110, 0.24) 0%, transparent 60%);
+  background-size: cover;
+  background-position: center;
+}
+
+.ntp-scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.45) 100%);
+  z-index: 0;
+}
+
+.ntp-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 24px 64px;
+  box-sizing: border-box;
+}
+
+.ntp-clock-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.ntp-clock-time {
+  font-size: 64px;
+  font-weight: 300;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  color: #ffffff;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+}
+
+.ntp-clock-date {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 6px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
+.ntp-search-box {
+  width: 100%;
+  max-width: 520px;
+  height: 46px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  margin-bottom: 36px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.ntp-search-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+.ntp-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ntp-shortcuts-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px 20px;
+  width: 100%;
+}
+
+.ntp-shortcut-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 76px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ntp-shortcut-tile {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform var(--dur-effects) var(--spring-effects), background var(--dur-effects), border-color var(--dur-effects);
+}
+
+.ntp-shortcut-item:hover .ntp-shortcut-tile {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.32);
+  transform: translateY(-3px);
+}
+
+.ntp-shortcut-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  object-fit: contain;
+}
+
+.ntp-shortcut-letter {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, hsl(278, 55%, 50%), hsl(205, 65%, 45%));
+}
+
+.ntp-shortcut-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ffffff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  width: 76px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

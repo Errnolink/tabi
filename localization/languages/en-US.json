@@ -72,6 +72,23 @@
     "searchbarPlaceholder": "Search or enter address",
     "privateTab": "Private tab",
     "newTabAction": "New Tab", //this is a verb, used to label a button that adds a tab to the tabstrip when clicked
+    "newTabAddShortcut": "Add site",
+    "newTabEditShortcut": "Edit shortcut",
+    "newTabRemoveShortcut": "Remove",
+    "newTabShortcutTitle": "Name",
+    "newTabShortcutURL": "URL",
+    "newTabSave": "Save",
+    "newTabCancel": "Cancel",
+    "newTabCustomize": "Customize",
+    "newTabWallpaperTitle": "Wallpaper",
+    "newTabWallpaperStars": "Starfield",
+    "newTabWallpaperLagoon": "Sea Glass Lagoon",
+    "newTabWallpaperSunset": "Sunset Dunes",
+    "newTabWallpaperUpload": "Upload image",
+    "newTabWallpaperNone": "Plain sea glass",
+    "newTabBookmarks": "Bookmarks",
+    "newTabNoBookmarks": "No bookmarks yet",
+    "newTabSearchPlaceholder": "Search or enter address",
     /* task overlay */
     "viewTasks": "View Buckets",
     "newTask": "New Bucket", //"new" is a verb - it is used for a button at the bottom of the task overlay
