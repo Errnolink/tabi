@@ -8,10 +8,11 @@ var shellLayout = require('shellLayout.js')
 var placeholderImg = document.getElementById('webview-placeholder')
 
 function captureTab (tabId, options) {
-  if (!tabId) {
+  if (!tabId || document.visibilityState === 'hidden') {
     return
   }
-  var tab = tabs.get(tabId)
+  var task = tasks.getTaskContainingTab(tabId)
+  var tab = task && task.tabs.get(tabId)
   if (!tab || tab.private) {
     // don't capture placeholders or thumbnails for private tabs
     return
