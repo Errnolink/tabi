@@ -31,6 +31,7 @@ const modules = [
   'main/keychainService.js',
   'js/util/proxy.js',
   'main/themeMain.js',
+  'js/util/userscriptMeta.js',
   'main/userscriptStore.js',
   'main/autoUpdate.js'
 ]

@@ -1,20 +1,23 @@
 var USERSCRIPTS_PAGE_PREFIX = 'userscriptsPage:'
 
+var GM_WORLD_ID = 977
+
+try {
+  if (window.top === window && electron.contextBridge) {
+    electron.contextBridge.exposeInIsolatedWorld(GM_WORLD_ID, '__tabiGM__', {
+      request: function (payload) {
+        return ipc.invoke('userscript-gm-request', payload)
+      }
+    })
+  }
+} catch (e) { }
+
 window.addEventListener('message', function (e) {
   var data = e.data
   if (!data || typeof data !== 'object') {
     return
   }
-  if (data.__xbGMResult) {
-    return
-  }
-  if (data.__xbGM) {
-    ipc.send('userscript-gm-request', {
-      scriptId: String(data.__xbGM.scriptId || ''),
-      call: String(data.__xbGM.call || ''),
-      args: data.__xbGM.args,
-      cbId: String(data.__xbGM.cbId || '')
-    })
+  if (!window.location.toString().startsWith('min://app/pages/userscripts/')) {
     return
   }
   if (!e.origin.startsWith('min://')) {
@@ -31,10 +34,6 @@ window.addEventListener('message', function (e) {
   }).catch(function (err) {
     window.postMessage({ message: USERSCRIPTS_PAGE_PREFIX + 'result', id: data.id, error: String(err) }, window.location.toString())
   })
-})
-
-ipc.on('userscript-gm-result', function (e, payload) {
-  window.postMessage({ __xbGMResult: payload }, '*')
 })
 
 ipc.on('userscript-store-page-changed', function (e, state) {

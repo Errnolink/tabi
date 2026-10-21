@@ -251,6 +251,16 @@
   margin-top: 18px;
 }
 
+.install-warning {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chrome-ink);
+  background: color-mix(in srgb, #d97706 14%, transparent);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
 .install-error {
   display: flex;
   flex-direction: column;

@@ -33,18 +33,75 @@ function userscriptStoreReadMeta (id) {
   return null
 }
 
+var gmValuesCache = {}
+var gmValuesFlushTimers = {}
+const GM_VALUES_FLUSH_DELAY = 500
+
 function gmReadValues (id) {
+  if (gmValuesCache[id]) {
+    return gmValuesCache[id]
+  }
+  var values = {}
   try {
     var data = JSON.parse(fs.readFileSync(path.join(userscriptStoreDir, id + '.values.json'), 'utf-8'))
     if (data && typeof data === 'object' && !Array.isArray(data)) {
-      return data
+      values = data
     }
   } catch (e) { }
-  return {}
+  gmValuesCache[id] = values
+  return values
 }
 
-function gmWriteValues (id, values) {
-  userscriptStoreWriteJSON(path.join(userscriptStoreDir, id + '.values.json'), values)
+function gmWriteValuesFile (file, values) {
+  var tmp = file + '.tmp'
+  fs.writeFileSync(tmp, JSON.stringify(values))
+  fs.renameSync(tmp, file)
+}
+
+function gmFlushValuesSync (id) {
+  var values = gmValuesCache[id]
+  if (!values) {
+    return
+  }
+  try {
+    gmWriteValuesFile(path.join(userscriptStoreDir, id + '.values.json'), values)
+  } catch (e) { }
+}
+
+function gmFlushValues (id) {
+  if (gmValuesFlushTimers[id]) {
+    clearTimeout(gmValuesFlushTimers[id])
+    delete gmValuesFlushTimers[id]
+  }
+  var values = gmValuesCache[id]
+  if (!values) {
+    return Promise.resolve()
+  }
+  var file = path.join(userscriptStoreDir, id + '.values.json')
+  var tmp = file + '.tmp'
+  return fs.promises.writeFile(tmp, JSON.stringify(values)).then(function () {
+    return fs.promises.rename(tmp, file)
+  }).catch(function () { })
+}
+
+function gmScheduleValuesFlush (id) {
+  if (gmValuesFlushTimers[id]) {
+    return
+  }
+  gmValuesFlushTimers[id] = setTimeout(function () {
+    delete gmValuesFlushTimers[id]
+    gmFlushValues(id)
+  }, GM_VALUES_FLUSH_DELAY)
+}
+
+function gmFlushAllValuesSync () {
+  Object.keys(gmValuesCache).forEach(function (id) {
+    if (gmValuesFlushTimers[id]) {
+      clearTimeout(gmValuesFlushTimers[id])
+      delete gmValuesFlushTimers[id]
+    }
+    gmFlushValuesSync(id)
+  })
 }
 
 function userscriptStoreSlug (name) {
@@ -52,33 +109,25 @@ function userscriptStoreSlug (name) {
   return slug || 'userscript'
 }
 
-function parseUserScriptHeader (content) {
-  var features = {}
-  var found = false
-  var inBlock = false
-  var lines = String(content).split('\n')
-  for (var i = 0; i < lines.length; i++) {
-    var trimmed = lines[i].trim()
-    if (trimmed === '// ==UserScript==') {
-      inBlock = true
-      continue
-    }
-    if (trimmed === '// ==/UserScript==') {
-      break
-    }
-    if (inBlock && lines[i].startsWith('//')) {
-      found = true
-      var feature = lines[i].replace('//', '').trim()
-      var name = feature.split(/\s+/)[0]
-      var value = feature.slice(name.length).trim()
-      name = name.replace('@', '')
-      if (!features[name]) {
-        features[name] = []
-      }
-      features[name].push(value)
-    }
+function userscriptStoreIdentity (features, sourceUrl) {
+  if (features.namespace && features.namespace[0]) {
+    return String(features.namespace[0])
   }
-  return found ? features : null
+  return sourceUrl || ('name:' + ((features.name && features.name[0]) || ''))
+}
+
+function userscriptStoreMetaIdentity (meta) {
+  return meta.namespace || ('name:' + (meta.name || ''))
+}
+
+function userscriptStoreIdFor (features, sourceUrl) {
+  var slug = userscriptStoreSlug((features.name && features.name[0]) || '')
+  var identity = userscriptStoreIdentity(features, sourceUrl)
+  var existing = userscriptStoreCache[slug]
+  if (!existing || userscriptStoreMetaIdentity(existing) === identity) {
+    return slug
+  }
+  return slug + '-' + userscriptMeta.identityHash(identity)
 }
 
 function userscriptStoreVersionPart (version, index) {
@@ -136,6 +185,7 @@ function userscriptStoreMetaFromFeatures (id, features, sourceUrl) {
   return {
     id: id,
     name: (features.name && features.name[0]) || id,
+    nameLocal: (features['name:local'] && features['name:local'][0]) || '',
     version: (features.version && features.version[0]) || '0',
     description: (features.description && features.description[0]) || '',
     author: (features.author && features.author[0]) || '',
@@ -194,11 +244,11 @@ function userscriptStoreBroadcast () {
 }
 
 function userscriptStoreInstallFromSource (source, sourceUrl) {
-  var features = parseUserScriptHeader(source)
+  var features = userscriptMeta.parseHeader(source)
   if (!features || !(features.name && features.name[0])) {
     throw new Error('not a userscript')
   }
-  var id = userscriptStoreSlug(features.name[0])
+  var id = userscriptStoreIdFor(features, sourceUrl)
   fs.mkdirSync(userscriptStoreDir, { recursive: true })
   fs.writeFileSync(path.join(userscriptStoreDir, id + '.user.js'), source)
   var previous = userscriptStoreCache[id]
@@ -226,6 +276,11 @@ function userscriptStoreRemove (id) {
     throw new Error('unknown userscript')
   }
   delete userscriptStoreCache[id]
+  if (gmValuesFlushTimers[id]) {
+    clearTimeout(gmValuesFlushTimers[id])
+    delete gmValuesFlushTimers[id]
+  }
+  delete gmValuesCache[id]
   ;[id + '.user.js', id + '.json', id + '.values.json'].forEach(function (filename) {
     try {
       fs.unlinkSync(path.join(userscriptStoreDir, filename))
@@ -282,40 +337,95 @@ function userscriptStoreSuggestedState () {
   })
 }
 
-function userscriptStoreCheckUpdates (id) {
-  var meta = userscriptStoreCache[id]
-  if (!meta) {
-    return Promise.resolve({ id: id, error: 'unknown userscript' })
-  }
-  var url = meta.downloadURL || meta.updateURL
-  if (!url) {
-    meta.lastChecked = Date.now()
-    userscriptStoreSaveMeta(meta)
-    return Promise.resolve({ id: id, error: 'no update URL' })
-  }
+function userscriptStoreFetchText (url) {
   return net.fetch(url).then(function (res) {
     if (!res.ok) {
       throw new Error('HTTP ' + res.status)
     }
     return res.text()
-  }).then(function (source) {
-    var features = parseUserScriptHeader(source)
-    if (!features || !(features.version && features.version[0])) {
+  })
+}
+
+function userscriptStoreListGrew (oldList, newList) {
+  oldList = oldList || []
+  newList = newList || []
+  return newList.some(function (item) { return oldList.indexOf(item) === -1 })
+}
+
+function userscriptStorePermissionsGrew (oldMeta, features) {
+  var oldGrants = userscriptMeta.grantList(oldMeta.grants)
+  var newGrants = userscriptMeta.grantList(features.grant)
+  for (var key in newGrants) {
+    if (!oldGrants[key]) {
+      return true
+    }
+  }
+  if (userscriptStoreListGrew(oldMeta.matches, features.match)) {
+    return true
+  }
+  if (userscriptStoreListGrew(oldMeta.includes, features.include)) {
+    return true
+  }
+  if (userscriptStoreListGrew(oldMeta.connect, features.connect)) {
+    return true
+  }
+  return false
+}
+
+function userscriptStoreCheckUpdates (id) {
+  var meta = userscriptStoreCache[id]
+  if (!meta) {
+    return Promise.resolve({ id: id, error: 'unknown userscript' })
+  }
+  var versionURL = meta.updateURL || meta.downloadURL
+  var bodyURL = meta.downloadURL
+  if (!versionURL) {
+    meta.lastChecked = Date.now()
+    userscriptStoreSaveMeta(meta)
+    return Promise.resolve({ id: id, error: 'no update URL' })
+  }
+  if (!/^https:\/\//i.test(versionURL) || (bodyURL && !/^https:\/\//i.test(bodyURL))) {
+    return Promise.resolve({ id: id, error: 'insecure update URL' })
+  }
+  var checkTime = Date.now()
+  return userscriptStoreFetchText(versionURL).then(function (versionSource) {
+    var versionFeatures = userscriptMeta.parseHeader(versionSource)
+    if (!versionFeatures || !(versionFeatures.version && versionFeatures.version[0])) {
       throw new Error('update has no version')
     }
-    var newMeta = userscriptStoreMetaFromFeatures(id, features, meta.sourceUrl)
-    if (userscriptStoreCompareVersions(newMeta.version, meta.version) > 0) {
-      fs.writeFileSync(path.join(userscriptStoreDir, id + '.user.js'), source)
+    var newVersion = versionFeatures.version[0]
+    if (userscriptStoreCompareVersions(newVersion, meta.version) <= 0) {
+      meta.lastChecked = checkTime
+      userscriptStoreSaveMeta(meta)
+      return { id: id, updated: false, version: meta.version }
+    }
+    if (!bodyURL) {
+      return { id: id, updated: false, updateAvailable: true, version: newVersion }
+    }
+    return userscriptStoreFetchText(bodyURL).then(function (bodySource) {
+      var features = userscriptMeta.parseHeader(bodySource)
+      if (!features || !(features.version && features.version[0])) {
+        throw new Error('update has no version')
+      }
+      var newMeta = userscriptStoreMetaFromFeatures(id, features, meta.sourceUrl)
+      if (userscriptStoreCompareVersions(newMeta.version, meta.version) <= 0) {
+        meta.lastChecked = checkTime
+        userscriptStoreSaveMeta(meta)
+        return { id: id, updated: false, version: meta.version }
+      }
+      if (userscriptStorePermissionsGrew(meta, features)) {
+        meta.lastChecked = checkTime
+        userscriptStoreSaveMeta(meta)
+        return { id: id, updated: false, needsReview: true, version: newMeta.version }
+      }
+      fs.writeFileSync(path.join(userscriptStoreDir, id + '.user.js'), bodySource)
       newMeta.enabled = meta.enabled !== false
       newMeta.installedAt = meta.installedAt
-      newMeta.lastChecked = Date.now()
+      newMeta.lastChecked = checkTime
       userscriptStoreSaveMeta(newMeta)
       userscriptStoreBroadcast()
       return { id: id, updated: true, version: newMeta.version }
-    }
-    meta.lastChecked = Date.now()
-    userscriptStoreSaveMeta(meta)
-    return { id: id, updated: false, version: meta.version }
+    })
   }).catch(function (err) {
     if (userscriptStoreCache[id]) {
       userscriptStoreCache[id].lastChecked = Date.now()
@@ -352,103 +462,6 @@ function userscriptInstallPageURL (sourceURL) {
   return 'min://app/pages/userscripts/install.html?src=' + encodeURIComponent(sourceURL)
 }
 
-function gmUrlMatchesPattern (url, pattern) {
-  if (pattern === '*') {
-    return true
-  }
-  var idx = -1
-  var parts = pattern.split('*')
-  for (var i = 0; i < parts.length; i++) {
-    idx = url.indexOf(parts[i], idx)
-    if (idx === -1) {
-      return false
-    }
-    idx += parts[i].length
-  }
-  return true
-}
-
-function gmSenderMatches (meta, url) {
-  var patterns = (meta.matches || []).concat(meta.includes || [])
-  if (!patterns.length) {
-    return false
-  }
-  if (!patterns.some(function (pattern) { return gmUrlMatchesPattern(url, pattern) })) {
-    return false
-  }
-  return !(meta.excludes || []).some(function (pattern) { return gmUrlMatchesPattern(url, pattern) })
-}
-
-var GM_GRANT_ALIASES = {
-  GM_getValue: 'getValue',
-  'GM.getValue': 'getValue',
-  GM_setValue: 'setValue',
-  'GM.setValue': 'setValue',
-  GM_deleteValue: 'deleteValue',
-  'GM.deleteValue': 'deleteValue',
-  GM_listValues: 'listValues',
-  'GM.listValues': 'listValues',
-  GM_addStyle: 'addStyle',
-  'GM.addStyle': 'addStyle',
-  GM_xmlhttpRequest: 'xmlhttpRequest',
-  'GM.xmlHttpRequest': 'xmlhttpRequest',
-  GM_openInTab: 'openInTab',
-  'GM.openInTab': 'openInTab',
-  GM_setClipboard: 'setClipboard',
-  'GM.setClipboard': 'setClipboard',
-  GM_registerMenuCommand: 'registerMenuCommand',
-  'GM.registerMenuCommand': 'registerMenuCommand',
-  GM_info: 'info',
-  'GM.info': 'info',
-  unsafeWindow: 'unsafeWindow'
-}
-
-function gmGrantList (meta) {
-  var granted = {}
-  ;(meta.grants || []).forEach(function (grant) {
-    var key = GM_GRANT_ALIASES[String(grant).trim()]
-    if (key) {
-      granted[key] = true
-    }
-  })
-  return granted
-}
-
-function gmGrantAllowed (meta, grant) {
-  var granted = gmGrantList(meta)
-  return granted[grant] === true
-}
-
-function gmHasAnyGrant (meta) {
-  var granted = gmGrantList(meta)
-  return Object.keys(granted).length > 0
-}
-
-function gmConnectAllowed (meta, host) {
-  var rules = meta.connect || []
-  if (!rules.length) {
-    return true
-  }
-  return rules.some(function (rule) {
-    if (rule === '*') {
-      return true
-    }
-    if (rule.startsWith('*.')) {
-      return host === rule.slice(2) || host.endsWith('.' + rule.slice(2))
-    }
-    return host === rule || host.endsWith('.' + rule)
-  })
-}
-
-function gmReply (e, payload, ok, data) {
-  e.sender.send('userscript-gm-result', {
-    scriptId: payload.scriptId,
-    cbId: payload.cbId,
-    ok: ok,
-    data: data
-  })
-}
-
 function gmHeadersToObject (headers) {
   var result = {}
   var entries = headers.entries()
@@ -483,21 +496,25 @@ function gmFormatResponse (details, result) {
   return response
 }
 
-function gmPerformRequest (e, payload, reply) {
+function gmPerformRequest (e, payload, frameURL, args) {
   var meta = userscriptStoreCache[payload.scriptId]
-  var reqId = payload.args[0]
-  var details = payload.args[1] || {}
+  var reqId = args[0]
+  var details = args[1] || {}
   var target
   try {
     target = new URL(details.url)
   } catch (err) {
-    return reply(false, { error: 'invalid URL' })
+    return Promise.resolve({ ok: false, data: { error: 'invalid URL' } })
   }
   if (target.protocol !== 'https:' && target.protocol !== 'http:') {
-    return reply(false, { error: 'unsupported protocol' })
+    return Promise.resolve({ ok: false, data: { error: 'unsupported protocol' } })
   }
-  if (!gmConnectAllowed(meta, target.hostname)) {
-    return reply(false, { error: 'blocked by @connect' })
+  var sameHost = false
+  try {
+    sameHost = new URL(frameURL).hostname === target.hostname
+  } catch (err) { }
+  if (!sameHost && !userscriptMeta.connectAllowed(meta.connect, target.hostname)) {
+    return Promise.resolve({ ok: false, data: { error: 'blocked by @connect' } })
   }
   var key = e.sender.id + ':' + payload.scriptId + ':' + reqId
   var controller = new AbortController()
@@ -518,7 +535,7 @@ function gmPerformRequest (e, payload, reply) {
   if (details.data != null && method !== 'GET' && method !== 'HEAD') {
     init.body = details.data
   }
-  e.sender.session.fetch(details.url, init).then(function (res) {
+  return e.sender.session.fetch(details.url, init).then(function (res) {
     return res.arrayBuffer().then(function (buffer) {
       return {
         status: res.status,
@@ -531,38 +548,43 @@ function gmPerformRequest (e, payload, reply) {
   }).then(function (result) {
     clearTimeout(timer)
     gmInflightRequests.delete(key)
-    reply(true, gmFormatResponse(details, result))
+    return { ok: true, data: gmFormatResponse(details, result) }
   }).catch(function (err) {
     clearTimeout(timer)
     gmInflightRequests.delete(key)
     if (timedOut) {
-      reply(true, { timedOut: true })
-    } else {
-      reply(false, { error: String((err && err.message) || err) })
+      return { ok: true, data: { timedOut: true } }
     }
+    return { ok: false, data: { error: String((err && err.message) || err) } }
   })
 }
 
-ipc.on('userscript-gm-request', function (e, payload) {
+ipc.handle('userscript-gm-request', function (e, payload) {
   if (!payload || typeof payload.scriptId !== 'string' || typeof payload.call !== 'string') {
-    return
+    return { ok: false, data: { error: 'invalid request' } }
+  }
+  var frameURL = ''
+  try {
+    if (!e.senderFrame || e.senderFrame !== e.sender.mainFrame) {
+      return { ok: false, data: { error: 'not allowed from this frame' } }
+    }
+    frameURL = e.senderFrame.url
+  } catch (err) {
+    return { ok: false, data: { error: 'not allowed from this frame' } }
   }
   var meta = userscriptStoreCache[payload.scriptId]
-  var senderURL = ''
-  try {
-    senderURL = e.sender.getURL()
-  } catch (err) { }
-  if (!meta || meta.enabled === false || !gmSenderMatches(meta, senderURL)) {
-    if (payload.call === 'xmlhttpRequest') {
-      gmReply(e, payload, false, { error: 'userscript is not active on this page' })
-    }
-    return
+  if (!meta || meta.enabled === false) {
+    return { ok: false, data: { error: 'unknown userscript' } }
   }
+  if (!frameURL || !userscriptMeta.matchesUrl(meta, frameURL)) {
+    return { ok: false, data: { error: 'userscript is not active on this page' } }
+  }
+  var granted = userscriptMeta.grantList(meta.grants)
   var args = Array.isArray(payload.args) ? payload.args : []
   switch (payload.call) {
     case 'setValue':
-      if (!gmHasAnyGrant(meta)) {
-        return
+      if (!granted.setValue) {
+        return { ok: false, data: { error: 'not granted' } }
       }
       var values = gmReadValues(meta.id)
       if (args.length < 2 || args[1] === undefined) {
@@ -570,42 +592,45 @@ ipc.on('userscript-gm-request', function (e, payload) {
       } else {
         values[args[0]] = args[1]
       }
-      try {
-        gmWriteValues(meta.id, values)
-      } catch (err) { }
-      break
+      gmScheduleValuesFlush(meta.id)
+      return { ok: true, data: null }
+    case 'deleteValue':
+      if (!granted.deleteValue) {
+        return { ok: false, data: { error: 'not granted' } }
+      }
+      var stored = gmReadValues(meta.id)
+      delete stored[args[0]]
+      gmScheduleValuesFlush(meta.id)
+      return { ok: true, data: null }
     case 'openInTab':
-      if (!gmGrantAllowed(meta, 'openInTab')) {
-        return gmReply(e, payload, false, { error: 'not granted' })
+      if (!granted.openInTab) {
+        return { ok: false, data: { error: 'not granted' } }
       }
       var targetURL = String(args[0] || '')
       if (!/^https?:\/\//i.test(targetURL)) {
-        return gmReply(e, payload, false, { error: 'unsupported URL' })
+        return { ok: false, data: { error: 'unsupported URL' } }
       }
       sendIPCToWindow(windows.getCurrent(), 'addTab', { url: targetURL })
-      gmReply(e, payload, true, null)
-      break
+      return { ok: true, data: null }
     case 'setClipboard':
-      if (!gmGrantAllowed(meta, 'setClipboard')) {
-        return gmReply(e, payload, false, { error: 'not granted' })
+      if (!granted.setClipboard) {
+        return { ok: false, data: { error: 'not granted' } }
       }
       electron.clipboard.writeText(String(args[0] === undefined ? '' : args[0]))
-      gmReply(e, payload, true, null)
-      break
+      return { ok: true, data: null }
     case 'xmlhttpRequest':
-      if (!gmGrantAllowed(meta, 'xmlhttpRequest')) {
-        return gmReply(e, payload, false, { error: 'not granted' })
+      if (!granted.xmlhttpRequest) {
+        return { ok: false, data: { error: 'not granted' } }
       }
-      gmPerformRequest(e, payload, function (ok, data) {
-        gmReply(e, payload, ok, data)
-      })
-      break
+      return gmPerformRequest(e, payload, frameURL, args)
     case 'abortRequest':
       var controller = gmInflightRequests.get(e.sender.id + ':' + payload.scriptId + ':' + args[0])
       if (controller) {
         controller.abort()
       }
-      break
+      return { ok: true, data: null }
+    default:
+      return { ok: false, data: { error: 'unknown call' } }
   }
 })
 
@@ -660,34 +685,61 @@ function userscriptStoreInspect (url) {
     return Promise.resolve({ ok: false, error: 'not a userscript URL' })
   }
   return userscriptStoreReadSource(url).then(function (source) {
-    var features = parseUserScriptHeader(source)
+    var features = userscriptMeta.parseHeader(source)
     if (!features) {
       return { ok: false, error: 'header' }
     }
-    return { ok: true, source: source, display: userscriptStoreMetaFromFeatures('', features, url) }
+    var display = userscriptStoreMetaFromFeatures('', features, url)
+    var installId = userscriptStoreIdFor(features, url)
+    var existing = userscriptStoreCache[installId]
+    return {
+      ok: true,
+      source: source,
+      display: display,
+      replaces: existing ? { id: existing.id, name: existing.name, version: existing.version } : null
+    }
   }).catch(function (err) {
     return { ok: false, error: String((err && err.message) || err) }
   })
 }
 
+function userscriptStorePageSenderURL (e) {
+  try {
+    if (!e.senderFrame || e.senderFrame !== e.sender.mainFrame) {
+      return ''
+    }
+    return e.senderFrame.url || ''
+  } catch (err) {
+    return ''
+  }
+}
+
 ipc.handle('userscriptStore:page', function (e, payload) {
+  var senderURL = userscriptStorePageSenderURL(e)
+  if (!senderURL.startsWith('min://app/pages/userscripts/')) {
+    return null
+  }
+  if (payload && payload.op === 'install' && !/^min:\/\/app\/pages\/userscripts\/install\.html(\?|$)/.test(senderURL)) {
+    throw new Error('installs are only allowed from the install prompt')
+  }
+  var args = (payload && payload.args) || {}
   switch (payload && payload.op) {
     case 'list':
       return userscriptStoreSummaries()
     case 'suggested':
       return userscriptStoreSuggestedState()
     case 'inspect':
-      return userscriptStoreInspect(String(payload.args.url))
+      return userscriptStoreInspect(String(args.url))
     case 'install':
-      return userscriptStoreInstallFromSource(String(payload.args.source), String(payload.args.sourceUrl || ''))
+      return userscriptStoreInstallFromSource(String(args.source), String(args.sourceUrl || ''))
     case 'installBundled':
-      return userscriptStoreInstallBundled(String(payload.args.id))
+      return userscriptStoreInstallBundled(String(args.id))
     case 'setEnabled':
-      return userscriptStoreSetEnabled(String(payload.args.id), payload.args.enabled !== false)
+      return userscriptStoreSetEnabled(String(args.id), args.enabled !== false)
     case 'remove':
-      return userscriptStoreRemove(String(payload.args.id))
+      return userscriptStoreRemove(String(args.id))
     case 'checkUpdates':
-      return userscriptStoreCheckUpdatesMany(payload.args && payload.args.id)
+      return userscriptStoreCheckUpdatesMany(args.id)
     default:
       throw new Error('unknown userscript store op')
   }
@@ -790,4 +842,8 @@ app.once('ready', function () {
   userscriptStoreLoadCache()
   setTimeout(userscriptStoreAutoUpdateSweep, 60000)
   setInterval(userscriptStoreAutoUpdateSweep, 6 * 60 * 60 * 1000)
+})
+
+app.on('before-quit', function () {
+  gmFlushAllValuesSync()
 })

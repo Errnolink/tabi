@@ -49,35 +49,11 @@ function fieldVisible (id, visible) {
 let currentSource = ''
 let currentSourceURL = ''
 
-const GRANT_ALIASES = {
-  GM_getValue: 'getValue',
-  'GM.getValue': 'getValue',
-  GM_setValue: 'setValue',
-  'GM.setValue': 'setValue',
-  GM_deleteValue: 'deleteValue',
-  'GM.deleteValue': 'deleteValue',
-  GM_listValues: 'listValues',
-  'GM.listValues': 'listValues',
-  GM_addStyle: 'addStyle',
-  'GM.addStyle': 'addStyle',
-  GM_xmlhttpRequest: 'xmlhttpRequest',
-  'GM.xmlHttpRequest': 'xmlhttpRequest',
-  GM_openInTab: 'openInTab',
-  'GM.openInTab': 'openInTab',
-  GM_setClipboard: 'setClipboard',
-  'GM.setClipboard': 'setClipboard',
-  GM_registerMenuCommand: 'registerMenuCommand',
-  'GM.registerMenuCommand': 'registerMenuCommand',
-  GM_info: 'info',
-  'GM.info': 'info',
-  unsafeWindow: 'unsafeWindow'
-}
-
 function grantedLabels (grants) {
   const names = []
   ;(grants || []).forEach(function (grant) {
     const raw = String(grant).trim()
-    if (!GRANT_ALIASES[raw] || names.includes(raw)) {
+    if (!userscriptMeta.GRANT_ALIASES[raw] || names.includes(raw)) {
       return
     }
     names.push(raw)
@@ -88,6 +64,17 @@ function grantedLabels (grants) {
 function showError (message) {
   document.getElementById('error-text').textContent = message
   showView('error-view')
+}
+
+function fillPatternList (fieldId, listId, patterns) {
+  const box = document.getElementById(listId)
+  box.textContent = ''
+  fieldVisible(fieldId, patterns.length > 0)
+  patterns.forEach(function (pattern) {
+    const line = document.createElement('div')
+    line.textContent = pattern
+    box.appendChild(line)
+  })
 }
 
 function renderInspect (result, sourceURL) {
@@ -101,7 +88,7 @@ function renderInspect (result, sourceURL) {
 
   const display = result.display
   document.getElementById('install-source').textContent = sourceURL
-  document.getElementById('install-name').textContent = display.name
+  document.getElementById('install-name').textContent = display.nameLocal || display.name
   document.getElementById('install-version').textContent = display.version
   document.getElementById('install-author').textContent = display.author
   fieldVisible('install-author-field', !!display.author)
@@ -121,6 +108,14 @@ function renderInspect (result, sourceURL) {
     })
   }
 
+  fillPatternList('install-includes-field', 'install-includes', display.includes || [])
+  fillPatternList('install-excludes-field', 'install-excludes', display.excludes || [])
+  fillPatternList('install-connect-field', 'install-connect', display.connect || [])
+
+  const runAt = display.runAt || ''
+  document.getElementById('install-runat').textContent = runAt
+  fieldVisible('install-runat-field', !!runAt)
+
   const grants = document.getElementById('install-grants')
   grants.textContent = ''
   const labels = grantedLabels(display.grants)
@@ -136,6 +131,25 @@ function renderInspect (result, sourceURL) {
       chip.textContent = label
       grants.appendChild(chip)
     })
+  }
+
+  const risk = document.getElementById('install-risk')
+  const risks = []
+  if (userscriptMeta.grantList(display.grants).xmlhttpRequest) {
+    risks.push(l('userscriptInstallRiskNetwork'))
+  }
+  if (userscriptMeta.isUniversal(display)) {
+    risks.push(l('userscriptInstallRiskAllSites'))
+  }
+  risk.textContent = risks.join(' ')
+  risk.hidden = !risks.length
+
+  const replaces = document.getElementById('install-replaces')
+  if (result.replaces) {
+    replaces.textContent = l('userscriptInstallReplaces').replace('%s', (result.replaces.name + ' ' + result.replaces.version).trim())
+    replaces.hidden = false
+  } else {
+    replaces.hidden = true
   }
 
   showView('install-view')

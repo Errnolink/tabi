@@ -47,10 +47,29 @@
             <p class="install-field-label" data-string="userscriptInstallFieldRunsOn"></p>
             <div id="install-matches" class="install-field-value mono"></div>
           </div>
+          <div class="install-field" id="install-includes-field" hidden>
+            <p class="install-field-label" data-string="userscriptInstallFieldIncludes"></p>
+            <div id="install-includes" class="install-field-value mono"></div>
+          </div>
+          <div class="install-field" id="install-excludes-field" hidden>
+            <p class="install-field-label" data-string="userscriptInstallFieldExcludes"></p>
+            <div id="install-excludes" class="install-field-value mono"></div>
+          </div>
+          <div class="install-field" id="install-connect-field" hidden>
+            <p class="install-field-label" data-string="userscriptInstallFieldConnect"></p>
+            <div id="install-connect" class="install-field-value mono"></div>
+          </div>
+          <div class="install-field" id="install-runat-field" hidden>
+            <p class="install-field-label" data-string="userscriptInstallFieldRunAt"></p>
+            <p id="install-runat" class="install-field-value mono"></p>
+          </div>
           <div class="install-field">
             <p class="install-field-label" data-string="userscriptInstallFieldPermissions"></p>
             <div id="install-grants" class="grant-chips"></div>
           </div>
+
+          <p id="install-risk" class="install-warning" hidden></p>
+          <p id="install-replaces" class="install-warning" hidden></p>
 
           <div class="install-actions">
             <button id="install-cancel" class="btn-tonal" data-string="userscriptInstallCancel">Cancel</button>
@@ -85,6 +104,7 @@
     </div>
 
     <script src="../../dist/localization.build.js"></script>
+    <script src="../../js/util/userscriptMeta.js"></script>
     <script src="../../js/util/settings/settingsContent.js"></script>
     <script src="../../js/util/theme.js"></script>
     <script src="install.js"></script>

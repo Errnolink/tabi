@@ -218,9 +218,15 @@ function renderScripts (scripts) {
 
 function showUpdateResults (results) {
   var updated = (results || []).filter(function (r) { return r.updated })
+  var needsReview = (results || []).filter(function (r) { return r.needsReview })
+  var available = (results || []).filter(function (r) { return r.updateAvailable })
   var failed = (results || []).filter(function (r) { return r.error && r.error !== 'no update URL' })
   if (failed.length) {
     setStatus(failed.map(function (r) { return r.id + ': ' + r.error }).join(', '))
+  } else if (needsReview.length) {
+    setStatus(l('userscriptsStatusNeedsReview').replace('%s', needsReview.map(function (r) { return r.id }).join(', ')))
+  } else if (available.length) {
+    setStatus(l('userscriptsStatusUpdateAvailable').replace('%s', available.map(function (r) { return r.id }).join(', ')))
   } else if (updated.length) {
     setStatus(l('userscriptsStatusUpdated').replace('%s', updated.map(function (r) { return r.id }).join(', ')))
   } else {
