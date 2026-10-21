@@ -42,18 +42,26 @@ function serializeMenuItems (items) {
   })
 }
 
-ipc.on('menu-raise', function (e) {
+ipc.on('menu-raise', function (e, options) {
   const entry = windows.windowFromContents(e.sender)
   if (entry) {
     raiseUIView(entry.win)
-    e.sender.focus()
+    if (!options || options.focus !== false) {
+      e.sender.focus()
+    }
   }
 })
 
-ipc.on('menu-lower', function (e) {
+ipc.on('menu-lower', function (e, options) {
   const entry = windows.windowFromContents(e.sender)
   if (entry) {
     lowerUIView(entry.win)
+    if (options && options.refocus) {
+      const state = windows.getState(entry.win)
+      if (state && state.selectedView && typeof focusView === 'function') {
+        focusView(state.selectedView)
+      }
+    }
   }
 })
 
@@ -84,7 +92,10 @@ ipc.on('menu-native-click', function (e, nativeId) {
   const item = nativeMenuItems.get(nativeId)
   const entry = windows.windowFromContents(e.sender)
   if (item && entry) {
-    item.click({ triggeredByAccelerator: false }, entry.win, e.sender)
+    const selectedViewId = windows.getState(entry.win) && windows.getState(entry.win).selectedView
+    const selectedView = selectedViewId ? getView(selectedViewId) : null
+    const targetContents = (selectedView && selectedView.webContents) ? selectedView.webContents : e.sender
+    item.click({ triggeredByAccelerator: false }, entry.win, targetContents)
   }
 })
 
@@ -93,6 +104,29 @@ const menuRoleMethods = { undo: 'undo', redo: 'redo', cut: 'cut', copy: 'copy', 
 ipc.on('menu-role', function (e, role) {
   const method = menuRoleMethods[role]
   if (method) {
-    e.sender[method]()
+    const entry = windows.windowFromContents(e.sender)
+    const selectedViewId = entry && windows.getState(entry.win) && windows.getState(entry.win).selectedView
+    const selectedView = selectedViewId ? getView(selectedViewId) : null
+    const targetContents = (selectedView && selectedView.webContents) ? selectedView.webContents : e.sender
+    if (typeof targetContents[method] === 'function') {
+      targetContents[method]()
+    }
+  }
+})
+
+ipc.on('permissionDenied', function (e, permissionId) {
+  if (typeof pendingPermissions !== 'undefined') {
+    for (var i = 0; i < pendingPermissions.length; i++) {
+      if (permissionId && pendingPermissions[i].permissionId === permissionId) {
+        if (typeof pendingPermissions[i].callback === 'function') {
+          pendingPermissions[i].callback(false)
+        }
+        pendingPermissions.splice(i, 1)
+        if (typeof sendPermissionsToRenderers === 'function') {
+          sendPermissionsToRenderers()
+        }
+        break
+      }
+    }
   }
 })

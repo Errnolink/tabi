@@ -601,7 +601,114 @@ body.is-resizing-sidebar * {
 }
 
 .tab-permissions {
-  display: contents;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.permission-request-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--chrome-ink);
+  cursor: pointer;
+  padding: 0;
+  margin: 0 2px;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.permission-request-icon:hover {
+  background: rgba(59, 130, 246, 0.35);
+  transform: scale(1.08);
+}
+
+.permission-request-icon.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: rgb(16, 185, 129);
+}
+
+#permission-chip.permission-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sea-glass-tint, rgba(59, 130, 246, 0.16));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 9999px;
+  padding: 2px 6px 2px 8px;
+  margin: 0 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--chrome-ink, #fff);
+  white-space: nowrap;
+  animation: permission-chip-enter 180ms cubic-bezier(.2,.9,.3,1);
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+#permission-chip[hidden] {
+  display: none !important;
+}
+
+@keyframes permission-chip-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.permission-chip-icon {
+  font-size: 13px;
+  color: rgb(59, 130, 246);
+  flex-shrink: 0;
+}
+
+.permission-chip-text {
+  user-select: none;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.permission-chip-btn {
+  border: none;
+  border-radius: 9999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.permission-chip-btn.permission-allow {
+  background: #2563eb;
+  color: #fff;
+}
+
+.permission-chip-btn.permission-allow:hover {
+  background: #1d4ed8;
+  transform: scale(1.04);
+}
+
+.permission-chip-btn.permission-block {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--chrome-ink, #fff);
+}
+
+.permission-chip-btn.permission-block:hover {
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .tab-title {

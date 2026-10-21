@@ -51,6 +51,8 @@ function cardAspect (tab) {
   return 16 / 10
 }
 
+const failedThumbs = new Map()
+
 function loadThumb (tab, img) {
   const versionAtFetch = tab.thumbVersion
   const cached = thumbCache.get(tab.id)
@@ -61,21 +63,34 @@ function loadThumb (tab, img) {
     }
     forgetThumb(tab.id)
   }
+  if (failedThumbs.get(tab.id) === versionAtFetch) {
+    const thumbEl = img.closest('.ov-thumb')
+    if (thumbEl) {
+      thumbEl.classList.add('empty')
+    }
+    return
+  }
   fs.promises.readFile(thumbDir + tab.id + '.jpg').then(function (buffer) {
     const currentTask = tasks.getTaskContainingTab(tab.id)
     const currentTab = currentTask ? currentTask.tabs.get(tab.id) : null
     if (!currentTab || currentTab.thumbVersion !== versionAtFetch) {
       return
     }
+    failedThumbs.delete(tab.id)
     const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
     thumbCache.set(tab.id, { url: url, version: versionAtFetch })
     img.src = url
   }).catch(function () {
-    img.closest('.ov-thumb').classList.add('empty')
+    failedThumbs.set(tab.id, versionAtFetch)
+    const thumbEl = img.closest('.ov-thumb')
+    if (thumbEl) {
+      thumbEl.classList.add('empty')
+    }
   })
 }
 
 function forgetThumb (tabId) {
+  failedThumbs.delete(tabId)
   const cached = thumbCache.get(tabId)
   if (cached) {
     URL.revokeObjectURL(cached.url)
@@ -94,7 +109,7 @@ const overview = {
   containerFilter: null,
   resizeObserver: null,
   lastColumns: 0,
-
+  cardCache: new Map(),
   build: function () {
     const el = document.createElement('div')
     el.id = 'overview'
@@ -134,11 +149,21 @@ const overview = {
     el.append(header, content)
     document.body.appendChild(el)
 
+    let searchDebounceTimer = null
     search.addEventListener('input', function () {
       overview.query = search.value.trim().toLowerCase()
-      overview.relayout()
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = setTimeout(function () {
+        searchDebounceTimer = null
+        overview.relayout()
+      }, 100)
     })
     search.addEventListener('keydown', function (e) {
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer)
+        searchDebounceTimer = null
+        overview.relayout()
+      }
       if (e.key === 'ArrowDown' || e.key === 'Enter') {
         const first = overview.visibleCards()[0]
         if (first) {
@@ -204,6 +229,21 @@ const overview = {
   },
 
   createCard: function (tab, task, index) {
+    if (overview.cardCache.has(tab.id)) {
+      const card = overview.cardCache.get(tab.id)
+      card.dataset.task = task.id
+      card.style.setProperty('--i', Math.min(index, 14))
+      const isNew = !tab.url || tab.url === urlParser.parse('min://newtab')
+      const titleEl = card.querySelector('.ov-title')
+      if (titleEl) {
+        titleEl.textContent = isNew ? l('newTabLabel') : (tab.title || tab.url)
+      }
+      const hostEl = card.querySelector('.ov-host')
+      if (hostEl) {
+        hostEl.textContent = isNew ? '' : hostOf(tab.url)
+      }
+      return card
+    }
     const card = document.createElement('article')
     card.className = 'ov-card'
     card.tabIndex = 0
@@ -211,7 +251,6 @@ const overview = {
     card.dataset.task = task.id
     card.draggable = true
     card.style.setProperty('--i', Math.min(index, 14))
-
     const aspect = cardAspect(tab)
     const thumb = document.createElement('div')
     thumb.className = 'ov-thumb'
@@ -284,6 +323,7 @@ const overview = {
     })
 
     card._estimate = 1 / aspect + CARD_META / MIN_COLUMN
+    overview.cardCache.set(tab.id, card)
     return card
   },
 
@@ -328,6 +368,7 @@ const overview = {
       ], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = () => ghost.remove()
     }
     forgetThumb(tabId)
+    overview.cardCache.delete(tabId)
     if (tasks.getTaskContainingTab(tabId)) {
       tabActions.close(tabId)
     }
@@ -494,6 +535,7 @@ const overview = {
       return
     }
     forgetThumb(tabId)
+    failedThumbs.delete(tabId)
     const img = card.querySelector('.ov-thumb img')
     if (img) {
       loadThumb(tab, img)
@@ -705,7 +747,11 @@ const overview = {
       }
       overview.previewWaiter = waiter
       webviews.captureTab(tabId, { forceCapture: true })
-      setTimeout(() => waiter.resolve(!!tabs.get(tabId).thumbAspect), 300)
+      setTimeout(function () {
+        const owner = tasks.getTaskContainingTab(tabId)
+        const tab = owner && owner.tabs.get(tabId)
+        waiter.resolve(!!(tab && tab.thumbAspect))
+      }, 300)
     })
   },
 
@@ -746,7 +792,10 @@ const overview = {
 
     document.getElementById('overview-button').addEventListener('click', overview.toggle)
 
-    tasks.on('tab-destroyed', forgetThumb)
+    tasks.on('tab-destroyed', function (tabId) {
+      forgetThumb(tabId)
+      overview.cardCache.delete(tabId)
+    })
     tasks.on('tab-updated', function (id, key) {
       if (key !== 'thumbAspect' && key !== 'thumbVersion') {
         return

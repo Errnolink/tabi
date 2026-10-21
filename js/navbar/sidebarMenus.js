@@ -28,6 +28,24 @@ function containerItems (current, onPick) {
 function openContainerManager () {
   browserUI.addTab(tabs.add({ url: 'min://app/pages/containers/index.html' }), { enterEditMode: false })
 }
+function canRestoreTab () {
+  const currentTask = tasks.getSelected()
+  return !!(currentTask && currentTask.tabHistory && currentTask.tabHistory.stack && currentTask.tabHistory.stack.length > 0)
+}
+
+function restoreClosedTab () {
+  if (tabActions && typeof tabActions.reopenClosed === 'function') {
+    tabActions.reopenClosed()
+    return
+  }
+  const currentTask = tasks.getSelected()
+  if (currentTask && currentTask.tabHistory) {
+    const restoredTab = currentTask.tabHistory.pop()
+    if (restoredTab) {
+      browserUI.addTab(tabs.add(restoredTab), { enterEditMode: false })
+    }
+  }
+}
 
 function tabMenu (tabId) {
   const task = tasks.getTaskContainingTab(tabId)
@@ -75,15 +93,8 @@ function tabMenu (tabId) {
       label: l('reopenClosedTab'),
       icon: 'carbon:undo',
       accelerator: 'Ctrl+Shift+T',
-      click: function () {
-        const currentTask = tasks.getSelected()
-        if (currentTask && currentTask.tabHistory && currentTask.tabHistory.length > 0) {
-          const restoredTab = currentTask.tabHistory.pop()
-          if (restoredTab) {
-            browserUI.addTab(tabs.add(restoredTab), { enterEditMode: false })
-          }
-        }
-      }
+      enabled: canRestoreTab(),
+      click: restoreClosedTab
     },
     { label: l('closeTab'), icon: 'carbon:close', accelerator: 'Ctrl+W', click: () => tabActions.close(tabId) },
     { label: l('tabMenuCloseOthers'), click: () => tabActions.closeOthers(tabId) },
@@ -145,15 +156,8 @@ function sidebarMenu () {
         label: l('reopenClosedTab'),
         icon: 'carbon:undo',
         accelerator: 'Ctrl+Shift+T',
-        click: function () {
-          const currentTask = tasks.getSelected()
-          if (currentTask && currentTask.tabHistory && currentTask.tabHistory.length > 0) {
-            const restoredTab = currentTask.tabHistory.pop()
-            if (restoredTab) {
-              browserUI.addTab(tabs.add(restoredTab), { enterEditMode: false })
-            }
-          }
-        }
+        enabled: canRestoreTab(),
+        click: restoreClosedTab
       }
     ]
   ])

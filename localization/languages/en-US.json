@@ -65,6 +65,14 @@
     "runUserscript": "Run userscript",
     /* navbar */
     "openMenu": "Menu (Ctrl+M)", //application menu button on windows
+    "permissionAllow": "Allow",
+    "permissionBlock": "Block",
+    "permissionCameraPrompt": "Use your camera?",
+    "permissionMicrophonePrompt": "Use your microphone?",
+    "permissionCameraAndMicrophonePrompt": "Use camera and microphone?",
+    "permissionNotificationPrompt": "Show notifications?",
+    "permissionPointerLockPrompt": "Lock mouse cursor?",
+    "permissionLocationPrompt": "Access your location?",
     "enterReaderView": "Enter Reader View",
     "exitReaderView": "Exit Reader View",
     "newTabLabel": "New Tab", //this is a noun, used for tabs that don't have a page loaded in them yet

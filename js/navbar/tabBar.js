@@ -1,4 +1,6 @@
 const EventEmitter = require('events')
+const { webUtils } = require('electron')
+const settings = require('util/settings/settings.js')
 const Sortable = require('sortablejs')
 const webviews = require('webviews.js')
 const urlParser = require('util/urlParser.js')
@@ -41,7 +43,7 @@ function tabTitle (tab) {
   if (isNewTabUrl(tab.url)) {
     return l('newTabLabel') || 'New Tab'
   }
-  return (tab.title || (tab.loaded ? tab.url : '') || l('newTabLabel') || 'New Tab').substring(0, 300)
+  return (tab.title || (tab.loaded ? tab.url : '') || tab.url || l('newTabLabel') || 'New Tab').substring(0, 300)
 }
 
 function bucketName (task, index) {
@@ -179,8 +181,6 @@ const tabBar = {
       }
       if (tabs.getSelected() !== tabId) {
         tabBar.events.emit('tab-selected', tabId)
-      } else {
-        tabEditor.show(tabId)
       }
     })
 
@@ -816,7 +816,13 @@ const tabBar = {
     shellLayout.onChange(function () {
       requestAnimationFrame(() => tabBar.placeIndicator(false))
     })
-
+    permissionRequests.onChange(function (tabId) {
+      if (tabId && rows.has(tabId)) {
+        tabBar.updateTab(tabId)
+      } else {
+        rows.forEach((row, id) => tabBar.updateTab(id))
+      }
+    })
     tabBar.container.addEventListener('dragover', function (e) {
       e.preventDefault()
     })
@@ -824,22 +830,48 @@ const tabBar = {
       e.preventDefault()
       tabHoverCard.hide()
       const data = e.dataTransfer
-      const path = data && data.files && data.files.length > 0 ? data.files[0].path : (data ? data.getData('text') : '')
-      if (!path) {
-        return
-      }
       const bucketEl = e.target.closest('.bucket')
       const taskId = bucketEl ? bucketEl.getAttribute('data-task') : tasks.getSelected().id
       if (tasks.getSelected().id !== taskId) {
         browserUI().switchToTask(taskId)
       }
-      const selected = tabs.get(tabs.getSelected())
-      const newTab = tabs.add({
-        url: path,
-        private: selected ? selected.private : false,
-        containerId: containers.containerForNewTab(taskId)
-      })
-      browserUI().addTab(newTab, { enterEditMode: false })
+      const openInBackground = !settings.get('openTabsInForeground')
+      if (data && data.files && data.files.length > 0) {
+        for (let i = 0; i < data.files.length; i++) {
+          let filePath = ''
+          try {
+            filePath = webUtils.getPathForFile(data.files[i])
+          } catch (err) {}
+          if (!filePath) {
+            continue
+          }
+          const fileUrl = 'file://' + filePath
+          const selected = tabs.get(tabs.getSelected())
+          const newTab = tabs.add({
+            url: fileUrl,
+            private: selected ? selected.private : false,
+            containerId: containers.containerForNewTab(taskId)
+          })
+          browserUI().addTab(newTab, {
+            enterEditMode: false,
+            openInBackground: openInBackground
+          })
+        }
+      } else {
+        const text = data ? data.getData('text') : ''
+        if (text) {
+          const selected = tabs.get(tabs.getSelected())
+          const newTab = tabs.add({
+            url: text,
+            private: selected ? selected.private : false,
+            containerId: containers.containerForNewTab(taskId)
+          })
+          browserUI().addTab(newTab, {
+            enterEditMode: false,
+            openInBackground: openInBackground
+          })
+        }
+      }
     })
   }
 }

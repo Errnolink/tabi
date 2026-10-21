@@ -29,16 +29,42 @@ let currentRowEl = null
 let pendingTabId = null
 let warmTimer = null
 let warmTabId = null
+const warmedTabs = new Map()
 
-function scheduleWarmUp (tabId) {
-  if (warmTimer || warmTabId) {
-    return
+function canWarmTab (tabId) {
+  if (warmedTabs.size >= 2 || warmedTabs.has(tabId)) {
+    return false
   }
   const found = findTab(tabId)
-  if (!found || found.tab.private || !found.tab.url) {
-    return
+  if (!found || found.tab.private || !found.tab.url || isNewTabUrl(found.tab.url)) {
+    return false
+  }
+  if (typeof tabs !== 'undefined' && tabs.getSelected && tabs.getSelected() === tabId) {
+    return false
   }
   if (webviews.hasViewForTab(tabId) || !discardInactive.canWarmUp()) {
+    return false
+  }
+  return true
+}
+
+function triggerWarmUp (tabId) {
+  if (!canWarmTab(tabId)) {
+    return
+  }
+  webviews.warmUp(tabId)
+  const timer = setTimeout(function () {
+    warmedTabs.delete(tabId)
+    if (typeof tabs !== 'undefined' && tabs.getSelected && tabs.getSelected() !== tabId && webviews.hasViewForTab(tabId)) {
+      webviews.destroy(tabId)
+    }
+  }, 60000)
+  warmedTabs.set(tabId, timer)
+}
+
+function scheduleWarmUp (tabId) {
+  cancelWarmUp(warmTabId)
+  if (!canWarmTab(tabId)) {
     return
   }
   warmTabId = tabId
@@ -46,11 +72,10 @@ function scheduleWarmUp (tabId) {
     warmTimer = null
     const target = warmTabId
     warmTabId = null
-    const found = target && findTab(target)
-    if (found && !found.tab.private && !webviews.hasViewForTab(target) && discardInactive.canWarmUp()) {
-      webviews.warmUp(target)
+    if (target) {
+      triggerWarmUp(target)
     }
-  }, 150)
+  }, 500)
 }
 
 function cancelWarmUp (tabId) {
@@ -140,7 +165,7 @@ function getTabTitle (tab) {
   if (isNewTabUrl(tab.url)) {
     return l('newTabLabel') || 'New Tab'
   }
-  return (tab.title || (tab.loaded ? tab.url : '') || l('newTabLabel') || 'New Tab').substring(0, 300)
+  return (tab.title || (tab.loaded ? tab.url : '') || tab.url || l('newTabLabel') || 'New Tab').substring(0, 300)
 }
 
 function getTabHost (url) {
@@ -326,7 +351,8 @@ function show (tabId, rowEl) {
 
   el.hidden = false
   positionCard(rowEl)
-  uiLayer.raise('tab-hover-card')
+  uiLayer.raise('tab-hover-card', { focus: false })
+  triggerWarmUp(tabId)
 
   requestSelectedThumbRefresh(tabId)
 
@@ -341,7 +367,16 @@ const tabHoverCard = {
   initialize: function () {
     buildCard()
 
-    window.addEventListener('pointerdown', tabHoverCard.hide, true)
+    window.addEventListener('pointerdown', function (e) {
+      const row = e.target.closest && e.target.closest('.tab-item')
+      if (row) {
+        const id = row.getAttribute('data-tab')
+        if (id) {
+          triggerWarmUp(id)
+        }
+      }
+      tabHoverCard.hide()
+    }, true)
     window.addEventListener('blur', tabHoverCard.hide)
     window.addEventListener('keydown', tabHoverCard.hide, true)
     window.addEventListener('contextmenu', tabHoverCard.hide, true)
@@ -353,8 +388,18 @@ const tabHoverCard = {
         if (currentTabId === tabId) {
           tabHoverCard.hide()
         }
+        if (warmedTabs.has(tabId)) {
+          clearTimeout(warmedTabs.get(tabId))
+          warmedTabs.delete(tabId)
+        }
       })
-      tasks.on('tab-selected', tabHoverCard.hide)
+      tasks.on('tab-selected', function (tabId) {
+        tabHoverCard.hide()
+        if (warmedTabs.has(tabId)) {
+          clearTimeout(warmedTabs.get(tabId))
+          warmedTabs.delete(tabId)
+        }
+      })
       tasks.on('task-updated', function (taskId, key) {
         if (key === 'collapsed') {
           tabHoverCard.hide()
@@ -373,7 +418,7 @@ const tabHoverCard = {
     }
 
     const originalRaise = uiLayer.raise
-    uiLayer.raise = function (reason) {
+    uiLayer.raise = function (reason, options) {
       if (reason !== 'tab-hover-card') {
         tabHoverCard.hide()
       }

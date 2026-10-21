@@ -2,6 +2,15 @@
 
 const glassMenu = require('glassMenu.js')
 
+function refocusPage () {
+  try {
+    const webviews = require('webviews.js')
+    if (webviews && typeof webviews.focus === 'function') {
+      webviews.focus()
+    }
+  } catch (e) {}
+}
+
 function nativeToTemplate (items) {
   return items.map(function (item) {
     if (item.type === 'separator') {
@@ -25,7 +34,12 @@ function open (menuTemplate, x, y, extraData) {
   const options = {
     x,
     y,
-    onClose: fromPage ? () => require('webviews.js').focus() : null
+    onClose: function () {
+      if (extraData && typeof extraData.onClose === 'function') {
+        extraData.onClose()
+      }
+      refocusPage()
+    }
   }
   if (fromPage && extraData.contextMenuParams) {
     ipc.invoke('menu-extension-items', { tabId: extraData.tabId, contextMenuParams: extraData.contextMenuParams }).then(function (items) {
@@ -41,7 +55,7 @@ function open (menuTemplate, x, y, extraData) {
 
 function openAppMenu (x, y) {
   ipc.invoke('menu-app-items').then(function (items) {
-    glassMenu.open(nativeToTemplate(items), { x, y })
+    glassMenu.open(nativeToTemplate(items), { x, y, onClose: refocusPage })
   })
 }
 
