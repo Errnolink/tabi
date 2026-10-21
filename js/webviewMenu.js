@@ -282,10 +282,39 @@ const webviewMenu = {
       }
     ]
 
+    navigationActions.push({
+      label: l('tabMenuReload'),
+      accelerator: 'Ctrl+R',
+      click: () => require('tabActions.js').reload(tabs.getSelected())
+    })
     menuSections.push(navigationActions)
 
-    /* inspect element */
+    const pageURL = tabs.get(tabs.getSelected()).url
+    const isWebPage = /^https?:/.test(pageURL)
     menuSections.push([
+      {
+        label: l('appMenuSavePageAs'),
+        accelerator: 'Ctrl+S',
+        click: () => ipc.emit('saveCurrentPage', {})
+      },
+      {
+        label: l('appMenuPrint'),
+        accelerator: 'Ctrl+P',
+        click: () => ipc.emit('print', {})
+      },
+      {
+        label: l('tabMenuCopyLink'),
+        enabled: isWebPage,
+        click: () => clipboard.writeText(pageURL)
+      }
+    ])
+
+    menuSections.push([
+      {
+        label: l('viewPageSource'),
+        enabled: isWebPage,
+        click: () => browserUI.addTab(tabs.add({ url: 'view-source:' + pageURL, containerId: tabs.get(tabs.getSelected()).containerId }), { enterEditMode: false })
+      },
       {
         label: l('inspectElement'),
         click: function () {
