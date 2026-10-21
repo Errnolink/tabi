@@ -41,7 +41,7 @@ function addBucketTabs (task, tabs, containerId) {
       title: tab.title,
       containerId: containerId,
       selected: index === 0
-    })
+    }, { atEnd: true })
   })
 }
 
@@ -54,7 +54,7 @@ function createImportedTabs (data) {
     var taskId
     if (perWindow) {
       taskId = tasks.add({
-        name: l('importWindowBucketName').replace('%s', data.sourceName || '').replace('%n', index + 1)
+        name: windowsList.length > 1 ? l('importWindowBucketName').replace('%s', data.sourceName || '').replace('%n', index + 1) : data.sourceName
       })
     } else {
       var existing = tasks.get(data.bucketId)

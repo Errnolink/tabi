@@ -71,11 +71,11 @@ and against local Chrome 155 / Edge 155 / Helium 155 profiles):
   // truncated command (Chromium truncates oversized payloads)
   function pickleString (buf, pos, utf16) {
     if (pos + 4 > buf.length) return null
-    var len = buf.readUInt32LE(pos)
+    var len = buf.readUInt32LE(pos) * (utf16 ? 2 : 1)
     pos += 4
     if (pos + len > buf.length) return null
     var str = buf.toString(utf16 ? 'utf16le' : 'utf8', pos, pos + len)
-    pos = (pos + len + 3) & ~3 // Pickle pads variable-length writes to 4 bytes
+    pos = (pos + len + 3) & ~3
     return { str: str, pos: pos }
   }
 
@@ -111,8 +111,7 @@ and against local Chrome 155 / Edge 155 / Helium 155 profiles):
             var urlRes = pickleString(p, pos, false)
             if (!urlRes) break
             var titleRes = pickleString(p, urlRes.pos, true)
-            if (!titleRes) break
-            tab(tabId).navs.set(navIndex, { url: urlRes.str, title: titleRes.str })
+            tab(tabId).navs.set(navIndex, { url: urlRes.str, title: titleRes ? titleRes.str : '' })
             break
           }
           case 7: // kCommandSetSelectedNavigationIndex [tab][index]
