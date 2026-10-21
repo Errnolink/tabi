@@ -111,6 +111,8 @@ function renderInspect (result, sourceURL) {
   fillPatternList('install-includes-field', 'install-includes', display.includes || [])
   fillPatternList('install-excludes-field', 'install-excludes', display.excludes || [])
   fillPatternList('install-connect-field', 'install-connect', display.connect || [])
+  fillPatternList('install-requires-field', 'install-requires', display.requires || [])
+  fillPatternList('install-resources-field', 'install-resources', display.resources || [])
 
   const runAt = display.runAt || ''
   document.getElementById('install-runat').textContent = runAt

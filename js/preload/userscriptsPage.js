@@ -12,6 +12,33 @@ try {
   }
 } catch (e) { }
 
+/* document-start injection: this preload runs before any page script, so matching
+   scripts fetched synchronously from main apply before the page renders */
+;(function () {
+  try {
+    var protocol = window.location.protocol
+    if (protocol !== 'https:' && protocol !== 'http:') {
+      return
+    }
+    var startScripts = ipc.sendSync('userscript-sync-userscripts', window.location.href)
+    if (!Array.isArray(startScripts)) {
+      return
+    }
+    startScripts.forEach(function (entry) {
+      if (!entry || typeof entry.code !== 'string' || !entry.code) {
+        return
+      }
+      try {
+        if (entry.world === 'isolated') {
+          electron.webFrame.executeJavaScriptInIsolatedWorld(GM_WORLD_ID, [{ code: entry.code }], false)
+        } else {
+          electron.webFrame.executeJavaScript(entry.code, false)
+        }
+      } catch (err) { }
+    })
+  } catch (e) { }
+})()
+
 window.addEventListener('message', function (e) {
   var data = e.data
   if (!data || typeof data !== 'object') {

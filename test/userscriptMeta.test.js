@@ -133,6 +133,15 @@ test('@include globs are anchored; ? is a single-char wildcard only in scheme-le
   assert.equal(meta.matchesUrl(withScheme, 'http://example.com/page?id=7'), false)
 })
 
+test('scheme-less include globs cannot be satisfied by query or fragment parts', function () {
+  const meta = loadMeta()
+  const glob = meta.parseHeader(header(['// @include *.example.com/foo*']))
+  assert.equal(meta.matchesUrl(glob, 'https://evil.com/?q=x.example.com/foo'), false)
+  assert.equal(meta.matchesUrl(glob, 'https://evil.com/#x.example.com/foo'), false)
+  assert.equal(meta.matchesUrl(glob, 'https://x.example.com.evil.com/foo'), false)
+  assert.equal(meta.matchesUrl(glob, 'https://a.example.com/foo/bar'), true)
+})
+
 test('@include * matches everything', function () {
   const meta = loadMeta()
   const features = meta.parseHeader(header(['// @include *']))

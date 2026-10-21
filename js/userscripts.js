@@ -15,7 +15,6 @@ var tabState = require('tabState.js')
 var GM_WORLD_ID = 977
 
 var MANAGER_DETECT_HOSTS = ['greasyfork.org', 'sleazyfork.org']
-
 var MANAGER_DETECT_SCRIPT = '(function () {' +
   'var api = { version: "5.3.3", isInstalled: function () { return Promise.resolve(null) } };' +
   'var external = window.external;' +
@@ -26,39 +25,13 @@ var MANAGER_DETECT_SCRIPT = '(function () {' +
   'try { Object.defineProperty(external, "Tampermonkey", { value: api, configurable: true }) } catch (err) { }' +
   '})()'
 
-var GM_OBJECT_NAMES = {
-  getValue: ['GM_getValue', 'getValue'],
-  setValue: ['GM_setValue', 'setValue'],
-  deleteValue: ['GM_deleteValue', 'deleteValue'],
-  listValues: ['GM_listValues', 'listValues'],
-  addStyle: ['GM_addStyle', 'addStyle'],
-  xmlhttpRequest: ['GM_xmlhttpRequest', 'xmlHttpRequest'],
-  openInTab: ['GM_openInTab', 'openInTab'],
-  setClipboard: ['GM_setClipboard', 'setClipboard'],
-  registerMenuCommand: ['GM_registerMenuCommand', 'registerMenuCommand']
-}
-
-var GM_API_SOURCES = {
-  info: 'var GM_info = __gmInfo',
-  getValue: 'function GM_getValue (name, defaultValue) { return Object.prototype.hasOwnProperty.call(__gmValues, name) ? __gmValues[name] : defaultValue }',
-  setValue: 'function GM_setValue (name, value) { __gmValues[name] = value; __gmCall("setValue", [name, value]).catch(function () { }) }',
-  deleteValue: 'function GM_deleteValue (name) { delete __gmValues[name]; __gmCall("deleteValue", [name]).catch(function () { }) }',
-  listValues: 'function GM_listValues () { return Object.keys(__gmValues) }',
-  addStyle: 'function GM_addStyle (css) { var style = document.createElement("style"); style.textContent = css; (document.head || document.documentElement || document).appendChild(style); return style }',
-  xmlhttpRequest: 'function GM_xmlhttpRequest (details) { details = details || {}; var reqId = "r" + (++__gmSeq); __gmCall("xmlhttpRequest", [reqId, { method: details.method || "GET", url: details.url, headers: details.headers || null, data: details.data || null, timeout: details.timeout || 0, responseType: details.responseType || "text" }]).then(function (result) { if (result.ok) { if (details.onload) { details.onload(result.data) } } else if (result.data && result.data.timedOut) { if (details.ontimeout) { details.ontimeout(result.data) } } else if (details.onerror) { details.onerror({ error: result.data && result.data.error, response: result.data }) } }).catch(function (err) { if (details.onerror) { details.onerror({ error: String(err) }) } }); return { abort: function () { __gmCall("abortRequest", [reqId]).catch(function () { }) } } }',
-  openInTab: 'function GM_openInTab (url, options) { __gmCall("openInTab", [String(url), { active: !(options && options.active === false) }]).catch(function () { }) }',
-  setClipboard: 'function GM_setClipboard (text) { __gmCall("setClipboard", [String(text)]).catch(function () { }) }',
-  registerMenuCommand: 'function GM_registerMenuCommand (label) { __gmMenuCommands.push(String(label)); return String(label) }'
-}
-
 function scriptGrantedAPIs (meta) {
   return userscriptMeta.grantList((meta && meta.grants) || [])
 }
 
-function buildGMWrappedScript (script, values) {
+function scriptInfoForScript (script) {
   var meta = script.meta || {}
-  var granted = scriptGrantedAPIs(meta)
-  var scriptInfo = {
+  return {
     id: script.id,
     name: meta.name || script.name,
     version: meta.version || '',
@@ -67,39 +40,9 @@ function buildGMWrappedScript (script, values) {
     matches: meta.matches || [],
     includes: meta.includes || [],
     grants: meta.grants || [],
-    'run-at': meta.runAt || ''
+    'run-at': meta.runAt || '',
+    content: script.content
   }
-
-  var prelude = '(function () {' +
-    'var __gmScript = ' + JSON.stringify(scriptInfo) + ';' +
-    'var __gmValues = ' + JSON.stringify(values || {}) + ';' +
-    'var __gmSeq = 0; var __gmMenuCommands = [];' +
-    'var __gmInfo = { script: __gmScript, scriptHandler: "Tabi userscripts", version: "1.0", scriptMetaStr: "" };' +
-    'function __gmCall (call, args) { if (typeof __tabiGM__ === "undefined" || !__tabiGM__ || !__tabiGM__.request) { return Promise.resolve({ ok: false, data: { error: "GM bridge unavailable" } }) } return __tabiGM__.request({ scriptId: __gmScript.id, call: call, args: args }) };'
-
-  var gmObjectEntries = []
-  for (var api in GM_OBJECT_NAMES) {
-    if (!granted[api]) {
-      continue
-    }
-    if (!GM_API_SOURCES[api]) {
-      continue
-    }
-    prelude += GM_API_SOURCES[api] + ';'
-    gmObjectEntries.push(GM_OBJECT_NAMES[api][1] + ': ' + GM_OBJECT_NAMES[api][0])
-  }
-  if (granted.info) {
-    prelude += GM_API_SOURCES.info + ';'
-    gmObjectEntries.push('info: GM_info')
-  }
-  if (granted.unsafeWindow) {
-    prelude += 'var unsafeWindow = window;'
-  }
-  if (gmObjectEntries.length) {
-    prelude += 'var GM = { ' + gmObjectEntries.join(', ') + ' };'
-  }
-
-  return prelude + ';(function () {' + script.content + '\n})();})();'
 }
 
 const userscripts = {
@@ -123,6 +66,12 @@ const userscripts = {
     })
   },
   rebuildScriptList: function () {
+    ipc.invoke('userscript-register-dir-scripts', {
+      enabled: userscripts.masterEnabled,
+      scripts: userscripts.dirScripts.map(function (script) {
+        return { options: script.options, content: script.content }
+      })
+    }).catch(function () { })
     if (!userscripts.masterEnabled) {
       userscripts.scripts = []
       return
@@ -272,15 +221,24 @@ const userscripts = {
     if (!pageURL || urlParser.isInternalURL(pageURL)) {
       return
     }
+    var assetsPromise = (script.managed && script.id)
+      ? ipc.invoke('userscriptStore:getAssets', script.id).catch(function () { return null })
+      : Promise.resolve(null)
     if (script.managed && script.id && Object.keys(scriptGrantedAPIs(script.meta)).length > 0) {
-      ipc.invoke('userscriptStore:getValues', script.id).then(function (values) {
-        return webviews.callAsync(tabId, 'executeJavaScriptInIsolatedWorld', [GM_WORLD_ID, [{ code: buildGMWrappedScript(script, values) }], false])
+      Promise.all([assetsPromise, ipc.invoke('userscriptStore:getValues', script.id)]).then(function (results) {
+        var assets = results[0] || { requires: [], resources: {} }
+        var wrapped = userscriptMeta.buildGMWrapped(scriptInfoForScript(script), results[1], assets.resources || {})
+        var code = userscriptMeta.assembleScriptCode(assets.requires, wrapped)
+        return webviews.callAsync(tabId, 'executeJavaScriptInIsolatedWorld', [GM_WORLD_ID, [{ code: code }], false])
       }).catch(function (err) {
         console.warn('failed to run userscript', script.id, err)
       })
       return
     }
-    webviews.callAsync(tabId, 'executeJavaScript', [script.content, false, null])
+    assetsPromise.then(function (assets) {
+      var code = userscriptMeta.assembleScriptCode(assets && assets.requires, script.content)
+      webviews.callAsync(tabId, 'executeJavaScript', [code, false, null])
+    })
   },
   onPageLoad: function (tabId) {
     var ownerTask = tabState.getTaskContainingTab(tabId)
@@ -300,10 +258,11 @@ const userscripts = {
     }
 
     userscripts.getMatchingScripts(src).forEach(function (script) {
-      // TODO run different types of scripts at the correct time
-      if (!script.options['run-at'] || script.options['run-at'].some(i => ['document-start', 'document-body', 'document-end', 'document-idle'].includes(i))) {
-        userscripts.runScript(tabId, script, src)
+      /* document-start scripts are injected by the frame preload before page scripts run */
+      if (userscriptMeta.normalizeRunAt(script.options) === 'document-start') {
+        return
       }
+      userscripts.runScript(tabId, script, src)
     })
   },
   initialize: function () {

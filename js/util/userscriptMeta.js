@@ -22,6 +22,10 @@ var userscriptMeta = (function () {
     'GM.openInTab': 'openInTab',
     GM_setClipboard: 'setClipboard',
     'GM.setClipboard': 'setClipboard',
+    GM_getResourceText: 'getResourceText',
+    'GM.getResourceText': 'getResourceText',
+    GM_getResourceURL: 'getResourceURL',
+    'GM.getResourceURL': 'getResourceURL',
     GM_registerMenuCommand: 'registerMenuCommand',
     'GM.registerMenuCommand': 'registerMenuCommand',
     GM_info: 'info',
@@ -107,10 +111,44 @@ var userscriptMeta = (function () {
 
   var ALL_SCHEMES = ['http:', 'https:', 'file:', 'ftp:', 'ws:', 'wss:', 'data:']
 
+  /* Scheme-less @include globs (e.g. *.example.com/foo*) anchor their host part to
+     the URL's hostname, so a query or fragment can never satisfy the host portion */
+  function includeGlobMatches (pattern, url) {
+    var parsed
+    try {
+      parsed = new URL(url)
+    } catch (e) {
+      return false
+    }
+    var rest = String(pattern).trim()
+    var schemeIndex = rest.indexOf('://')
+    if (schemeIndex !== -1) {
+      var scheme = rest.slice(0, schemeIndex).toLowerCase()
+      rest = rest.slice(schemeIndex + 3)
+      if (scheme === '*') {
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          return false
+        }
+      } else if (parsed.protocol !== scheme + ':') {
+        return false
+      }
+    }
+    var slash = rest.indexOf('/')
+    var hostPart = slash === -1 ? rest : rest.slice(0, slash)
+    var pathPart = slash === -1 ? '' : rest.slice(slash)
+    if (!globToRegExp(hostPart, true).test(parsed.hostname)) {
+      return false
+    }
+    if (!pathPart) {
+      return true
+    }
+    return globToRegExp(pathPart, true).test(parsed.pathname + parsed.search)
+  }
+
   function patternMatches (pattern, url) {
     var parts = matchPatternParts(pattern)
     if (!parts) {
-      return globToRegExp(pattern, true).test(url)
+      return includeGlobMatches(pattern, url)
     }
     var parsed
     try {
@@ -194,6 +232,110 @@ var userscriptMeta = (function () {
     })
   }
 
+  function normalizeRunAt (features) {
+    var list = featureList(features || {}, 'run-at', 'runAt')
+    var value = String(list[0] || '').trim().toLowerCase()
+    if (value === 'document-start' || value === 'document-body' || value === 'document-end') {
+      return value
+    }
+    return 'document-idle'
+  }
+
+  function assembleScriptCode (requires, body) {
+    var parts = (Array.isArray(requires) ? requires : []).filter(function (code) { return typeof code === 'string' && code })
+    parts.push(String(body))
+    return parts.join('\n;\n')
+  }
+
+  var GM_OBJECT_NAMES = {
+    getValue: ['GM_getValue', 'getValue'],
+    setValue: ['GM_setValue', 'setValue'],
+    deleteValue: ['GM_deleteValue', 'deleteValue'],
+    listValues: ['GM_listValues', 'listValues'],
+    addStyle: ['GM_addStyle', 'addStyle'],
+    xmlhttpRequest: ['GM_xmlhttpRequest', 'xmlHttpRequest'],
+    openInTab: ['GM_openInTab', 'openInTab'],
+    setClipboard: ['GM_setClipboard', 'setClipboard'],
+    getResourceText: ['GM_getResourceText', 'getResourceText'],
+    getResourceURL: ['GM_getResourceURL', 'getResourceURL'],
+    registerMenuCommand: ['GM_registerMenuCommand', 'registerMenuCommand']
+  }
+
+  var GM_API_SOURCES = {
+    info: 'var GM_info = __gmInfo',
+    getValue: 'function GM_getValue (name, defaultValue) { return Object.prototype.hasOwnProperty.call(__gmValues, name) ? __gmValues[name] : defaultValue }',
+    setValue: 'function GM_setValue (name, value) { __gmValues[name] = value; __gmCall("setValue", [name, value]).catch(function () { }) }',
+    deleteValue: 'function GM_deleteValue (name) { delete __gmValues[name]; __gmCall("deleteValue", [name]).catch(function () { }) }',
+    listValues: 'function GM_listValues () { return Object.keys(__gmValues) }',
+    addStyle: 'function GM_addStyle (css) { var style = document.createElement("style"); style.textContent = css; (document.head || document.documentElement || document).appendChild(style); return style }',
+    xmlhttpRequest: 'function GM_xmlhttpRequest (details) { details = details || {}; var reqId = "r" + (++__gmSeq); __gmCall("xmlhttpRequest", [reqId, { method: details.method || "GET", url: details.url, headers: details.headers || null, data: details.data || null, timeout: details.timeout || 0, responseType: details.responseType || "text" }]).then(function (result) { if (result.ok) { if (details.onload) { details.onload(result.data) } } else if (result.data && result.data.timedOut) { if (details.ontimeout) { details.ontimeout(result.data) } } else if (details.onerror) { details.onerror({ error: result.data && result.data.error, response: result.data }) } }).catch(function (err) { if (details.onerror) { details.onerror({ error: String(err) }) } }); return { abort: function () { __gmCall("abortRequest", [reqId]).catch(function () { }) } } }',
+    openInTab: 'function GM_openInTab (url, options) { __gmCall("openInTab", [String(url), { active: !(options && options.active === false) }]).catch(function () { }) }',
+    setClipboard: 'function GM_setClipboard (text) { __gmCall("setClipboard", [String(text)]).catch(function () { }) }',
+    getResourceText: 'function GM_getResourceText (name) { var r = __gmResources[String(name)]; if (!r) { throw new Error("resource not found: " + name) } return r.text }',
+    getResourceURL: 'function GM_getResourceURL (name) { var r = __gmResources[String(name)]; if (!r) { throw new Error("resource not found: " + name) } return "data:" + r.mime + ";base64," + r.base64 }',
+    registerMenuCommand: 'function GM_registerMenuCommand (label) { __gmMenuCommands.push(String(label)); return String(label) }'
+  }
+
+  /* Builds the sandboxed GM.* prelude around a userscript body.
+     scriptInfo: {id, name, version, description, namespace, matches, includes, grants, run-at}
+     values: stored GM values; resources: {name: {text, mime, base64}} from stored @resource data. */
+  function buildGMWrapped (scriptInfo, values, resources) {
+    var info = scriptInfo || {}
+    var metaInfo = {
+      id: info.id,
+      name: info.name,
+      version: info.version || '',
+      description: info.description || '',
+      namespace: info.namespace || '',
+      matches: info.matches || [],
+      includes: info.includes || [],
+      grants: info.grants || [],
+      'run-at': info['run-at'] || ''
+    }
+    var resourceData = {}
+    var resourceNames = Object.keys(resources || {})
+    resourceNames.forEach(function (name) {
+      var entry = resources[name]
+      if (entry && typeof entry.text === 'string') {
+        resourceData[name] = { text: entry.text, mime: entry.mime || 'text/plain', base64: entry.base64 || '' }
+      }
+    })
+
+    var prelude = '(function () {' +
+      'var __gmScript = ' + JSON.stringify(metaInfo) + ';' +
+      'var __gmValues = ' + JSON.stringify(values || {}) + ';' +
+      'var __gmSeq = 0; var __gmMenuCommands = [];' +
+      'var __gmResources = ' + JSON.stringify(resourceData) + ';' +
+      'var __gmInfo = { script: __gmScript, scriptHandler: "Tabi userscripts", version: "1.0", scriptMetaStr: "" };' +
+      'function __gmCall (call, args) { if (typeof __tabiGM__ === "undefined" || !__tabiGM__ || !__tabiGM__.request) { return Promise.resolve({ ok: false, data: { error: "GM bridge unavailable" } }) } return __tabiGM__.request({ scriptId: __gmScript.id, call: call, args: args }) };'
+
+    var granted = grantList((info.grants) || [])
+    var gmObjectEntries = []
+    for (var api in GM_OBJECT_NAMES) {
+      if (!granted[api]) {
+        continue
+      }
+      if (!GM_API_SOURCES[api]) {
+        continue
+      }
+      prelude += GM_API_SOURCES[api] + ';'
+      gmObjectEntries.push(GM_OBJECT_NAMES[api][1] + ': ' + GM_OBJECT_NAMES[api][0])
+    }
+    if (granted.info) {
+      prelude += GM_API_SOURCES.info + ';'
+      gmObjectEntries.push('info: GM_info')
+    }
+    if (granted.unsafeWindow) {
+      prelude += 'var unsafeWindow = window;'
+    }
+    if (gmObjectEntries.length) {
+      prelude += 'var GM = { ' + gmObjectEntries.join(', ') + ' };'
+    }
+
+    return prelude + ';(function () {' + (info.content || '') + '\n})();})();'
+  }
+
+
   function identityHash (str) {
     var hash = 0x811c9dc5
     var s = String(str)
@@ -211,6 +353,9 @@ var userscriptMeta = (function () {
     grantList: grantList,
     connectAllowed: connectAllowed,
     isUniversal: isUniversal,
+    normalizeRunAt: normalizeRunAt,
+    assembleScriptCode: assembleScriptCode,
+    buildGMWrapped: buildGMWrapped,
     identityHash: identityHash
   }
 })()

@@ -15,6 +15,13 @@ var userscriptStoreSuggested = [
 var userscriptStoreCache = {}
 var gmInflightRequests = new Map()
 
+/* document-start injection registry: loose-directory scripts are registered by the
+   UI renderer, installed store scripts are served from the cache; built payloads are
+   memoised per script and invalidated on meta/value changes */
+var userscriptStoreDirScripts = []
+var userscriptStoreDirState = { registered: false, enabled: false }
+var userscriptStorePayloadCache = {}
+
 const USERSCRIPT_STORE_UPDATE_INTERVAL = 24 * 60 * 60 * 1000
 
 function userscriptStoreWriteJSON (file, data) {
@@ -85,6 +92,7 @@ function gmFlushValues (id) {
 }
 
 function gmScheduleValuesFlush (id) {
+  delete userscriptStorePayloadCache[id]
   if (gmValuesFlushTimers[id]) {
     return
   }
@@ -196,6 +204,8 @@ function userscriptStoreMetaFromFeatures (id, features, sourceUrl) {
     grants: features.grant || [],
     connect: features.connect || [],
     runAt: (features['run-at'] && features['run-at'][0]) || '',
+    requires: (features.require || []).slice(),
+    resources: (features.resource || []).slice(),
     updateURL: (features.updateURL && features.updateURL[0]) || '',
     downloadURL: (features.downloadURL && features.downloadURL[0]) || '',
     sourceUrl: sourceUrl || '',
@@ -220,6 +230,7 @@ function userscriptStoreLoadCache () {
 }
 
 function userscriptStoreSaveMeta (meta) {
+  delete userscriptStorePayloadCache[meta.id]
   userscriptStoreWriteJSON(path.join(userscriptStoreDir, meta.id + '.json'), meta)
   userscriptStoreCache[meta.id] = meta
 }
@@ -243,23 +254,130 @@ function userscriptStoreBroadcast () {
   })
 }
 
+function userscriptStoreResourceEntry (line) {
+  var match = /^(\S+)\s+(\S+)$/.exec(String(line).trim())
+  if (!match) {
+    return null
+  }
+  return { name: match[1], url: match[2] }
+}
+
+/* Fetches @require sources and @resource bodies declared in a header. Both are
+   restricted to https and fetched at install/update time so nothing is loaded
+   from the network at injection time. */
+function userscriptStoreFetchAssets (features) {
+  var requires = (features.require || []).map(function (url) { return String(url).trim() }).filter(Boolean)
+  var resources = (features.resource || []).map(userscriptStoreResourceEntry).filter(Boolean)
+  var urls = requires.concat(resources.map(function (entry) { return entry.url }))
+  for (var i = 0; i < urls.length; i++) {
+    if (!/^https:\/\//i.test(urls[i])) {
+      return Promise.reject(new Error('insecure @require/@resource URL: ' + urls[i]))
+    }
+  }
+  return Promise.all([
+    Promise.all(requires.map(function (url) {
+      return userscriptStoreFetchText(url).then(function (text) {
+        return { url: url, text: text }
+      })
+    })),
+    Promise.all(resources.map(function (entry) {
+      return net.fetch(entry.url).then(function (res) {
+        if (!res.ok) {
+          throw new Error('HTTP ' + res.status)
+        }
+        return res.arrayBuffer().then(function (buffer) {
+          return {
+            name: entry.name,
+            url: entry.url,
+            mime: (res.headers.get('content-type') || 'text/plain').split(';')[0].trim() || 'text/plain',
+            buffer: Buffer.from(buffer)
+          }
+        })
+      })
+    }))
+  ]).then(function (results) {
+    return { requires: results[0], resources: results[1] }
+  })
+}
+
+function userscriptStoreRemoveAssetFiles (id) {
+  var requirePrefix = id + '.require.'
+  var resourcePrefix = id + '.resource.'
+  var files
+  try {
+    files = fs.readdirSync(userscriptStoreDir)
+  } catch (e) {
+    return
+  }
+  files.forEach(function (filename) {
+    if (filename.startsWith(requirePrefix) || filename.startsWith(resourcePrefix)) {
+      try {
+        fs.unlinkSync(path.join(userscriptStoreDir, filename))
+      } catch (e) { }
+    }
+  })
+}
+
+function userscriptStoreWriteAssetFiles (id, assets) {
+  userscriptStoreRemoveAssetFiles(id)
+  assets.requires.forEach(function (entry, index) {
+    fs.writeFileSync(path.join(userscriptStoreDir, id + '.require.' + index + '.js'), entry.text)
+  })
+  assets.resources.forEach(function (entry, index) {
+    fs.writeFileSync(path.join(userscriptStoreDir, id + '.resource.' + index + '.b64'), entry.buffer.toString('base64'))
+  })
+}
+
+/* Reads the stored @require sources and @resource bodies for an installed script.
+   Missing files are skipped so a partial store still runs the script itself. */
+function userscriptStoreReadAssets (meta) {
+  var requires = []
+  var resources = {}
+  ;(meta.requires || []).forEach(function (url, index) {
+    try {
+      var text = fs.readFileSync(path.join(userscriptStoreDir, meta.id + '.require.' + index + '.js'), 'utf-8')
+      if (text) {
+        requires.push(text)
+      }
+    } catch (e) { }
+  })
+  ;(meta.resources || []).forEach(function (entry, index) {
+    try {
+      var base64 = fs.readFileSync(path.join(userscriptStoreDir, meta.id + '.resource.' + index + '.b64'), 'utf-8')
+      if (base64) {
+        resources[entry.name] = {
+          text: Buffer.from(base64, 'base64').toString('utf-8'),
+          base64: base64.trim(),
+          mime: entry.mime || 'text/plain'
+        }
+      }
+    } catch (e) { }
+  })
+  return { requires: requires, resources: resources }
+}
+
 function userscriptStoreInstallFromSource (source, sourceUrl) {
   var features = userscriptMeta.parseHeader(source)
   if (!features || !(features.name && features.name[0])) {
     throw new Error('not a userscript')
   }
   var id = userscriptStoreIdFor(features, sourceUrl)
-  fs.mkdirSync(userscriptStoreDir, { recursive: true })
-  fs.writeFileSync(path.join(userscriptStoreDir, id + '.user.js'), source)
-  var previous = userscriptStoreCache[id]
-  var meta = userscriptStoreMetaFromFeatures(id, features, sourceUrl)
-  if (previous) {
-    meta.enabled = previous.enabled !== false
-    meta.installedAt = previous.installedAt
-  }
-  userscriptStoreSaveMeta(meta)
-  userscriptStoreBroadcast()
-  return meta
+  return userscriptStoreFetchAssets(features).then(function (assets) {
+    fs.mkdirSync(userscriptStoreDir, { recursive: true })
+    userscriptStoreWriteAssetFiles(id, assets)
+    fs.writeFileSync(path.join(userscriptStoreDir, id + '.user.js'), source)
+    var previous = userscriptStoreCache[id]
+    var meta = userscriptStoreMetaFromFeatures(id, features, sourceUrl)
+    meta.requires = assets.requires.map(function (entry) { return entry.url })
+    meta.resources = assets.resources.map(function (entry) { return { name: entry.name, url: entry.url, mime: entry.mime } })
+    if (previous) {
+      meta.enabled = previous.enabled !== false
+      meta.installedAt = previous.installedAt
+    }
+    userscriptStoreSaveMeta(meta)
+    userscriptStoreBroadcast()
+    return meta
+  })
 }
 
 function userscriptStoreInstallBundled (bundledId) {
@@ -276,6 +394,7 @@ function userscriptStoreRemove (id) {
     throw new Error('unknown userscript')
   }
   delete userscriptStoreCache[id]
+  delete userscriptStorePayloadCache[id]
   if (gmValuesFlushTimers[id]) {
     clearTimeout(gmValuesFlushTimers[id])
     delete gmValuesFlushTimers[id]
@@ -286,6 +405,7 @@ function userscriptStoreRemove (id) {
       fs.unlinkSync(path.join(userscriptStoreDir, filename))
     } catch (e) { }
   })
+  userscriptStoreRemoveAssetFiles(id)
   userscriptStoreBroadcast()
   return true
 }
@@ -418,13 +538,18 @@ function userscriptStoreCheckUpdates (id) {
         userscriptStoreSaveMeta(meta)
         return { id: id, updated: false, needsReview: true, version: newMeta.version }
       }
-      fs.writeFileSync(path.join(userscriptStoreDir, id + '.user.js'), bodySource)
-      newMeta.enabled = meta.enabled !== false
-      newMeta.installedAt = meta.installedAt
-      newMeta.lastChecked = checkTime
-      userscriptStoreSaveMeta(newMeta)
-      userscriptStoreBroadcast()
-      return { id: id, updated: true, version: newMeta.version }
+      return userscriptStoreFetchAssets(features).then(function (assets) {
+        userscriptStoreWriteAssetFiles(id, assets)
+        fs.writeFileSync(path.join(userscriptStoreDir, id + '.user.js'), bodySource)
+        newMeta.enabled = meta.enabled !== false
+        newMeta.installedAt = meta.installedAt
+        newMeta.lastChecked = checkTime
+        newMeta.requires = assets.requires.map(function (entry) { return entry.url })
+        newMeta.resources = assets.resources.map(function (entry) { return { name: entry.name, url: entry.url, mime: entry.mime } })
+        userscriptStoreSaveMeta(newMeta)
+        userscriptStoreBroadcast()
+        return { id: id, updated: true, version: newMeta.version }
+      })
     })
   }).catch(function (err) {
     if (userscriptStoreCache[id]) {
@@ -652,6 +777,134 @@ ipc.handle('userscriptStore:list', function (e, includeContent) {
 ipc.handle('userscriptStore:getValues', function (e, id) {
   return gmReadValues(String(id))
 })
+
+ipc.handle('userscriptStore:getAssets', function (e, id) {
+  var meta = userscriptStoreCache[String(id)]
+  if (!meta) {
+    return { requires: [], resources: {} }
+  }
+  return userscriptStoreReadAssets(meta)
+})
+
+/* Loose-directory userscripts are registered by the UI renderer, which reads and
+   parses them; only app windows may register since this list injects into pages */
+ipc.handle('userscript-register-dir-scripts', function (e, payload) {
+  var fromUI = false
+  try {
+    if (e.senderFrame === e.sender.mainFrame) {
+      fromUI = windows.getAll().some(function (win) {
+        return getWindowWebContents(win) === e.sender
+      })
+    }
+  } catch (err) {
+    fromUI = false
+  }
+  if (!fromUI) {
+    return false
+  }
+  var scripts = []
+  if (payload && Array.isArray(payload.scripts)) {
+    payload.scripts.forEach(function (script) {
+      if (script && typeof script.content === 'string' && script.content && script.options && typeof script.options === 'object') {
+        scripts.push({ options: script.options, content: script.content })
+      }
+    })
+  }
+  userscriptStoreDirScripts = scripts
+  userscriptStoreDirState = { registered: true, enabled: !!(payload && payload.enabled === true) }
+  return true
+})
+
+/* document-start injection: page preloads ask synchronously for the scripts matching
+   their frame URL and get ready-to-evaluate payloads back */
+ipc.on('userscript-sync-userscripts', function (e, url) {
+  var payload = []
+  try {
+    if (typeof url === 'string' && url.length < 4096) {
+      payload = userscriptStoreSyncPayloads(url)
+    }
+  } catch (err) {
+    payload = []
+  }
+  e.returnValue = payload
+})
+
+function userscriptStoreSyncPayloads (url) {
+  if (!/^https?:\/\//i.test(url)) {
+    return []
+  }
+  var enabled = userscriptStoreDirState.registered
+    ? userscriptStoreDirState.enabled
+    : settings.get('userscriptsEnabled') === true
+  if (!enabled) {
+    return []
+  }
+  var payloads = []
+  Object.keys(userscriptStoreCache).sort().forEach(function (id) {
+    var meta = userscriptStoreCache[id]
+    if (meta.enabled === false) {
+      return
+    }
+    if (userscriptMeta.normalizeRunAt(meta) !== 'document-start') {
+      return
+    }
+    if (!userscriptMeta.matchesUrl(meta, url)) {
+      return
+    }
+    var entry = userscriptStoreStartPayload(meta)
+    if (entry) {
+      payloads.push(entry)
+    }
+  })
+  userscriptStoreDirScripts.forEach(function (script) {
+    if (userscriptMeta.normalizeRunAt(script.options) !== 'document-start') {
+      return
+    }
+    if (!userscriptMeta.matchesUrl(script.options, url)) {
+      return
+    }
+    payloads.push({ world: 'main', code: script.content })
+  })
+  return payloads
+}
+
+function userscriptStoreStartPayload (meta) {
+  var cached = userscriptStorePayloadCache[meta.id]
+  if (cached) {
+    return cached
+  }
+  var assets = userscriptStoreReadAssets(meta)
+  var source
+  try {
+    source = fs.readFileSync(path.join(userscriptStoreDir, meta.id + '.user.js'), 'utf-8')
+  } catch (err) {
+    return null
+  }
+  var granted = userscriptMeta.grantList(meta.grants)
+  var entry
+  if (Object.keys(granted).length > 0) {
+    var info = {
+      id: meta.id,
+      name: meta.name,
+      version: meta.version,
+      description: meta.description,
+      namespace: meta.namespace,
+      matches: meta.matches || [],
+      includes: meta.includes || [],
+      grants: meta.grants || [],
+      'run-at': meta.runAt || '',
+      content: source
+    }
+    entry = {
+      world: 'isolated',
+      code: userscriptMeta.assembleScriptCode(assets.requires, userscriptMeta.buildGMWrapped(info, gmReadValues(meta.id), assets.resources))
+    }
+  } else {
+    entry = { world: 'main', code: userscriptMeta.assembleScriptCode(assets.requires, source) }
+  }
+  userscriptStorePayloadCache[meta.id] = entry
+  return entry
+}
 
 function userscriptStoreReadSource (url) {
   if (!/^file:\/\//i.test(url)) {

@@ -271,6 +271,8 @@
     "userscriptInstallFieldIncludes": "Also runs on (include)",
     "userscriptInstallFieldExcludes": "Skipped on (exclude)",
     "userscriptInstallFieldConnect": "May contact (connect)",
+    "userscriptInstallFieldRequires": "Included libraries (@require)",
+    "userscriptInstallFieldResources": "Resources (@resource)",
     "userscriptInstallFieldRunAt": "Run time",
     "userscriptInstallFieldPermissions": "Permissions",
     "userscriptInstallNoPermissions": "None — the script only changes the page it runs on.",
