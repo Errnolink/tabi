@@ -300,7 +300,7 @@ const webviews = {
       radius: webviews.getViewRadius(),
       focus: !options || options.focus !== false
     })
-    webviews.detachedTabs.delete(id)
+    webviews.keptAlive.delete(id)
     webviews.warmupTabs.delete(id)
     webviews.emitEvent('view-shown', id)
   },
@@ -308,14 +308,14 @@ const webviews = {
     ipc.send('loadURLInView', { id: id, url: urlParser.parse(url) })
   },
   loadingTabs: new Set(),
-  detachedTabs: new Set(),
+  keptAlive: new Set(),
   warmupTabs: new Set(),
   isLoading: function (id) {
     return webviews.loadingTabs.has(id)
   },
   destroy: function (id) {
     webviews.loadingTabs.delete(id)
-    webviews.detachedTabs.delete(id)
+    webviews.keptAlive.delete(id)
     webviews.warmupTabs.delete(id)
     webviews.emitEvent('view-hidden', id)
 
@@ -333,13 +333,12 @@ const webviews = {
       webviews.selectedId = null
     }
   },
-  detach: function (id) {
+  keepAlive: function (id) {
     if (!webviews.hasViewForTab(id) || webviews.selectedId === id) {
       return
     }
-    webviews.detachedTabs.add(id)
+    webviews.keptAlive.add(id)
     webviews.emitEvent('view-hidden', id)
-    ipc.send('detachView', id)
   },
   warmUp: function (tabId) {
     if (!tabId || webviews.hasViewForTab(tabId)) {
@@ -401,7 +400,7 @@ const webviews = {
           radius: webviews.getViewRadius(),
           focus: true
         })
-        webviews.detachedTabs.delete(webviews.selectedId)
+        webviews.keptAlive.delete(webviews.selectedId)
         webviews.emitEvent('view-shown', webviews.selectedId)
       }
       // wait for the view to be visible before removing the placeholder
@@ -683,7 +682,7 @@ ipc.on('captureData', function (e, data) {
 tasks.on('tab-destroyed', function (id) {
   forgetThumbObjectURL(id)
   delete lastCaptureTimes[id]
-  webviews.detachedTabs.delete(id)
+  webviews.keptAlive.delete(id)
   ipc.send('deleteThumbnail', id)
 })
 

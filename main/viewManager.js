@@ -401,27 +401,6 @@ ipc.on('destroyAllViews', function () {
   destroyAllViews()
 })
 
-function detachView (id) {
-  var view = viewMap[id]
-  if (!view) {
-    return
-  }
-  stopBoundsAnimation(id)
-  var isSelected = windows.getAll().some(function (window) {
-    return windows.getState(window).selectedView === id
-  })
-  if (isSelected) {
-    return
-  }
-  windows.getAll().forEach(function (window) {
-    window.getContentView().removeChildView(view)
-  })
-}
-
-ipc.on('detachView', function (e, id) {
-  detachView(id)
-})
-
 ipc.on('setView', function (e, args) {
   setView(args.id, e.sender)
   setBounds(args.id, args.bounds, args)
@@ -593,11 +572,7 @@ ipc.on('getCapture', function (e, data) {
         height: Math.round(focus.height * scale)
       }
     }
-    thumbnailManager.save(data.id, img, crop).then(function (result) {
-      if (result && needsLarge) {
-        e.sender.send('captureData', { id: data.id, aspect: result.aspect })
-      }
-    })
+    thumbnailManager.save(data.id, img, crop)
   }).catch(function (err) {
     console.error('Error capturing page for tab ' + data.id + ':', err)
   })
@@ -616,18 +591,20 @@ ipc.on('saveViewCapture', function (e, data) {
 
 const memoryBudgetState = {
   totalBytes: 0,
-  freeBytes: 0,
+  availableBytes: 0,
   budgetBytes: 0,
   viewBytes: {}
 }
 
 function computeMemoryBudget () {
   var totalBytes = os.totalmem()
-  var freeBytes = 0
-  try {
-    freeBytes = process.getSystemMemoryInfo().free * 1024
-  } catch (err) {
-    freeBytes = 0
+  var availableBytes = os.freemem()
+  if (!availableBytes) {
+    try {
+      availableBytes = process.getSystemMemoryInfo().free * 1024
+    } catch (err) {
+      availableBytes = 0
+    }
   }
   var budgetBytes = clamp(0.25 * (totalBytes - 4 * 1024 * 1024 * 1024), 512 * 1024 * 1024, 12 * 1024 * 1024 * 1024)
 
@@ -652,7 +629,7 @@ function computeMemoryBudget () {
   }
 
   memoryBudgetState.totalBytes = totalBytes
-  memoryBudgetState.freeBytes = freeBytes
+  memoryBudgetState.availableBytes = availableBytes
   memoryBudgetState.budgetBytes = budgetBytes
   memoryBudgetState.viewBytes = viewBytes
 

@@ -3,7 +3,7 @@ var settings = require('util/settings/settings.js')
 
 var DEFAULT_SLEEP_MINUTES = 60
 var GB = 1024 * 1024 * 1024
-var FREE_PRESSURE_BYTES = 1 * GB
+var MIN_PRESSURE_BYTES = 1 * GB
 var PRESSURE_MARGIN_BYTES = 256 * 1024 * 1024
 var lastSeen = {}
 var visibleTab = null
@@ -28,8 +28,15 @@ function usedBytes () {
   return total
 }
 
+function pressureThresholdBytes () {
+  if (!budget || !budget.totalBytes) {
+    return MIN_PRESSURE_BYTES
+  }
+  return Math.max(MIN_PRESSURE_BYTES, 0.08 * budget.totalBytes)
+}
+
 function systemMemoryPressure () {
-  return !!budget && budget.freeBytes > 0 && budget.freeBytes < FREE_PRESSURE_BYTES
+  return !!budget && budget.availableBytes > 0 && budget.availableBytes < pressureThresholdBytes()
 }
 
 function underMemoryPressure () {
@@ -42,6 +49,10 @@ function underMemoryPressure () {
   return !!budget.budgetBytes && usedBytes() > budget.budgetBytes
 }
 
+function isSelectedAnywhere (task, tabId) {
+  return !!task.selectedInWindow && task.tabs.getSelected() === tabId
+}
+
 function effectiveSleepMs () {
   var minutes = settings.get('tabSleepMinutes')
   if (minutes === undefined || minutes === null) {
@@ -52,7 +63,7 @@ function effectiveSleepMs () {
   }
   var scale = 1
   if (budget && budget.totalBytes > 0) {
-    scale = Math.min(6, Math.max(0.25, (budget.freeBytes / GB) / (0.1 * (budget.totalBytes / GB))))
+    scale = Math.min(6, Math.max(0.25, (budget.availableBytes / GB) / (0.1 * (budget.totalBytes / GB))))
   }
   return minutes * scale * 60 * 1000
 }
@@ -72,16 +83,16 @@ function sweepPass (now, limit) {
   var candidates = []
   tasks.forEach(function (task) {
     task.tabs.get().forEach(function (tab) {
-      if (tab.id === visibleTab || tab.private || tab.pinned || tab.hasAudio) {
+      if (tab.private || tab.pinned || tab.hasAudio) {
         return
       }
-      if (!webviews.hasViewForTab(tab.id) || webviews.detachedTabs.has(tab.id)) {
+      if (isSelectedAnywhere(task, tab.id)) {
+        return
+      }
+      if (!webviews.hasViewForTab(tab.id)) {
         return
       }
       var lastUsed = Math.max(tab.lastActivity || 0, lastSeen[tab.id] || 0)
-      if (limit !== null && now - lastUsed <= limit) {
-        return
-      }
       candidates.push({ id: tab.id, lastUsed: lastUsed })
     })
   })
@@ -90,42 +101,29 @@ function sweepPass (now, limit) {
   })
 
   var pressure = systemMemoryPressure()
-  var freeEstimate = (budget && budget.freeBytes) || 0
+  var availableBytes = (budget && budget.availableBytes) || 0
   var remainingBytes = usedBytes()
   for (var i = 0; i < candidates.length; i++) {
     var candidate = candidates[i]
-    if (candidate.id === tabs.getSelected()) {
-      continue
-    }
     var bytes = (budget && budget.viewBytes && budget.viewBytes[candidate.id]) || 0
     if (pressure) {
-      if (freeEstimate >= FREE_PRESSURE_BYTES + PRESSURE_MARGIN_BYTES) {
+      if (availableBytes >= pressureThresholdBytes() + PRESSURE_MARGIN_BYTES) {
         break
       }
       webviews.destroy(candidate.id)
-      freeEstimate += bytes
-    } else if (remainingBytes <= budgetBytes()) {
-      webviews.detach(candidate.id)
-    } else {
+      availableBytes += bytes
+    } else if (remainingBytes > budgetBytes()) {
       webviews.destroy(candidate.id)
       remainingBytes -= bytes
+    } else if (limit !== null && now - candidate.lastUsed > limit && !webviews.keptAlive.has(candidate.id)) {
+      webviews.keepAlive(candidate.id)
     }
   }
 }
 
 function sweep () {
   markVisible()
-  var now = Date.now()
-
-  if (underMemoryPressure()) {
-    sweepPass(now, null)
-    return
-  }
-
-  var limit = effectiveSleepMs()
-  if (limit) {
-    sweepPass(now, limit)
-  }
+  sweepPass(Date.now(), underMemoryPressure() ? null : effectiveSleepMs())
 }
 
 function canWarmUp () {
