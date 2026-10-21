@@ -57,7 +57,7 @@ function getPersonaUserAgentForUrl (url) {
 }
 
 const uaPersonaPageScript = "if (location.hostname === 'accounts.google.com') { try { delete Navigator.prototype.userAgentData } catch (e) {} ; try { Object.defineProperty(Navigator.prototype, 'vendor', { get: function () { return '' } }) } catch (e) {} ; try { delete window.chrome } catch (e) {} ; try { Object.defineProperty(window, 'chrome', { value: undefined, writable: false, configurable: false }) } catch (e) {} }"
-const uaPersonaPreloadSource = "const { webFrame } = require('electron')\nwebFrame.executeJavaScript(" + JSON.stringify(uaPersonaPageScript) + ")"
+const uaPersonaPreloadSource = "const { webFrame } = require('electron')\nwebFrame.executeJavaScript(" + JSON.stringify(uaPersonaPageScript) + ')'
 
 function registerUAPersonaPreload (ses) {
   if (hasCustomUserAgent) return

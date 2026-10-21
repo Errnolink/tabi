@@ -335,7 +335,6 @@ var userscriptMeta = (function () {
     return prelude + ';(function () {' + (info.content || '') + '\n})();})();'
   }
 
-
   function identityHash (str) {
     var hash = 0x811c9dc5
     var s = String(str)
