@@ -408,3 +408,51 @@
 .container-row button {
   flex: none;
 }
+.container-row.armed {
+  flex-wrap: wrap;
+}
+
+.container-consequence-banner {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, hsl(22, 70%, 55%) 12%, transparent);
+  border: 1px solid color-mix(in srgb, hsl(22, 70%, 55%) 30%, transparent);
+  color: var(--chrome-ink);
+  font-size: 12.5px;
+  line-height: 1.45;
+  animation: banner-in var(--dur-effects-fast) var(--spring-effects) both;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.containers-intro-card {
+  padding: 20px 24px;
+  border-radius: var(--card-radius, 18px);
+  margin-top: 8px;
+  border-left: 3px solid var(--sys-primary, #525a92);
+}
+
+.containers-intro-title {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 0 0 6px;
+  color: var(--chrome-ink);
+}
+
+.containers-intro-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--chrome-ink-muted);
+  margin: 0;
+}

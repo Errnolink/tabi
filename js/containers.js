@@ -228,6 +228,129 @@ function setBucketDefault (taskId, containerId) {
     defaultContainerId: sanitizeContainerId(containerId)
   })
 }
+function promptCreate (anchor, onCreated) {
+  var glassMenu = require('glassMenu.js')
+  var existing = list()
+  var usedColors = new Set(existing.map(function (c) { return c.color }))
+  var palette = Object.values(colors())
+  var defaultColor = palette.find(function (hex) { return !usedColors.has(hex) }) || palette[existing.length % palette.length]
+  var n = existing.length + 1
+  while (existing.some(function (c) { return c.name === (l('quickContainerName') || 'Account %n').replace('%n', n) })) {
+    n++
+  }
+  var prefilledName = (l('quickContainerName') || 'Account %n').replace('%n', n)
+  var selectedColor = defaultColor
+
+  var panel = document.createElement('div')
+  panel.className = 'container-prompt-panel'
+
+  var head = document.createElement('div')
+  head.className = 'container-prompt-head'
+  var dot = document.createElement('span')
+  dot.className = 'container-prompt-dot'
+  dot.style.backgroundColor = selectedColor
+  var title = document.createElement('span')
+  title.className = 'container-prompt-title'
+  title.textContent = l('containersNewContainer') || 'New Container'
+  head.append(dot, title)
+
+  var desc = document.createElement('div')
+  desc.className = 'container-prompt-desc'
+  desc.textContent = l('containersExplanationShort') || 'Separate cookies and logins, so you can be signed in to several accounts at once.'
+
+  var nameRow = document.createElement('div')
+  nameRow.className = 'container-prompt-row'
+  var nameLabel = document.createElement('label')
+  nameLabel.className = 'container-prompt-label'
+  nameLabel.textContent = l('containersNameLabel') || 'Name'
+  var nameInput = document.createElement('input')
+  nameInput.type = 'text'
+  nameInput.className = 'container-prompt-input'
+  nameInput.value = prefilledName
+  nameInput.maxLength = 64
+  nameInput.spellcheck = false
+  nameRow.append(nameLabel, nameInput)
+
+  var colorRow = document.createElement('div')
+  colorRow.className = 'container-prompt-row'
+  var colorLabel = document.createElement('label')
+  colorLabel.className = 'container-prompt-label'
+  colorLabel.textContent = l('containersColorLabel') || 'Color'
+  var swatches = document.createElement('div')
+  swatches.className = 'container-prompt-swatches'
+
+  palette.forEach(function (hex) {
+    var btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'container-prompt-swatch' + (hex === selectedColor ? ' selected' : '')
+    btn.style.backgroundColor = hex
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation()
+      selectedColor = hex
+      dot.style.backgroundColor = hex
+      swatches.querySelectorAll('.container-prompt-swatch').forEach(function (s) { s.classList.remove('selected') })
+      btn.classList.add('selected')
+    })
+    swatches.appendChild(btn)
+  })
+  colorRow.append(colorLabel, swatches)
+
+  var actions = document.createElement('div')
+  actions.className = 'container-prompt-actions'
+  var cancelBtn = document.createElement('button')
+  cancelBtn.type = 'button'
+  cancelBtn.className = 'container-prompt-btn btn-cancel'
+  cancelBtn.textContent = l('containersCancel') || 'Cancel'
+  cancelBtn.addEventListener('click', function () {
+    glassMenu.close()
+  })
+
+  var createBtn = document.createElement('button')
+  createBtn.type = 'button'
+  createBtn.className = 'container-prompt-btn btn-create'
+  createBtn.textContent = l('containersCreate') || 'Create'
+
+  function submit () {
+    var finalName = nameInput.value.trim() || prefilledName
+    add({ name: finalName, color: selectedColor, icon: 'circle' }).then(function (created) {
+      glassMenu.close()
+      if (typeof onCreated === 'function' && created) {
+        onCreated(created)
+      }
+    }).catch(function (err) {
+      console.warn('failed to add container', err)
+      glassMenu.close()
+    })
+  }
+
+  createBtn.addEventListener('click', submit)
+
+  nameInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation()
+      submit()
+    }
+  })
+
+  actions.append(cancelBtn, createBtn)
+  panel.append(head, desc, nameRow, colorRow, actions)
+
+  var options = {}
+  if (anchor && typeof anchor.x === 'number' && typeof anchor.y === 'number') {
+    options.x = Math.max(16, Math.min(window.innerWidth - 320, anchor.x))
+    options.y = Math.max(16, Math.min(window.innerHeight - 260, anchor.y))
+  } else {
+    options.x = Math.round(window.innerWidth / 2 - 150)
+    options.y = Math.round(window.innerHeight / 3)
+  }
+
+  glassMenu.openPanel(panel, options)
+  requestAnimationFrame(function () {
+    nameInput.focus()
+    nameInput.select()
+  })
+}
 
 /* keep the main process' open-tab counts (shown in the container manager) up to date.
    Only the focused window reports, since every window has all tasks synced in memory */
@@ -283,5 +406,6 @@ module.exports = {
   icons,
   containerForNewTab,
   reopenTabInContainer,
-  setBucketDefault
+  setBucketDefault,
+  promptCreate
 }

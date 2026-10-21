@@ -24,8 +24,8 @@
     "copy": "Copy", //this is a verb (as in "copy the currently-selected text")
     "paste": "Paste",
     "pasteAndMatchStyle": "Paste and Match Style",
-    "goBack": "Go Back",
-    "goForward": "Go Forward",
+    "goBack": "Back (Alt+Left)",
+    "goForward": "Forward (Alt+Right)",
     "inspectElement": "Inspect Element",
     "translatePage": "Translate Page",
     /* searchbar */
@@ -36,7 +36,7 @@
     "DDGAnswerSubtitle": "Answer", //this is a noun - it is used as a subtitle when displaying Instant Answers from DuckDuckGo in the searchbar
     "suggestedSite": "Suggested site", //this is used to label suggested websites from the DuckDuckGo API,
     "resultsFromDDG": "Results from DuckDuckGo", //this is used as a label to indicate which results come from DuckDuckGo's API
-    "taskN": "Bucket %n", //this is used as a way to identify which tab a task is in "task 1", "task 2", ...
+    "taskN": "Group %n", //this is used as a way to identify which tab a task is in "task 1", "task 2", ...
     /* custom commands
         these are some of the items that show up when you press ! in the searchbar.
         Each one of these strings describes what the command will do when you run it. */
@@ -47,11 +47,11 @@
     "enableBlocking": "Enable content blocking for this site",
     "disableBlocking": "Disable content blocking for this site",
     "clearHistoryConfirmation": "Clear all history and browsing data?",
-    "switchToTask": "Switch to Bucket",
-    "createTask": "Create a Bucket",
-    "closeTask": "Close a Bucket",
-    "moveToTask": "Move this tab to a bucket",
-    "nameTask": "Name this bucket",
+    "switchToTask": "Switch to Tab Group",
+    "createTask": "Create a Tab Group",
+    "closeTask": "Close Tab Group",
+    "moveToTask": "Move this tab to a group",
+    "nameTask": "Name this group",
     "addBookmark": "Add bookmark",
     "searchBookmarks": "Search bookmarks",
     "bookmarksAddTag": "Add tag...",
@@ -64,7 +64,7 @@
     "exportBookmarks": "Export bookmarks",
     "runUserscript": "Run userscript",
     /* navbar */
-    "openMenu": "Open menu", //application menu button on windows
+    "openMenu": "Menu (Ctrl+M)", //application menu button on windows
     "enterReaderView": "Enter Reader View",
     "exitReaderView": "Exit Reader View",
     "newTabLabel": "New Tab", //this is a noun, used for tabs that don't have a page loaded in them yet
@@ -90,17 +90,17 @@
     "newTabNoBookmarks": "No bookmarks yet",
     "newTabSearchPlaceholder": "Search or enter address",
     /* task overlay */
-    "viewTasks": "View Buckets",
-    "newTask": "New Bucket", //"new" is a verb - it is used for a button at the bottom of the task overlay
-    "defaultTaskName": "Bucket %n", //this is the name used for newly-created tasks; %n is replaced with a number ("task 1", "task 2", etc)
-    "searchTabs": "Search tabs",
+    "viewTasks": "View Tab Groups",
+    "newTask": "New Tab Group", //"new" is a verb - it is used for a button at the bottom of the task overlay
+    "defaultTaskName": "Group %n", //this is the name used for newly-created tasks; %n is replaced with a number ("task 1", "task 2", etc)
+    "searchTabs": "Search tabs across all groups",
     "allTabs": "All",
-    "dropToCreateBucket": "Drop a tab here to start a new bucket",
+    "dropToCreateBucket": "Drop a tab here to create a new group",
     "taskDeleteWarning": {
-      "unsafeHTML": "Bucket deleted. <a>Undo?</a>"
+      "unsafeHTML": "Tab group closed. <a>Undo?</a>"
     },
     "tasksSearchTabs": "Search tabs",
-    "returnToTask": "Return to your previous bucket",
+    "returnToTask": "Return to your previous group",
     "taskDescriptionTwo": "%t and %t", //used to describe a task that has two tabs, %t is replaced with the tab titles
     "taskDescriptionThree": "%t, %t, and %n more", //used to describe a task that has three or more tabs
     /* find in page toolbar */
@@ -110,7 +110,7 @@
     /* Focus mode */
     "isFocusMode": "You're in Focus Mode.",
     "closeDialog": "OK", //used as a label for the button that closes the dialog
-    "focusModeExplanation1": "In focus mode, you can't create new tabs or switch buckets.",
+    "focusModeExplanation1": "In focus mode, you can't create new tabs or switch tab groups.",
     "focusModeExplanation2": "You can leave focus mode by unchecking \"focus mode\" in the view menu.",
     /* relative dates */
     "timeRangeJustNow": "Just now",
@@ -235,12 +235,15 @@
     },
     "settingsStartupOptions": "When xb starts: ",
     "settingsStartupCreateTask": "Re-open previous tabs",
-    "settingsStartupNewTaskandBackground": "Move previous tabs to a background tab group",
-    "settingsStartupNewTaskOnly": "Open a new blank tab group",
+    "settingsStartupNewTaskandBackground": "Move previous tabs to a background group",
+    "settingsStartupNewTaskOnly": "Open a new blank group",
     "settingsNewWindowOptions": "In new windows: ",
-    "settingsNewWindowCreateTask": "Create a new tab group",
-    "settingsNewWindowPickTask": "Show tab group list",
-    "settingsTabSleep": "Put tabs to sleep after:",
+    "settingsNewWindowCreateTask": "Create a new group",
+    "settingsNewWindowPickTask": "Show group list",
+    "settingsTabSleep": "Put inactive tabs to sleep after:",
+    "settingsTabSleepExplanation": "Inactive tabs release their memory until you click them again.",
+    "settingsAutoFileHeading": "Auto-File Rules",
+    "settingsAutoFileExplanation": "Automatically put matching links into a group.",
     "settingsTabSleep15": "15 minutes",
     "settingsTabSleep60": "1 hour",
     "settingsTabSleep240": "4 hours",
@@ -263,7 +266,7 @@
     "appMenuNewTab": "New Tab",
     "appMenuDuplicateTab": "Duplicate Tab",
     "appMenuNewPrivateTab": "New Private Tab",
-    "appMenuNewTask": "New Bucket",
+    "appMenuNewTask": "New Tab Group",
     "appMenuNewWindow": "New Window",
     "appMenuSavePageAs": "Save Page As",
     "appMenuPrint": "Print",
@@ -311,46 +314,56 @@
     "tabMenuUnpin": "Unpin Tab",
     "tabMenuMute": "Mute Tab",
     "tabMenuUnmute": "Unmute Tab",
-    "tabMenuMoveToBucket": "Move to Bucket",
-    "tabMenuOpenInContainer": "Reopen in Container",
+    "tabMenuMoveToBucket": "Move to Group",
+    "tabMenuOpenInContainer": "Move tab to another container",
     "tabMenuCopyLink": "Copy Link",
     "tabMenuCloseOthers": "Close Other Tabs",
     "tabMenuCloseBelow": "Close Tabs Below",
     "closeTab": "Close Tab",
-    "newTabInContainer": "New Tab in Container",
+    "reopenClosedTab": "Reopen Closed Tab",
+    "newTabInContainer": "New Tab in Container…",
     "manageContainers": "Manage Containers…",
-    "newContainerQuick": "New Container",
+    "newContainerQuick": "New Container…",
     "quickContainerName": "Account %n",
     "viewPageSource": "View Page Source",
     "noTabsMatch": "No tabs match",
-    "bucketMenuRename": "Rename Bucket",
+    "bucketMenuRename": "Rename Group",
     "bucketMenuDefaultContainer": "Default Container",
     "bucketMenuCollapse": "Collapse",
     "bucketMenuExpand": "Expand",
     "bucketMenuReloadAll": "Reload All Tabs",
     "bucketMenuMergeInto": "Merge into…",
-    "bucketMenuClose": "Close Bucket",
+    "bucketMenuClose": "Close Group",
     /* Containers */
-    "openInContainer": "Open Link in Container",
+    "openInContainer": "Open in container…",
     "containersPageTitle": "Containers",
-    "containersPageDescription": "Containers keep cookies, storage and logins separate. Tabs in different containers can be signed into different accounts on the same site.",
+    "containersPageDescription": "Separate cookies and logins, so you can be signed in to several accounts at once. Tabs in different containers stay logged in independently on the same site.",
+    "containersExplanationShort": "Separate cookies and logins, so you can be signed in to several accounts at once.",
+    "containersSwitchNote": "Moving to another container reloads the tab logged out.",
+    "containersActiveBadge": "Active",
+    "containersCurrentTab": "Current tab",
+    "containersSwitchHeading": "Switch container for this tab:",
     "containersNewContainer": "New Container",
     "containersEdit": "Edit",
     "containersDelete": "Delete",
-    "containersDeleteConfirm": "Confirm delete",
-    "containersDeleteWarning": "Deleting \"%s\" moves its tabs to Default and permanently removes its cookies and site data.",
+    "containersDeleteConfirm": "Delete Container",
+    "containersDeleteWarning": "Permanently delete \"%s\"? Its cookies, cache, and logins will be erased, and open tabs will move to Default.",
     "containersDefaultLabel": "Default",
     "containersMakeDefault": "Make default",
     "containersClearData": "Clear data",
-    "containersClearConfirm": "Confirm clear",
-    "containersClearWarning": "Signs out of \"%s\" and reloads its open tabs. Cookies, cache and site data for this container are erased.",
+    "containersClearConfirm": "Clear All Data",
+    "containersClearWarning": "Log out of all accounts in \"%s\"? This permanently erases cookies, cache, and logins for this container and reloads open tabs.",
     "containersDeleteDefaultTitle": "Delete Default Container",
-    "containersDeleteDefaultPrompt": "Move its tabs to another container and make that one the default. The Default container's cookies and site data are erased.",
-    "containersDeleteDefaultConfirm": "Delete & Make Default",
+    "containersDeleteDefaultPrompt": "Choose which container becomes the new Default. All open tabs from this container will move there, and this container's cookies and logins will be permanently erased.",
+    "containersDeleteDefaultConfirm": "Delete & Transfer Tabs",
     "containersNameLabel": "Name",
     "containersColorLabel": "Color",
     "containersIconLabel": "Icon",
-    "containersOpenTabs": "%n open tab(s)",
+    "containersOpenTabs": "%n open tabs",
+    "containersOpenTabsOne": "1 open tab",
+    "containersCreate": "Create",
+    "containersIntroHeading": "Welcome to Containers",
+    "containersIntroBody": "Separate cookies and logins, so you can be signed in to several accounts at once. Click New Container above to create your first container.",
     "containersSave": "Save",
     "containersCancel": "Cancel",
     "containersEditorNew": "New Container",
@@ -405,7 +418,7 @@
     "siteZoom": "Zoom",
     "siteClearData": "Clear cookies and site data",
     "siteClearDataConfirm": "Click again to log out of this site",
-    "showBookmarksTitle": "Bookmarks",
+    "showBookmarksTitle": "Bookmarks (Ctrl+Shift+B)",
     /* Update Notifications */
     "updateNotificationTitle": "A new version of xb is available",
     /* Autofill settings */
@@ -467,8 +480,8 @@
     "importSelectNone": "None",
     "importSelected": "%n of %t selected",
     "importIntoLabel": "Into",
-    "importTargetNew": "New bucket “%s”",
-    "importTargetPerWindow": "A new bucket per window",
+    "importTargetNew": "New group “%s”",
+    "importTargetPerWindow": "A new group per window",
     "importContainerLabel": "as",
     "importIncludeBookmarks": "+ bookmarks",
     "importButton": "Import %n tabs",

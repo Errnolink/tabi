@@ -93,6 +93,19 @@ function render () {
     row.style.setProperty('--i', index)
     listNode.appendChild(row)
   })
+
+  if (state.containers.length <= 1) {
+    var introCard = document.createElement('div')
+    introCard.className = 'containers-intro-card pebble-card'
+    var introTitle = document.createElement('h3')
+    introTitle.className = 'containers-intro-title'
+    introTitle.textContent = l('containersIntroHeading') || 'Welcome to Containers'
+    var introBody = document.createElement('p')
+    introBody.className = 'containers-intro-body'
+    introBody.textContent = l('containersIntroBody') || 'Separate cookies and logins, so you can be signed in to several accounts at once. Click New Container above to create your first container.'
+    introCard.append(introTitle, introBody)
+    listNode.appendChild(introCard)
+  }
 }
 
 function buildRow (container) {
@@ -108,6 +121,11 @@ function buildRow (container) {
   dot.className = 'container-dot color-pebble'
   dot.style.backgroundColor = container.color
   dot.style.setProperty('--container-color', container.color)
+  dot.style.cursor = 'pointer'
+  dot.title = l('containersEdit') || 'Edit name and color'
+  dot.addEventListener('click', function () {
+    showEditor({ id: container.id })
+  })
   row.appendChild(dot)
 
   var icon = document.createElement('i')
@@ -117,8 +135,12 @@ function buildRow (container) {
   var name = document.createElement('span')
   name.className = 'container-name'
   name.textContent = container.name
+  name.style.cursor = 'pointer'
+  name.title = l('containersEdit') || 'Edit name and color'
+  name.addEventListener('click', function () {
+    showEditor({ id: container.id })
+  })
   row.appendChild(name)
-
   if (isDefault) {
     var badge = document.createElement('span')
     badge.className = 'container-default-badge'
@@ -128,9 +150,9 @@ function buildRow (container) {
 
   var count = document.createElement('span')
   count.className = 'container-count'
-  count.textContent = l('containersOpenTabs').replace('%n', state.counts[container.id] || 0)
+  var numTabs = state.counts[container.id] || 0
+  count.textContent = numTabs === 1 ? (l('containersOpenTabsOne') || '1 open tab') : (l('containersOpenTabs') || '%n open tabs').replace('%n', numTabs)
   row.appendChild(count)
-
   if (!isDefault) {
     var makeDefaultButton = document.createElement('button')
     makeDefaultButton.className = 'container-default-btn btn-tonal'
@@ -171,13 +193,13 @@ function buildRow (container) {
   var editButton = document.createElement('button')
   editButton.className = 'container-edit-btn btn-tonal'
   editButton.textContent = l('containersEdit')
+  editButton.title = l('containersEdit') || 'Edit name, color, and icon'
   editButton.addEventListener('click', function () {
     state.armedDeleteId = null
     state.armedClearId = null
     showEditor({ id: container.id })
   })
   row.appendChild(editButton)
-
   if (isDefault) {
     if (state.containers.length >= 2) {
       var deleteDefaultButton = document.createElement('button')
@@ -212,10 +234,20 @@ function buildRow (container) {
     })
     row.appendChild(deleteButton)
   }
-
+  if (state.armedClearId === container.id) {
+    var clearWarn = document.createElement('div')
+    clearWarn.className = 'container-consequence-banner'
+    clearWarn.textContent = l('containersClearWarning').replace('%s', container.name)
+    row.appendChild(clearWarn)
+  }
+  if (state.armedDeleteId === container.id) {
+    var deleteWarn = document.createElement('div')
+    deleteWarn.className = 'container-consequence-banner'
+    deleteWarn.textContent = l('containersDeleteWarning').replace('%s', container.name)
+    row.appendChild(deleteWarn)
+  }
   return row
 }
-
 /* delete-default picker: choose which container inherits the tabs and the default role */
 
 function otherContainers () {
@@ -308,18 +340,31 @@ function showEditor (target) {
   hideDeletePicker()
   var container = selectedEditorContainer()
   var nameInput = document.getElementById('container-name-input')
-  nameInput.value = container ? container.name : ''
+
+  var defaultColor = state.colors.blue || '#37adff'
+  var prefilledName = ''
+  if (!container) {
+    var usedColors = new Set(state.containers.map(function (c) { return c.color }))
+    var palette = Object.values(state.colors)
+    defaultColor = palette.find(function (hex) { return !usedColors.has(hex) }) || palette[state.containers.length % palette.length]
+    var n = state.containers.length + 1
+    while (state.containers.some(function (c) { return c.name === (l('quickContainerName') || 'Account %n').replace('%n', n) })) {
+      n++
+    }
+    prefilledName = (l('quickContainerName') || 'Account %n').replace('%n', n)
+  }
+
+  nameInput.value = container ? container.name : prefilledName
 
   document.getElementById('editor-heading').textContent = container ? l('containersEditorEdit') : l('containersEditorNew')
-  document.getElementById('editor-save').textContent = l('containersSave')
+  document.getElementById('editor-save').textContent = container ? l('containersSave') : (l('containersCreate') || 'Create')
   document.getElementById('editor-cancel').textContent = l('containersCancel')
 
-  var currentColor = container ? container.color : (state.colors.blue || '#37adff')
+  var currentColor = container ? container.color : defaultColor
   updateEditorPreviewDot(currentColor)
 
   renderColorPicker(currentColor)
   renderIconPicker(container ? container.icon : 'circle')
-
   var editor = document.getElementById('container-editor')
   var listNode = document.getElementById('container-list')
 
@@ -336,8 +381,8 @@ function showEditor (target) {
 
   editor.hidden = false
   nameInput.focus()
+  nameInput.select()
 }
-
 function hideEditor () {
   state.editing = null
   document.getElementById('container-editor').hidden = true

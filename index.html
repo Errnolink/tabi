@@ -126,20 +126,20 @@
         <button
           id="reload-button"
           class="navbar-action-button i carbon:renew"
-          title="Reload"
+          title="Reload (Ctrl+R)"
           tabindex="-1"
         ></button>
       </div>
 
       <div id="tab-editor" class="omnibox">
-        <button id="site-info-button" class="omnibox-search-icon i carbon:search" tabindex="-1"></button>
+        <button id="site-info-button" class="omnibox-search-icon i carbon:search" title="View site information" tabindex="-1"></button>
         <button id="omnibox-container" hidden tabindex="-1"></button>
         <input id="tab-editor-input" spellcheck="false" />
         <div id="omnibox-actions">
           <button id="zoom-chip" hidden tabindex="-1"></button>
-          <button id="pip-button" class="omnibox-action i carbon:popup" hidden tabindex="-1"></button>
-          <button id="reader-button" class="omnibox-action i carbon:book" hidden tabindex="-1"></button>
-          <button id="copy-link-button" class="omnibox-action i carbon:link" tabindex="-1"></button>
+          <button id="pip-button" class="omnibox-action i carbon:popup" title="Picture in picture" hidden tabindex="-1"></button>
+          <button id="reader-button" class="omnibox-action i carbon:book" title="Toggle reader view (Ctrl+Shift+R)" hidden tabindex="-1"></button>
+          <button id="copy-link-button" class="omnibox-action i carbon:link" title="Copy link (Ctrl+Shift+C)" tabindex="-1"></button>
         </div>
         <span class="omnibox-progress" hidden></span>
       </div>
@@ -147,10 +147,11 @@
       <button
         id="bookmarks-button"
         class="navbar-action-button i carbon:bookmark"
+        title="Bookmarks (Ctrl+Shift+B)"
         tabindex="-1"
       ></button>
 
-      <button id="downloads-button" class="navbar-action-button" hidden tabindex="-1">
+      <button id="downloads-button" class="navbar-action-button" title="Downloads" hidden tabindex="-1">
         <svg viewBox="0 0 36 36" class="download-ring">
           <circle class="download-ring-track" cx="18" cy="18" r="15" />
           <circle class="download-ring-fill" cx="18" cy="18" r="15" pathLength="100" />
@@ -161,7 +162,7 @@
       <button
         id="overview-button"
         class="navbar-action-button i carbon:grid"
-        title="Overview"
+        title="Tab overview (Ctrl+Shift+A)"
         tabindex="-1"
       ></button>
 
@@ -185,17 +186,17 @@
 
     <aside id="sidebar">
       <div class="sidebar-head">
-        <span class="sidebar-wordmark">Buckets</span>
+        <span class="sidebar-wordmark" title="Tab groups organize related tabs together">Tab Groups</span>
         <button
           id="new-bucket-button"
           class="sidebar-button i carbon:folder-add"
-          title="New bucket"
+          title="New tab group (Ctrl+N)"
           tabindex="-1"
         ></button>
         <button
           id="sidebar-collapse-button"
           class="sidebar-button i carbon:open-panel-left"
-          title="Collapse sidebar"
+          title="Toggle sidebar"
           tabindex="-1"
         ></button>
       </div>
@@ -230,14 +231,14 @@
       <input id="findinpage-input" />
       <span id="findinpage-count" class="inline-text"></span>
       <div class="divider"></div>
-      <button id="findinpage-previous-match">
+      <button id="findinpage-previous-match" title="Previous match (Shift+Enter)">
         <i class="i carbon:chevron-up navbar-action-button"></i>
       </button>
-      <button id="findinpage-next-match">
+      <button id="findinpage-next-match" title="Next match (Enter)">
         <i class="i carbon:chevron-down navbar-action-button"></i>
       </button>
       <div class="divider"></div>
-      <button id="findinpage-end">
+      <button id="findinpage-end" title="Close (Esc)">
         <i class="i carbon:close navbar-action-button"></i>
       </button>
     </div>

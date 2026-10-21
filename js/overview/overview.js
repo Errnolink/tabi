@@ -104,7 +104,7 @@ const overview = {
     const icon = document.createElement('i')
     icon.className = 'i carbon:search'
     const search = document.createElement('input')
-    search.placeholder = l('searchTabs')
+    search.placeholder = (l('searchTabs') || 'Search tabs across all groups') + ' (Ctrl+Shift+A)'
     search.spellcheck = false
     searchWrap.append(icon, search)
 
@@ -114,6 +114,7 @@ const overview = {
     const newBucket = document.createElement('button')
     newBucket.className = 'ov-new-bucket'
     newBucket.innerHTML = '<i class="i carbon:folder-add"></i><span></span>'
+    newBucket.title = 'New tab group (Ctrl+N)'
     newBucket.querySelector('span').textContent = l('newTask')
     newBucket.addEventListener('click', function () {
       browserUI.addTask()
@@ -257,6 +258,7 @@ const overview = {
 
     const close = document.createElement('button')
     close.className = 'ov-close i carbon:close'
+    close.title = l('closeTab') || 'Close tab (Ctrl+W)'
     close.tabIndex = -1
     close.addEventListener('click', function (e) {
       e.stopPropagation()
@@ -412,7 +414,7 @@ const overview = {
       count.textContent = filtering ? visible.length + ' / ' + task.tabs.count() : task.tabs.count()
       const add = document.createElement('button')
       add.className = 'ov-add i carbon:add'
-      add.title = l('newTabAction')
+      add.title = 'New tab in group (Ctrl+T)'
       add.addEventListener('click', function () {
         browserUI.switchToTask(task.id)
         browserUI.addTab(tabs.add({ containerId: containers.containerForNewTab(task.id) }), { enterEditMode: false })

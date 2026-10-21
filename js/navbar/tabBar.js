@@ -45,7 +45,7 @@ function tabTitle (tab) {
 }
 
 function bucketName (task, index) {
-  return task.name || (l('defaultTaskName') || 'Bucket %n').replace('%n', index + 1)
+  return task.name || (l('defaultTaskName') || 'Group %n').replace('%n', index + 1)
 }
 
 const rows = new Map()
@@ -113,7 +113,7 @@ const tabBar = {
     const close = document.createElement('button')
     close.className = 'tab-close i carbon:close'
     close.tabIndex = -1
-    close.title = l('closeTab') || 'Close'
+    close.title = l('closeTab') || 'Close tab (Ctrl+W)'
     close.addEventListener('click', function (e) {
       e.stopPropagation()
       tabHoverCard.hide()
@@ -122,6 +122,7 @@ const tabBar = {
 
     const pin = document.createElement('span')
     pin.className = 'tab-pin i carbon:pin-filled'
+    pin.title = 'Pinned tab · Stays at the top of this group (Ctrl+Shift+K)'
 
     el.append(stripe, icon, permissions, title, audio, pin, close)
 
@@ -217,6 +218,7 @@ const tabBar = {
       row.audio.dataset.state = audioState
       row.audio.classList.toggle('carbon:volume-mute', audioState === 'muted')
       row.audio.classList.toggle('carbon:volume-up', audioState === 'playing')
+      row.audio.title = audioState === 'muted' ? 'Unmute tab (Ctrl+Shift+M)' : 'Mute tab (Ctrl+Shift+M)'
     }
 
     row.permissions.textContent = ''
@@ -234,11 +236,12 @@ const tabBar = {
 
     const head = document.createElement('div')
     head.className = 'bucket-head'
+    head.title = 'Tab group · Click to switch, double-click to rename'
 
     const chevron = document.createElement('button')
     chevron.className = 'bucket-chevron i carbon:chevron-down'
+    chevron.title = 'Collapse/expand group'
     chevron.tabIndex = -1
-
     const dot = document.createElement('span')
     dot.className = 'bucket-dot'
 
@@ -251,7 +254,7 @@ const tabBar = {
     const add = document.createElement('button')
     add.className = 'bucket-add i carbon:add'
     add.tabIndex = -1
-    add.title = l('newTabAction') || 'New tab'
+    add.title = 'New tab in group (Ctrl+T)'
 
     head.append(chevron, dot, name, count, add)
 

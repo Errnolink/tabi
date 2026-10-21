@@ -11,7 +11,7 @@ const navigationButtons = {
     navigationButtons.reloadButton.classList.toggle('carbon:close', loading)
     navigationButtons.reloadButton.classList.toggle('carbon:renew', !loading)
     navigationButtons.reloadButton.classList.toggle('is-loading', loading)
-    navigationButtons.reloadButton.title = loading ? 'Stop' : 'Reload'
+    navigationButtons.reloadButton.title = loading ? 'Stop (Esc)' : 'Reload (Ctrl+R)'
   },
   update: function () {
     const selectedId = tabs.getSelected()
@@ -40,7 +40,9 @@ const navigationButtons = {
   },
   initialize: function () {
     navigationButtons.container.hidden = false
-
+    navigationButtons.backButton.title = 'Back (Alt+Left)'
+    navigationButtons.forwardButton.title = 'Forward (Alt+Right)'
+    navigationButtons.reloadButton.title = 'Reload (Ctrl+R)'
     navigationButtons.backButton.addEventListener('click', function () {
       const selectedId = tabs.getSelected()
       if (selectedId) {

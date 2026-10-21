@@ -24,17 +24,19 @@ function createQuickContainer () {
 }
 
 function containerItems (current, onPick) {
-  return containers.list().map(container => ({
+  const items = containers.list().map(container => ({
     label: container.name,
     swatch: container.color,
     type: current !== undefined ? 'checkbox' : undefined,
     checked: current === container.id,
     click: () => onPick(container.id)
-  })).concat([
+  }))
+  items.push(
     { type: 'separator' },
-    { label: l('newContainerQuick'), icon: 'carbon:add', click: () => createQuickContainer().then(c => c && onPick(c.id)) },
+    { label: l('newContainerQuick'), icon: 'carbon:add', click: () => containers.promptCreate(null, c => c && onPick(c.id)) },
     { label: l('manageContainers'), icon: 'carbon:settings', click: openContainerManager }
-  ])
+  )
+  return items
 }
 
 function openContainerManager () {
@@ -83,6 +85,20 @@ function tabMenu (tabId) {
   }
 
   sections.push([
+    {
+      label: l('reopenClosedTab'),
+      icon: 'carbon:undo',
+      accelerator: 'Ctrl+Shift+T',
+      click: function () {
+        const currentTask = tasks.getSelected()
+        if (currentTask && currentTask.tabHistory && currentTask.tabHistory.length > 0) {
+          const restoredTab = currentTask.tabHistory.pop()
+          if (restoredTab) {
+            browserUI.addTab(tabs.add(restoredTab), { enterEditMode: false })
+          }
+        }
+      }
+    },
     { label: l('closeTab'), icon: 'carbon:close', accelerator: 'Ctrl+W', click: () => tabActions.close(tabId) },
     { label: l('tabMenuCloseOthers'), click: () => tabActions.closeOthers(tabId) },
     { label: l('tabMenuCloseBelow'), click: () => tabActions.closeBelow(tabId) }
@@ -137,6 +153,22 @@ function sidebarMenu () {
       { label: l('newTabAction'), icon: 'carbon:add', accelerator: 'Ctrl+T', click: () => tabActions.newTab() },
       { label: l('newTabInContainer'), icon: 'carbon:layers', submenu: containerItems(undefined, containerId => tabActions.newTab(null, containerId)) },
       { label: l('newTask'), icon: 'carbon:folder-add', accelerator: 'Ctrl+N', click: () => browserUI.addTask() }
+    ],
+    [
+      {
+        label: l('reopenClosedTab'),
+        icon: 'carbon:undo',
+        accelerator: 'Ctrl+Shift+T',
+        click: function () {
+          const currentTask = tasks.getSelected()
+          if (currentTask && currentTask.tabHistory && currentTask.tabHistory.length > 0) {
+            const restoredTab = currentTask.tabHistory.pop()
+            if (restoredTab) {
+              browserUI.addTab(tabs.add(restoredTab), { enterEditMode: false })
+            }
+          }
+        }
+      }
     ]
   ])
 }

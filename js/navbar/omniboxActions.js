@@ -244,6 +244,11 @@ const omniboxActions = {
   },
 
   initialize: function () {
+    siteButton.title = 'View site information'
+    zoomChip.title = 'Reset zoom (Ctrl+0)'
+    readerButton.title = 'Toggle reader view (Ctrl+Shift+R)'
+    pipButton.title = 'Picture in picture'
+    copyButton.title = 'Copy link (Ctrl+Shift+C)'
     siteButton.addEventListener('click', function (e) {
       e.stopPropagation()
       omniboxActions.showSiteInfo()
