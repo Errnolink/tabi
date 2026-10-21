@@ -2,7 +2,7 @@
   "name": "tabi",
   "productName": "Tabi",
   "author": "Errnolink",
-  "version": "1.35.7",
+  "version": "2.0.0",
   "description": "A minimal, privacy-focused browser with containers, tab groups, and a sea glass UI",
   "electronVersion": "43.8.3",
   "main": "main.build.js",
