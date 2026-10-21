@@ -5,6 +5,7 @@ const urlParser = require('util/urlParser.js')
 const keyboardNavigationHelper = require('util/keyboardNavigationHelper.js')
 const bookmarkStar = require('navbar/bookmarkStar.js')
 const contentBlockingToggle = require('navbar/contentBlockingToggle.js')
+const uiLayer = require('uiLayer.js')
 
 const tabEditor = {
   container: document.getElementById('tab-editor'),
@@ -41,7 +42,7 @@ const tabEditor = {
     bookmarkStar.update(tabId, tabEditor.star)
     contentBlockingToggle.update(tabId, tabEditor.contentBlockingToggle)
 
-    webviews.requestPlaceholder('editMode')
+    uiLayer.raise('editMode')
     document.body.classList.add('is-edit-mode')
 
     const tabData = tabs.get(tabId)
@@ -79,6 +80,9 @@ const tabEditor = {
     root.setProperty('--omnibox-bottom', Math.round(rect.bottom) + 'px')
   },
   hide: function () {
+    if (!tabEditor.isShown) {
+      return
+    }
     tabEditor.isShown = false
     tabEditor.container.classList.remove('is-editing')
 
@@ -86,7 +90,7 @@ const tabEditor = {
     searchbar.hide()
 
     document.body.classList.remove('is-edit-mode')
-    webviews.hidePlaceholder('editMode')
+    uiLayer.lower('editMode')
 
     tabEditor.updateDisplay()
   },

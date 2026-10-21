@@ -227,8 +227,7 @@ const glassMenu = {
       submenuTimer: null
     }
     if (session.raised) {
-      ipc.send('menu-raise')
-      document.body.classList.add('ui-raised')
+      require('uiLayer.js').raise('menu')
     }
     layer.hidden = false
     stack = []
@@ -388,8 +387,7 @@ const glassMenu = {
       if (!session) {
         layer.hidden = true
         if (ended.raised) {
-          document.body.classList.remove('ui-raised')
-          ipc.send('menu-lower')
+          require('uiLayer.js').lower('menu')
         }
       }
       if (ended.onClose) {
