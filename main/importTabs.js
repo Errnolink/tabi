@@ -175,7 +175,7 @@ and against local Chrome 155 / Edge 155 / Helium 155 profiles):
       var file = path.join(sessionsDir, files[i])
       var tmp = ''
       try {
-        tmp = path.join(app.getPath('temp'), 'xb-import-' + Date.now() + '-' + i + '.snss')
+        tmp = path.join(app.getPath('temp'), 'tabi-import-' + Date.now() + '-' + i + '.snss')
         try {
           fs.copyFileSync(file, tmp)
         } catch (copyErr) {

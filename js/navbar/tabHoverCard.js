@@ -93,7 +93,7 @@ function getTabHost (url) {
   try {
     const parsed = new URL(url)
     if (parsed.protocol === 'min:') {
-      return 'xb'
+      return 'tabi'
     }
     return parsed.hostname.replace(/^www\./, '')
   } catch (e) {

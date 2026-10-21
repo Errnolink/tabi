@@ -472,13 +472,13 @@ body.ov-dragging .ov-new-zone {
 
 /* page <-> card morph */
 
-::view-transition-group(xb-page) {
+::view-transition-group(tabi-page) {
   animation-duration: 460ms;
   animation-timing-function: var(--spring-spatial);
 }
 
-::view-transition-old(xb-page),
-::view-transition-new(xb-page) {
+::view-transition-old(tabi-page),
+::view-transition-new(tabi-page) {
   height: 100%;
   object-fit: cover;
   object-position: top center;

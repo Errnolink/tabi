@@ -1,4 +1,4 @@
-document.title = l('settingsPreferencesHeading') + ' | xb'
+document.title = l('settingsPreferencesHeading') + ' | Tabi'
 
 var banner = document.getElementById('restart-required-banner')
 var siteThemeCheckbox = document.getElementById('checkbox-site-theme')

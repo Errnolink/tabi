@@ -305,7 +305,7 @@ const tabBar = {
     })
 
     const sortable = Sortable.create(list, {
-      group: 'xb-tabs',
+      group: 'tabi-tabs',
       animation: 260,
       easing: 'cubic-bezier(0.2, 0.9, 0.25, 1.05)',
       forceFallback: true,

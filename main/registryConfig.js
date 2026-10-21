@@ -3,108 +3,108 @@ var regedit = require('regedit')
 var installPath = process.execPath
 
 var keysToCreate = [
-  'HKCU\\Software\\Classes\\Min',
-  'HKCU\\Software\\Classes\\Min\\Application',
-  'HKCU\\Software\\Classes\\Min\\DefaulIcon',
-  'HKCU\\Software\\Classes\\Min\\shell\\open\\command',
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\Capabilities\\FileAssociations',
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\Capabilities\\StartMenu',
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\Capabilities\\URLAssociations',
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\DefaultIcon',
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\InstallInfo',
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\shell\\open\\command'
+  'HKCU\\Software\\Classes\\Tabi',
+  'HKCU\\Software\\Classes\\Tabi\\Application',
+  'HKCU\\Software\\Classes\\Tabi\\DefaulIcon',
+  'HKCU\\Software\\Classes\\Tabi\\shell\\open\\command',
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\Capabilities\\FileAssociations',
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\Capabilities\\StartMenu',
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\Capabilities\\URLAssociations',
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\DefaultIcon',
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\InstallInfo',
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\shell\\open\\command'
 ]
 
 var registryConfig = {
   'HKCU\\Software\\RegisteredApplications': {
-    Min: {
-      value: 'Software\\Clients\\StartMenuInternet\\Min\\Capabilities',
+    Tabi: {
+      value: 'Software\\Clients\\StartMenuInternet\\Tabi\\Capabilities',
       type: 'REG_SZ'
     }
   },
-  'HKCU\\Software\\Classes\\Min': {
+  'HKCU\\Software\\Classes\\Tabi': {
     default: {
-      value: 'Min Browser Document',
+      value: 'Tabi Browser Document',
       type: 'REG_DEFAULT'
     }
   },
-  'HKCU\\Software\\Classes\\Min\\Application': {
+  'HKCU\\Software\\Classes\\Tabi\\Application': {
     ApplicationIcon: {
       value: installPath + ',0',
       type: 'REG_SZ'
     },
     ApplicationName: {
-      value: 'Min',
+      value: 'Tabi',
       type: 'REG_SZ'
     },
     AppUserModelId: {
-      value: 'Min',
+      value: 'Tabi',
       type: 'REG_SZ'
     }
   },
-  'HKCU\\Software\\Classes\\Min\\DefaulIcon': {
+  'HKCU\\Software\\Classes\\Tabi\\DefaulIcon': {
     ApplicationIcon: {
       value: installPath + ',0',
       type: 'REG_SZ'
     }
   },
-  'HKCU\\Software\\Classes\\Min\\shell\\open\\command': {
+  'HKCU\\Software\\Classes\\Tabi\\shell\\open\\command': {
     default: {
       value: '"' + installPath + '" "%1"',
       type: 'REG_DEFAULT'
     }
   },
   'HKCU\\Software\\Classes\\.htm\\OpenWithProgIds': {
-    Min: {
+    Tabi: {
       value: 'Empty',
       type: 'REG_SZ'
     }
   },
   'HKCU\\Software\\Classes\\.html\\OpenWithProgIds': {
-    Min: {
+    Tabi: {
       value: 'Empty',
       type: 'REG_SZ'
     }
   },
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\Capabilities\\FileAssociations': {
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\Capabilities\\FileAssociations': {
     '.htm': {
-      value: 'Min',
+      value: 'Tabi',
       type: 'REG_SZ'
     },
     '.html': {
-      value: 'Min',
+      value: 'Tabi',
       type: 'REG_SZ'
     }
   },
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\Capabilities\\StartMenu': {
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\Capabilities\\StartMenu': {
     StartMenuInternet: {
-      value: 'Min',
+      value: 'Tabi',
       type: 'REG_SZ'
     }
   },
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\Capabilities\\URLAssociations': {
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\Capabilities\\URLAssociations': {
     http: {
-      value: 'Min',
+      value: 'Tabi',
       type: 'REG_SZ'
     },
     https: {
-      value: 'Min',
+      value: 'Tabi',
       type: 'REG_SZ'
     }
   },
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\DefaultIcon': {
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\DefaultIcon': {
     default: {
       value: installPath + ',0',
       type: 'REG_DEFAULT'
     }
   },
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\InstallInfo': {
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\InstallInfo': {
     IconsVisible: {
       value: 1,
       type: 'REG_DWORD'
     }
   },
-  'HKCU\\Software\\Clients\\StartMenuInternet\\Min\\shell\\open\\command': {
+  'HKCU\\Software\\Clients\\StartMenuInternet\\Tabi\\shell\\open\\command': {
     default: {
       value: installPath,
       type: 'REG_DEFAULT'

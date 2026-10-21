@@ -1,6 +1,6 @@
 /* tab-import page. Sandbox page: all data goes through the postMessage preload bridge. */
 
-document.title = l('importPageTitle') + ' | xb'
+document.title = l('importPageTitle') + ' | Tabi'
 
 const BROWSER_HUES = { chrome: 217, edge: 190, helium: 38, brave: 14, vivaldi: 355, opera: 0, firefox: 24, zen: 268 }
 const GENERIC_PROFILE = /^(default|default \(release\)|profile \d+|your chrome|person \d+)$/i

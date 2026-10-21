@@ -1,9 +1,9 @@
 {
-  "name": "xb",
-  "productName": "xb",
-  "author": "PalmerAL",
+  "name": "tabi",
+  "productName": "Tabi",
+  "author": "Errnolink",
   "version": "1.35.7",
-  "description": "A fast, minimal browser that protects your privacy",
+  "description": "A minimal, privacy-focused browser with containers, tab groups, and a sea glass UI",
   "electronVersion": "43.4.1",
   "main": "main.build.js",
   "standard": {
@@ -82,7 +82,7 @@
     "buildPreload": "node ./scripts/buildPreload.js",
     "build": "npm run buildMain && npm run buildBrowser && npm run buildBrowserStyles && npm run buildPreload",
     "buildWindows": "npm run build && node ./scripts/buildWindows.js",
-    "buildXb": "npm run build && node ./scripts/buildXb.js",
+    "buildTabi": "npm run build && node ./scripts/buildTabi.js",
     "buildMacIntel": "npm run build && node ./scripts/buildMac.js --platform=x86",
     "buildMacArm": "npm run build && node ./scripts/buildMac.js --platform=arm64",
     "buildDebian": "npm run build && node ./scripts/buildDebian.js --platform=amd64",
@@ -95,6 +95,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/minbrowser/min.git"
+    "url": "https://github.com/Errnolink/tabi.git"
   }
 }

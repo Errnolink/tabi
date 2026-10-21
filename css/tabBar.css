@@ -1,4 +1,4 @@
-/* xb shell: one continuous glass surface (toolbar + sidebar) around an inset page card */
+/* Tabi shell: one continuous glass surface (toolbar + sidebar) around an inset page card */
 
 body {
   --chrome-tint: linear-gradient(165deg, rgb(246 243 252 / 0.72), rgb(238 236 246 / 0.82));

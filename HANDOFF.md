@@ -1,17 +1,19 @@
-# xb — HANDOFF
+# Tabi — HANDOFF
 
-X-focused browser fork for Chef. Min (28k LOC plain-JS Electron browser) reshaped so X browsing lives in named buckets that auto-file, collapse cold, and cost no RAM. Chef's main browsers (Chrome, Helium) go X-free.
+Tabi (formerly "xb") is Chef's general-purpose browser: a Min (28k LOC plain-JS Electron browser) fork with a sea glass UI, tab groups ("buckets") in a vertical sidebar, containers for multiple logins, a masonry tab overview, built-in content blocking, URL cleaning, DoH, a userscript manager and Chrome Web Store extensions. It began 2026-10-20 as an X-only browser and was refocused to general-purpose on 2026-10-21 (Chef's decision); X lives on as an optional paste-in auto-file rule set, not a default.
 
 ## Why this shape
 
+(2026-10-20 rationale for the original X-only "xb" shape; superseded for product scope by the 2026-10-21 refocus, still true for the build-lane choices.)
+
 - Research 2026-10-20: `Documents/research/x-tab-organizer/FINDINGS.md` (two waves). Extension lost to the containment framing; from-scratch lost to cost; Min fork won the build lane (plain JS, Apache-2.0, Tasks feature already has named groups + collapse + session restore).
 - WebKitGTK lightweight browsers are dead on Windows. Chromium forks rejected (cost).
-- X interaction is display-only by design: render the real x.com, no API, no scraping, no automation. Cleanup rides the Control Panel for Twitter userscript, not page hacks.
+- X interaction is display-only by design: render the real x.com, no API, no scraping, no automation. Cleanup rides the Control Panel for Twitter userscript, not page hacks. This still holds whenever X features are touched.
 
 ## Fork base
 
-- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it). Active branch `feat/seaglass` (from `feat/buckets`).
-- Installed runtime (Chef's daily xb): `C:\Users\Chef\Apps\xb\xb.exe`, shortcuts in the Start Menu, on the Desktop and `Apps\xb\xb.lnk`. Profile `%APPDATA%\xb`. Update: `npm run buildXb`, close xb, then `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\Public\xb-deploy.ps1 <repo>\dist\app\xb-v1.35.7-windows-x64.zip`. `-MigrateDevProfile` also replaces the daily profile with `%APPDATA%\xb-development` (minus caches; the old one is renamed `xb.old-<stamp>`). NEVER pass it again: Chef's daily tabs and logins now live in `%APPDATA%\xb`.
+- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it — the repo directory is still named `xb`; the product is Tabi). Active branch `feat/seaglass` (from `feat/buckets`).
+- Installed runtime (Chef's daily browser, installed back when it was xb): `C:\Users\Chef\Apps\xb\` holds the old `xb.exe`; the next deployed zip contains `Tabi.exe` in the same folder (repoint the Start Menu/Desktop shortcuts to `Apps\xb\Tabi.exe` after the first Tabi deploy, or relocate the folder then). Profile `%APPDATA%\xb` is unchanged and must stay unchanged — it is pinned in `main/main.js` (`app.setPath('userData', …)`), dev mode appends `-development`. Update: `npm run buildTabi`, close Tabi, then `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\Public\xb-deploy.ps1 <repo>\dist\app\tabi-v1.35.7-windows-x64.zip` (the deploy script on disk is still named `xb-deploy.ps1`; rename it whenever convenient). `-MigrateDevProfile` also replaces the daily profile with `%APPDATA%\xb-development` (minus caches; the old one is renamed `xb.old-<stamp>`). NEVER pass it again: Chef's daily tabs and logins now live in `%APPDATA%\xb`.
 - 2026-10-21 16:14: runtime rebuilt from `feat/seaglass` (`17e46ea`), dev profile migrated (119 tabs incl. Chrome 83 and Helium · Errno 20 imports; X login in the Alt container verified live). The two profiles diverge from here: the dev profile is for testing only.
 - Upstream: maintenance mode since 2025-10 but Chromium bumps continue (v1.35.7 = Electron 43.4.1). Engine updates = bump `electronVersion` in package.json; do this monthly-ish.
 
@@ -31,7 +33,7 @@ X-focused browser fork for Chef. Min (28k LOC plain-JS Electron browser) reshape
 npm install        # downloads Electron 43.4.1 binary
 npm run build      # browserify bundles js/ -> main.build.js etc.
 npm start          # dev run (alt+ctrl+r reloads the UI)
-npm run buildXb    # packages dist/app/xb-v<version>-windows-x64.zip (x64 portable zip, LICENSE included)
+npm run buildTabi  # packages dist/app/tabi-v<version>-windows-x64.zip (x64 portable zip, Tabi.exe, LICENSE included)
 ```
 
 ## Plan (ordered)
@@ -130,3 +132,4 @@ Also in round 1: page menu Reload/Save/Print/Copy link/View source (`575df2a`). 
 - 2026-10-20: auto-file data loss, two causes, both fixed in `26e00e6`.
   1. `taskForRule` returned `tasks.add()` (an id) instead of the task, so the first tab filed into a NEW bucket threw after being destroyed in its source. Present since `59b7164`, so the packaged build has it.
   2. electron-chrome-extensions calls the `removeTab` impl for every tab it stops tracking, including xb's own view destroys, so the extension close-IPC closed moved tabs. Fix: `extensionsReleasingViews` WeakSet. Its `selectTab` impl also echoed xb's own notifications back into a UI tab switch; fixed with the `extensionsNotifying` guard.
+- 2026-10-21: refocus xb → Tabi (Chef decision): same engine lane, general-purpose product. package.json `name` `tabi` / `productName` `Tabi` (exe `Tabi.exe`, version stays 1.35.7, repository → Errnolink/tabi); `buildXb` → `buildTabi` (`scripts/buildTabi.js`, zip `tabi-v<version>-windows-x64.zip`). CRITICAL: `%APPDATA%\xb` (+ `-development` in dev) is pinned via `app.setPath('userData', path.join(app.getPath('appData'), 'xb'))` at the top of `main/main.js`, BEFORE `crashReporter.start` and before the dev-mode append, so Chef's tabs and logins survive the rename — do not "fix" that path to `tabi`. First run opens an empty new tab (homepage overlay), not x.com (`js/sessionRestore.js`). Auto-file ships with NO rules and writes `autofile.json` only when the file is missing/unparseable, never on unchanged boots (`js/autoFile.js`); the engine is host-agnostic now; the old X rule set (Home/Search/Reading) is retired to git history as a paste-in preset — no rules editor UI exists, none was built. X-only defaults removed (new-tab X shortcut, Min→Tabi in registry/installer metadata, `min:` host label, drag MIME type, view-transition name, about/version strings, en-US + page copy); `urlCleaning.js` still exempts x.com/twitter.com/t.co from param stripping (protective, kept). README rewritten, AGENTS retitled "Tabi (Min fork)". Existing `%APPDATA%` profiles are untouched.

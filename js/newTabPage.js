@@ -13,8 +13,7 @@ const DEFAULT_SHORTCUTS = [
   { title: 'Wikipedia', url: 'https://www.wikipedia.org' },
   { title: 'GitHub', url: 'https://github.com' },
   { title: 'Gmail', url: 'https://mail.google.com' },
-  { title: 'Reddit', url: 'https://www.reddit.com' },
-  { title: 'X', url: 'https://x.com' }
+  { title: 'Reddit', url: 'https://www.reddit.com' }
 ]
 
 const WALLPAPER_PRESETS = [

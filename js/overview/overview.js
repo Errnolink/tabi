@@ -268,7 +268,7 @@ const overview = {
     card.append(thumb, meta, close)
     card.addEventListener('click', () => overview.hide(tab.id))
     card.addEventListener('dragstart', function (e) {
-      e.dataTransfer.setData('application/x-xb-tab', tab.id)
+      e.dataTransfer.setData('application/x-tabi-tab', tab.id)
       e.dataTransfer.effectAllowed = 'move'
       card.classList.add('dragging')
       document.body.classList.add('ov-dragging')
@@ -284,7 +284,7 @@ const overview = {
 
   makeDropTarget: function (el, taskId) {
     el.addEventListener('dragover', function (e) {
-      if (e.dataTransfer.types.includes('application/x-xb-tab')) {
+      if (e.dataTransfer.types.includes('application/x-tabi-tab')) {
         e.preventDefault()
         el.classList.add('drop-over')
       }
@@ -295,7 +295,7 @@ const overview = {
       }
     })
     el.addEventListener('drop', function (e) {
-      const tabId = e.dataTransfer.getData('application/x-xb-tab')
+      const tabId = e.dataTransfer.getData('application/x-tabi-tab')
       el.classList.remove('drop-over')
       if (!tabId) {
         return
@@ -591,14 +591,14 @@ const overview = {
         if (morph) {
           placeholder.style.viewTransitionName = ''
           card.style.contentVisibility = 'visible'
-          card.querySelector('.ov-thumb').style.viewTransitionName = 'xb-page'
+          card.querySelector('.ov-thumb').style.viewTransitionName = 'tabi-page'
         }
       }
       document.body.classList.add('ov-settled')
     }
 
     if (morph) {
-      placeholder.style.viewTransitionName = 'xb-page'
+      placeholder.style.viewTransitionName = 'tabi-page'
       const transition = document.startViewTransition(reveal)
       await transition.finished.catch(() => {})
       overview.el.querySelectorAll('.ov-thumb').forEach(t => { t.style.viewTransitionName = '' })
@@ -644,12 +644,12 @@ const overview = {
       if (morph) {
         placeholder.src = thumbImg.src
         placeholder.hidden = false
-        placeholder.style.viewTransitionName = 'xb-page'
+        placeholder.style.viewTransitionName = 'tabi-page'
       }
     }
 
     if (morph) {
-      thumb.style.viewTransitionName = 'xb-page'
+      thumb.style.viewTransitionName = 'tabi-page'
       const transition = document.startViewTransition(conclude)
       await transition.finished.catch(() => {})
       placeholder.style.viewTransitionName = ''

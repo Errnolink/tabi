@@ -5,35 +5,24 @@ var tabActions = require('tabActions.js')
 
 var configPath = window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\autofile.json' : '/autofile.json')
 
-var defaultRules = [
-  {
-    name: 'Home',
-    patterns: ['x.com/home', 'x.com/notifications', 'x.com/messages', 'x.com/i/']
-  },
-  {
-    name: 'Search',
-    patterns: ['x.com/search', 'x.com/explore']
-  },
-  {
-    name: 'Reading',
-    patterns: ['x.com/', 'twitter.com/']
-  }
-]
-
 var rules = []
 var armed = false
 var pendingMoves = {}
 var youngTabs = {}
 
+function saveRules (nextRules) {
+  fs.writeFileSync(configPath, JSON.stringify({ rules: nextRules }, null, 2))
+}
+
 function loadRules () {
   try {
     var data = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-    if (data && Array.isArray(data.rules) && data.rules.length > 0) {
+    if (data && Array.isArray(data.rules)) {
       return data.rules
     }
   } catch (e) { }
-  fs.writeFileSync(configPath, JSON.stringify({ rules: defaultRules }, null, 2))
-  return defaultRules
+  saveRules([])
+  return []
 }
 
 function ruleFor (url) {
@@ -41,9 +30,6 @@ function ruleFor (url) {
     return null
   }
   var u = url.toLowerCase()
-  if (u.indexOf('https://x.com') !== 0 && u.indexOf('https://twitter.com') !== 0 && u.indexOf('http://x.com') !== 0) {
-    return null
-  }
   for (var i = 0; i < rules.length; i++) {
     var patterns = rules[i].patterns
     for (var j = 0; j < patterns.length; j++) {

@@ -20,6 +20,8 @@ const {
   WebContentsView
 } = electron
 
+app.setPath('userData', path.join(app.getPath('appData'), 'xb'))
+
 crashReporter.start({
   submitURL: 'https://minbrowser.org/',
   uploadToServer: false,
@@ -27,7 +29,7 @@ crashReporter.start({
 })
 
 if (process.argv.some(arg => arg === '-v' || arg === '--version')) {
-  console.log('Min: ' + app.getVersion())
+  console.log('Tabi: ' + app.getVersion())
   console.log('Chromium: ' + process.versions.chrome)
   process.exit()
 }

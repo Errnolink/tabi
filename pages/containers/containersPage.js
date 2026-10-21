@@ -1,6 +1,6 @@
 /* container manager page. Sandbox page: all data goes through the postMessage preload bridge. */
 
-document.title = l('containersPageTitle') + ' | xb'
+document.title = l('containersPageTitle') + ' | Tabi'
 
 /* Firefox container icon names mapped to Min's carbon icon font */
 const CARBON_ICONS = {

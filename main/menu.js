@@ -473,7 +473,7 @@ function buildAppMenu (options = {}) {
           label: l('appMenuAbout').replace('%n', app.name),
           click: function (item, window) {
             var info = [
-              'xb v' + app.getVersion(),
+              'Tabi v' + app.getVersion(),
               'Chromium v' + process.versions.chrome
             ]
             electron.dialog.showMessageBox({
