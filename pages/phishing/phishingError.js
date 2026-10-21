@@ -1,6 +1,20 @@
 var ignoreButton = document.getElementById('ignore-button')
 var continueButton = document.getElementById('continue-button')
 
+var listLabels = {
+  urlhaus: 'URLhaus',
+  phishing: 'phishing-filter'
+}
+
+try {
+  var listId = new URLSearchParams(window.location.search).get('list')
+  if (listLabels[listId]) {
+    var sourceEl = document.getElementById('phishing-source')
+    sourceEl.textContent = l('phishingErrorSource').replace('%s', listLabels[listId])
+    sourceEl.hidden = false
+  }
+} catch (e) { }
+
 ignoreButton.addEventListener('click', function () {
   // add the domain to the exception list
 

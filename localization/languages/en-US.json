@@ -142,6 +142,7 @@
     /* pages/phishing/index.html */
     "phishingErrorTitle": "This site could harm you.",
     "phishingErrorMessage": "This website could be trying to steal your personal information, such as passwords or banking information.",
+    "phishingErrorSource": "Detected by: %s",
     "phishingErrorVisitAnyway": "Visit site anyway",
     "phishingErrorLeave": "Leave this site",
     /* multiple instances alert */
