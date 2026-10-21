@@ -67,6 +67,11 @@ ipc.handle('menu-extension-items', function (e, data) {
 })
 
 let appMenu = null
+
+function resetAppMenuCache () {
+  appMenu = null
+}
+
 ipc.handle('menu-app-items', function () {
   nativeMenuItems.clear()
   if (!appMenu) {

@@ -100,6 +100,14 @@ function buildAppMenu (options = {}) {
     }
   }
 
+  var updateAction = {
+    label: getUpdateMenuItemLabel(),
+    visible: updateState.supported,
+    click: function (item, window) {
+      handleUpdateMenuItem(window)
+    }
+  }
+
   var containersAction = {
     label: l('appMenuContainers'),
     click: function (item, window) {
@@ -149,6 +157,8 @@ function buildAppMenu (options = {}) {
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [userscriptsAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
+    ...(options.secondary ? [updateAction] : []),
+    ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(options.secondary ? [preferencesAction] : []),
     ...(options.secondary ? [{ type: 'separator' }] : []),
     ...(process.platform === 'darwin'
@@ -164,6 +174,7 @@ function buildAppMenu (options = {}) {
               type: 'separator'
             },
             preferencesAction,
+            updateAction,
             containersAction,
             importAction,
             extensionsAction,
@@ -483,7 +494,8 @@ function buildAppMenu (options = {}) {
               buttons: [l('closeDialog')]
             })
           }
-        }] : [])
+        }] : []),
+        ...(process.platform !== 'darwin' ? [{ type: 'separator' }, updateAction] : [])
       ]
     },
     ...(options.secondary && process.platform !== 'darwin' ? [{ type: 'separator' }] : []),

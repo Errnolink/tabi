@@ -17,7 +17,14 @@ Honest limitations:
 - No Google Safe Browsing; malicious-site blocking uses downloaded blocklists instead
 - Extension support is partial (not every Chrome API is implemented)
 - No sync; settings and data live locally
-- Updates are manual: the engine is bumped by editing `electronVersion` in `package.json`
+- Engine updates (Electron/Chromium) are bumped manually by editing `electronVersion` in `package.json`; the app itself updates automatically, see below
+
+## Updating
+
+- Each release bumps the **patch** version in `package.json`; the app checks GitHub Releases and updates itself.
+- Only the NSIS-installed build (`Tabi-Setup-<version>.exe`, per-user, installs to `%LOCALAPPDATA%\Programs\Tabi`) auto-updates. The portable zip never phones home — replace the folder to update it.
+- `npm run releaseTabi` builds the installer, `latest.yml`, the `.blockmap` and the portable zip into `dist/app/`, then prints the exact `gh release create` command. Append `--publish` (`npm run releaseTabi -- --publish`) to execute it. It fails if `v<version>` already exists as a tag or release — bump the version first.
+- First install of the unsigned installer shows a SmartScreen "Windows protected your PC" warning: choose **More info → Run anyway**.
 
 ## Build
 

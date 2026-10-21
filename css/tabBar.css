@@ -156,7 +156,25 @@ body.is-resizing-sidebar #toolbar-navigation-buttons {
 }
 
 #menu-button {
+  position: relative;
   margin-right: 6px;
+}
+
+#menu-button.update-ready::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2fa574;
+  box-shadow: 0 0 0 2px rgb(250 248 254 / 0.85);
+}
+
+body.dark-mode #menu-button.update-ready::after {
+  background: #4fd3a0;
+  box-shadow: 0 0 0 2px rgb(28 26 41 / 0.85);
 }
 
 #switch-task-button {

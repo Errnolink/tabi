@@ -65,7 +65,10 @@ module.exports = function (platform, extraOptions) {
     })
   }
 
+  const winTargets = (extraOptions && extraOptions.nsis) ? ['dir', 'nsis'] : ['dir']
+
   const options = {
+    appId: 'com.errnolink.tabi',
     files: [
       '**/*',
       '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}',
@@ -98,8 +101,19 @@ module.exports = function (platform, extraOptions) {
       ]
     },
     win: {
-      target: 'dir',
+      target: winTargets,
       icon: 'icons/icon256.ico'
+    },
+    nsis: {
+      oneClick: true,
+      perMachine: false,
+      allowElevation: false,
+      runAfterFinish: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
+      shortcutName: 'Tabi',
+      deleteAppDataOnUninstall: false,
+      artifactName: 'Tabi-Setup-${version}.exe'
     },
     mac: {
       icon: 'icons/icon.icns',
@@ -140,7 +154,9 @@ module.exports = function (platform, extraOptions) {
     ],
     asar: false,
     afterPack: afterPack,
-    publish: null,
+    publish: (extraOptions && extraOptions.nsis)
+      ? { provider: 'github', owner: 'Errnolink', repo: 'tabi', releaseType: 'release' }
+      : null,
     /*
     Rebuilding native modules that use nan is currently broken for Electron 32+: https://github.com/nodejs/nan/issues/973
     This breaks PDFJS -> canvas, which causes packaging to fail.
@@ -152,7 +168,7 @@ module.exports = function (platform, extraOptions) {
 
   const target = (function () {
     if (platform == 'win32') {
-      return Platform.WINDOWS.createTarget(['dir'], extraOptions.arch)
+      return Platform.WINDOWS.createTarget(winTargets, extraOptions.arch)
     } else if (platform == 'linux') {
       return Platform.LINUX.createTarget(['dir'], extraOptions.arch)
     } else if (platform == 'mac') {
@@ -162,7 +178,9 @@ module.exports = function (platform, extraOptions) {
 
   return builder.build({
     targets: target,
-    config: options
+    config: options,
+    // releases are published by scripts/releaseTabi.js, never by electron-builder
+    publish: 'never'
   }).then(() => {
     return Promise.resolve(toPath(platform, extraOptions.arch))
   })

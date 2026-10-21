@@ -268,7 +268,7 @@
     "userscriptInstallFetchError": "Couldn't download the userscript. Check the address and try again.",
     "userscriptInstallHeaderError": "This file doesn't look like a userscript — the ==UserScript== header is missing.",
     "settingsUserAgentToggle": "Use a custom user agent",
-    "settingsUpdateNotificationsToggle": "Automatically check for updates",
+
     "settingsStartupOptions": "When Tabi starts: ",
     "settingsStartupCreateTask": "Re-open previous tabs",
     "settingsStartupNewTaskandBackground": "Move previous tabs to a background group",
@@ -334,6 +334,7 @@
     "appMenuHelp": "Help",
     "appMenuAbout": "About %n", //%n is replaced with app name
     "appMenuPreferences": "Preferences",
+    "appMenuCheckForUpdates": "Check for Updates…",
     "appMenuContainers": "Containers",
     "appMenuExtensions": "Extensions",
     "appMenuServices": "Services",
@@ -455,8 +456,12 @@
     "siteClearData": "Clear cookies and site data",
     "siteClearDataConfirm": "Click again to log out of this site",
     "showBookmarksTitle": "Bookmarks (Ctrl+Shift+B)",
-    /* Update Notifications */
-    "updateNotificationTitle": "A new version of Tabi is available",
+    /* Auto-update */
+    "updateRestartToInstall": "Restart to Update to %s", //%s is the new version
+    "updateChecking": "Checking for updates…",
+    "updateUpToDate": "Tabi is up to date.",
+    "updateDownloading": "Downloading update %s…", //%s is the new version
+    "updateNotAvailableHere": "Automatic updates only work in the installed version of Tabi.",
     /* Autofill settings */
     "settingsPasswordAutoFillHeadline": "Password Auto-Fill",
     "settingsSelectPasswordManager": "Choose one of the supported password managers:",

@@ -1,14 +1,19 @@
 const fs = require('fs')
+const path = require('path')
 const archiver = require('archiver')
 const builder = require('electron-builder')
 const Arch = builder.Arch
 const createPackage = require('./createPackage.js')
 const packageFile = require('./../package.json')
 
-async function build () {
-  const packagePath = await createPackage('win32', { arch: Arch.x64 })
-
+async function zipPackage (packagePath) {
   fs.copyFileSync('LICENSE.txt', packagePath + '/LICENSE')
+
+  // the portable zip must never carry an updater config, so the packaged app never checks for updates
+  const appUpdateConfig = path.join(packagePath, 'resources', 'app-update.yml')
+  if (fs.existsSync(appUpdateConfig)) {
+    fs.unlinkSync(appUpdateConfig)
+  }
 
   if (!fs.existsSync('dist/app')) {
     fs.mkdirSync('dist/app')
@@ -23,10 +28,20 @@ async function build () {
   archive.pipe(output)
   await archive.finalize()
 
-  console.log('built dist/app/' + outName + '.zip')
+  return 'dist/app/' + outName + '.zip'
 }
 
-build().catch(function (e) {
-  console.error(e)
-  process.exit(1)
-})
+async function build () {
+  const packagePath = await createPackage('win32', { arch: Arch.x64 })
+  const zipPath = await zipPackage(packagePath)
+  console.log('built ' + zipPath)
+}
+
+if (require.main === module) {
+  build().catch(function (e) {
+    console.error(e)
+    process.exit(1)
+  })
+}
+
+module.exports = { build, zipPackage }
