@@ -100,8 +100,9 @@
     /* task overlay */
     "viewTasks": "View Tab Groups",
     "newTask": "New Tab Group", //"new" is a verb - it is used for a button at the bottom of the task overlay
+    "newTabInGroup": "New tab in group (%s)", //%s is replaced with the keyboard shortcut
     "defaultTaskName": "Group %n", //this is the name used for newly-created tasks; %n is replaced with a number ("task 1", "task 2", etc)
-    "searchTabs": "Search tabs across all groups",
+    "searchTabs": "Search tabs across all groups (%s)", //%s is replaced with the keyboard shortcut; also used as the overview search placeholder
     "allTabs": "All",
     "dropToCreateBucket": "Drop a tab here to create a new group",
     "taskDeleteWarning": {
@@ -370,6 +371,9 @@
     "tabMenuUnpin": "Unpin Tab",
     "tabMenuMute": "Mute Tab",
     "tabMenuUnmute": "Unmute Tab",
+    "tabTooltipPinned": "Pinned tab · Stays at the top of this group (%s)", //%s is replaced with the keyboard shortcut
+    "tabTooltipMute": "Mute tab (%s)",
+    "tabTooltipUnmute": "Unmute tab (%s)",
     "tabMenuMoveToBucket": "Move to Group",
     "tabMenuOpenInContainer": "Move tab to another container",
     "tabMenuCopyLink": "Copy Link",
@@ -387,6 +391,8 @@
     "bucketMenuDefaultContainer": "Default Container",
     "bucketMenuCollapse": "Collapse",
     "bucketMenuExpand": "Expand",
+    "bucketTooltip": "Tab group · Click to switch, double-click to rename",
+    "bucketTooltipCollapse": "Collapse/expand group",
     "bucketMenuReloadAll": "Reload All Tabs",
     "bucketMenuMergeInto": "Merge into…",
     "bucketMenuClose": "Close Group",

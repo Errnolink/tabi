@@ -288,7 +288,12 @@ body.is-resizing-sidebar * {
   right: 8px;
   height: 36px;
   border-radius: 13px 15px 13px 14px / 14px 13px 15px 13px;
-  background: hsl(var(--bucket-hue, 278) var(--indicator-sat) var(--indicator-light) / var(--indicator-alpha));
+  /* --site-theme-bg (set by tabColor) tints the pebble; falls back to the bucket hue alone */
+  background-color: color-mix(
+    in srgb,
+    var(--site-theme-bg, hsl(var(--bucket-hue, 278) var(--indicator-sat) var(--indicator-light) / var(--indicator-alpha))) 22%,
+    hsl(var(--bucket-hue, 278) var(--indicator-sat) var(--indicator-light) / var(--indicator-alpha))
+  );
   box-shadow:
     inset 0 1px 0 var(--pill-rim),
     inset 0 0 0 1px rgb(255 255 255 / 0.05),

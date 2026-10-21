@@ -9,10 +9,42 @@ const permissionRequests = require('navbar/permissionRequests.js')
 const containers = require('containers.js')
 const shellLayout = require('shellLayout.js')
 const tabHoverCard = require('navbar/tabHoverCard.js')
+const keyMapModule = require('util/keyMap.js')
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 function cssVar (name) {
   return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+function shortcutLabel (action) {
+  const binding = keyMapModule.userKeyMap(settings.get('keyMap'))[action]
+  const combo = Array.isArray(binding) ? binding[0] : binding
+  if (!combo || typeof combo !== 'string') {
+    return ''
+  }
+  return combo.split('+').map(function (part) {
+    if (part === 'mod') {
+      return window.platformType === 'mac' ? 'Cmd' : 'Ctrl'
+    }
+    if (part === 'shift') {
+      return 'Shift'
+    }
+    if (part === 'option' || part === 'alt') {
+      return window.platformType === 'mac' ? 'Option' : 'Alt'
+    }
+    if (part === 'super') {
+      return window.platformType === 'mac' ? 'Cmd' : 'Win'
+    }
+    return part.charAt(0).toUpperCase() + part.slice(1)
+  }).join('+')
+}
+
+function withShortcut (label, action) {
+  const keys = shortcutLabel(action)
+  if (!keys) {
+    return label.replace(/\s*\(%s\)/, '')
+  }
+  return label.replace('%s', keys)
 }
 
 const motion = {
@@ -41,13 +73,13 @@ function isNewTabUrl (url) {
 
 function tabTitle (tab) {
   if (isNewTabUrl(tab.url)) {
-    return l('newTabLabel') || 'New Tab'
+    return l('newTabLabel')
   }
-  return (tab.title || (tab.loaded ? tab.url : '') || tab.url || l('newTabLabel') || 'New Tab').substring(0, 300)
+  return (tab.title || (tab.loaded ? tab.url : '') || tab.url || l('newTabLabel')).substring(0, 300)
 }
 
 function bucketName (task, index) {
-  return task.name || (l('defaultTaskName') || 'Group %n').replace('%n', index + 1)
+  return task.name || l('defaultTaskName').replace('%n', index + 1)
 }
 
 const rows = new Map()
@@ -149,7 +181,7 @@ const tabBar = {
     const close = document.createElement('button')
     close.className = 'tab-close i carbon:close'
     close.tabIndex = -1
-    close.title = l('closeTab') || 'Close tab (Ctrl+W)'
+    close.title = l('closeTab')
     close.addEventListener('click', function (e) {
       e.stopPropagation()
       tabHoverCard.hide()
@@ -158,7 +190,7 @@ const tabBar = {
 
     const pin = document.createElement('span')
     pin.className = 'tab-pin i carbon:pin-filled'
-    pin.title = 'Pinned tab · Stays at the top of this group (Ctrl+Shift+K)'
+    pin.title = withShortcut(l('tabTooltipPinned'), 'togglePinTab')
 
     el.append(stripe, icon, permissions, title, audio, pin, close)
 
@@ -253,7 +285,7 @@ const tabBar = {
       row.audio.dataset.state = audioState
       row.audio.classList.toggle('carbon:volume-mute', audioState === 'muted')
       row.audio.classList.toggle('carbon:volume-up', audioState === 'playing')
-      row.audio.title = audioState === 'muted' ? 'Unmute tab (Ctrl+Shift+M)' : 'Mute tab (Ctrl+Shift+M)'
+      row.audio.title = audioState === 'muted' ? withShortcut(l('tabTooltipUnmute'), 'toggleTabAudio') : withShortcut(l('tabTooltipMute'), 'toggleTabAudio')
     }
 
     row.permissions.textContent = ''
@@ -271,11 +303,11 @@ const tabBar = {
 
     const head = document.createElement('div')
     head.className = 'bucket-head'
-    head.title = 'Tab group · Click to switch, double-click to rename'
+    head.title = l('bucketTooltip')
 
     const chevron = document.createElement('button')
     chevron.className = 'bucket-chevron i carbon:chevron-down'
-    chevron.title = 'Collapse/expand group'
+    chevron.title = l('bucketTooltipCollapse')
     chevron.tabIndex = -1
     const dot = document.createElement('span')
     dot.className = 'bucket-dot'
@@ -289,7 +321,7 @@ const tabBar = {
     const add = document.createElement('button')
     add.className = 'bucket-add i carbon:add'
     add.tabIndex = -1
-    add.title = 'New tab in group (Ctrl+T)'
+    add.title = withShortcut(l('newTabInGroup'), 'addTab')
 
     head.append(chevron, dot, name, count, add)
 

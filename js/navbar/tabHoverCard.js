@@ -4,8 +4,8 @@ const containers = require('containers.js')
 const shellLayout = require('shellLayout.js')
 const webviews = require('webviews.js')
 const discardInactive = require('discardInactive.js')
+const thumbnailStore = require('thumbnailStore.js')
 
-const thumbCache = new Map()
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 const STALE_THUMB_AGE = 10000
 
@@ -86,20 +86,11 @@ function cancelWarmUp (tabId) {
   }
 }
 
-function getThumbPath (tabId) {
-  const userData = (window.globalArgs && window.globalArgs['user-data-path']) || ''
-  if (!userData) {
-    return ''
-  }
-  const sep = window.platformType === 'windows' ? '\\' : '/'
-  return userData + sep + 'thumbnails' + sep + tabId + '.jpg'
-}
-
 function requestSelectedThumbRefresh (tabId) {
   if (tabs.getSelected() !== tabId) {
     return
   }
-  const filePath = getThumbPath(tabId)
+  const filePath = thumbnailStore.getPath(tabId)
   if (!filePath || !window.fs || !window.fs.promises) {
     return
   }
@@ -112,41 +103,6 @@ function requestSelectedThumbRefresh (tabId) {
       webviews.captureTab(tabId)
     }
   })
-}
-
-function fetchThumb (tab) {
-  const cached = thumbCache.get(tab.id)
-  if (cached) {
-    if (cached.version === tab.thumbVersion) {
-      return Promise.resolve(cached.url)
-    }
-    URL.revokeObjectURL(cached.url)
-    thumbCache.delete(tab.id)
-  }
-  const filePath = getThumbPath(tab.id)
-  if (!filePath || !window.fs || !window.fs.promises) {
-    return Promise.resolve(null)
-  }
-  const expectedVersion = tab.thumbVersion
-  return window.fs.promises.readFile(filePath).then(function (buffer) {
-    const found = findTab(tab.id)
-    if (!found || found.tab.thumbVersion !== expectedVersion) {
-      return null
-    }
-    const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
-    thumbCache.set(tab.id, { url: url, version: expectedVersion })
-    return url
-  }).catch(function () {
-    return null
-  })
-}
-
-function forgetThumb (tabId) {
-  const cached = thumbCache.get(tabId)
-  if (cached) {
-    URL.revokeObjectURL(cached.url)
-    thumbCache.delete(tabId)
-  }
 }
 
 function findTab (tabId) {
@@ -163,9 +119,9 @@ function isNewTabUrl (url) {
 
 function getTabTitle (tab) {
   if (isNewTabUrl(tab.url)) {
-    return l('newTabLabel') || 'New Tab'
+    return l('newTabLabel')
   }
-  return (tab.title || (tab.loaded ? tab.url : '') || tab.url || l('newTabLabel') || 'New Tab').substring(0, 300)
+  return (tab.title || (tab.loaded ? tab.url : '') || tab.url || l('newTabLabel')).substring(0, 300)
 }
 
 function getTabHost (url) {
@@ -240,16 +196,16 @@ function updateCardContent (tabId, rowEl) {
     glyphEl.hidden = false
   }
 
-  const syncThumb = thumbCache.get(tab.id)
-  if (syncThumb && syncThumb.version === tab.thumbVersion) {
-    thumbImg.src = syncThumb.url
+  const syncThumb = thumbnailStore.peek(tab.id, tab.thumbVersion)
+  if (syncThumb) {
+    thumbImg.src = syncThumb
     thumbWrap.hidden = false
     el.classList.remove('no-thumb')
   } else {
     thumbImg.removeAttribute('src')
     thumbWrap.hidden = true
     el.classList.add('no-thumb')
-    fetchThumb(tab).then(function (url) {
+    thumbnailStore.load(tab.id, tab.thumbVersion).then(function (url) {
       if (currentTabId === tabId && isCardVisible && url) {
         thumbImg.src = url
         thumbWrap.hidden = false
@@ -384,7 +340,6 @@ const tabHoverCard = {
 
     if (typeof tasks !== 'undefined' && tasks && tasks.on) {
       tasks.on('tab-destroyed', function (tabId) {
-        forgetThumb(tabId)
         if (currentTabId === tabId) {
           tabHoverCard.hide()
         }
@@ -403,11 +358,6 @@ const tabHoverCard = {
       tasks.on('task-updated', function (taskId, key) {
         if (key === 'collapsed') {
           tabHoverCard.hide()
-        }
-      })
-      tasks.on('tab-updated', function (tabId, key) {
-        if (key === 'thumbVersion') {
-          forgetThumb(tabId)
         }
       })
       tasks.on('tab-updated', function (tabId) {
@@ -436,7 +386,7 @@ const tabHoverCard = {
       pendingTabId = tabId
       const found = findTab(tabId)
       if (found) {
-        fetchThumb(found.tab)
+        thumbnailStore.load(found.tab.id, found.tab.thumbVersion)
       }
       hoverTimer = setTimeout(function () {
         if (pendingTabId === tabId) {

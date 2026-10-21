@@ -1,4 +1,4 @@
-/* global fs, Blob, ResizeObserver, ipc */
+/* global ResizeObserver, ipc */
 
 const webviews = require('webviews.js')
 const keybindings = require('keybindings.js')
@@ -10,12 +10,13 @@ const containers = require('containers.js')
 const shellLayout = require('shellLayout.js')
 const urlParser = require('util/urlParser.js')
 const tabActions = require('tabActions.js')
+const settings = require('util/settings/settings.js')
+const keyMapModule = require('util/keyMap.js')
+const thumbnailStore = require('thumbnailStore.js')
 
 const MIN_COLUMN = 250
 const GAP = 16
 const CARD_META = 62
-const thumbDir = window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\thumbnails\\' : '/thumbnails/')
-const thumbCache = new Map()
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 const motion = {
   get spatial () { return curve('--spring-spatial') },
@@ -51,51 +52,67 @@ function cardAspect (tab) {
   return 16 / 10
 }
 
-const failedThumbs = new Map()
+function shortcutLabel (action) {
+  const binding = keyMapModule.userKeyMap(settings.get('keyMap'))[action]
+  const combo = Array.isArray(binding) ? binding[0] : binding
+  if (!combo || typeof combo !== 'string') {
+    return ''
+  }
+  return combo.split('+').map(function (part) {
+    if (part === 'mod') {
+      return window.platformType === 'mac' ? 'Cmd' : 'Ctrl'
+    }
+    if (part === 'shift') {
+      return 'Shift'
+    }
+    if (part === 'option' || part === 'alt') {
+      return window.platformType === 'mac' ? 'Option' : 'Alt'
+    }
+    if (part === 'super') {
+      return window.platformType === 'mac' ? 'Cmd' : 'Win'
+    }
+    return part.charAt(0).toUpperCase() + part.slice(1)
+  }).join('+')
+}
+
+function withShortcut (label, action) {
+  const keys = shortcutLabel(action)
+  if (!keys) {
+    return label.replace(/\s*\(%s\)/, '')
+  }
+  return label.replace('%s', keys)
+}
 
 function loadThumb (tab, img) {
   const versionAtFetch = tab.thumbVersion
-  const cached = thumbCache.get(tab.id)
+  const cached = thumbnailStore.peek(tab.id, versionAtFetch)
   if (cached) {
-    if (cached.version === versionAtFetch) {
-      img.src = cached.url
-      return
-    }
-    forgetThumb(tab.id)
+    img.src = cached
+    return
   }
-  if (failedThumbs.get(tab.id) === versionAtFetch) {
+  if (thumbnailStore.failed(tab.id, versionAtFetch)) {
     const thumbEl = img.closest('.ov-thumb')
     if (thumbEl) {
       thumbEl.classList.add('empty')
     }
     return
   }
-  fs.promises.readFile(thumbDir + tab.id + '.jpg').then(function (buffer) {
+  thumbnailStore.load(tab.id, versionAtFetch).then(function (url) {
+    if (!url) {
+      thumbnailStore.markFailed(tab.id, versionAtFetch)
+      const thumbEl = img.closest('.ov-thumb')
+      if (thumbEl) {
+        thumbEl.classList.add('empty')
+      }
+      return
+    }
     const currentTask = tasks.getTaskContainingTab(tab.id)
     const currentTab = currentTask ? currentTask.tabs.get(tab.id) : null
     if (!currentTab || currentTab.thumbVersion !== versionAtFetch) {
       return
     }
-    failedThumbs.delete(tab.id)
-    const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
-    thumbCache.set(tab.id, { url: url, version: versionAtFetch })
     img.src = url
-  }).catch(function () {
-    failedThumbs.set(tab.id, versionAtFetch)
-    const thumbEl = img.closest('.ov-thumb')
-    if (thumbEl) {
-      thumbEl.classList.add('empty')
-    }
   })
-}
-
-function forgetThumb (tabId) {
-  failedThumbs.delete(tabId)
-  const cached = thumbCache.get(tabId)
-  if (cached) {
-    URL.revokeObjectURL(cached.url)
-    thumbCache.delete(tabId)
-  }
 }
 
 const overview = {
@@ -124,7 +141,7 @@ const overview = {
     const icon = document.createElement('i')
     icon.className = 'i carbon:search'
     const search = document.createElement('input')
-    search.placeholder = (l('searchTabs') || 'Search tabs across all groups') + ' (Ctrl+Shift+A)'
+    search.placeholder = withShortcut(l('searchTabs'), 'searchTabs')
     search.spellcheck = false
     searchWrap.append(icon, search)
 
@@ -134,7 +151,7 @@ const overview = {
     const newBucket = document.createElement('button')
     newBucket.className = 'ov-new-bucket'
     newBucket.innerHTML = '<i class="i carbon:folder-add"></i><span></span>'
-    newBucket.title = 'New tab group (Ctrl+N)'
+    newBucket.title = withShortcut(l('newTask'), 'addTask')
     newBucket.querySelector('span').textContent = l('newTask')
     newBucket.addEventListener('click', function () {
       browserUI.addTask()
@@ -302,7 +319,7 @@ const overview = {
 
     const close = document.createElement('button')
     close.className = 'ov-close i carbon:close'
-    close.title = l('closeTab') || 'Close tab (Ctrl+W)'
+    close.title = l('closeTab')
     close.tabIndex = -1
     close.addEventListener('click', function (e) {
       e.stopPropagation()
@@ -367,7 +384,7 @@ const overview = {
         { opacity: 0, transform: 'scale(0.86) translateY(8px)' }
       ], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = () => ghost.remove()
     }
-    forgetThumb(tabId)
+    thumbnailStore.forget(tabId)
     overview.cardCache.delete(tabId)
     if (tasks.getTaskContainingTab(tabId)) {
       tabActions.close(tabId)
@@ -460,7 +477,7 @@ const overview = {
       count.textContent = filtering ? visible.length + ' / ' + task.tabs.count() : task.tabs.count()
       const add = document.createElement('button')
       add.className = 'ov-add i carbon:add'
-      add.title = 'New tab in group (Ctrl+T)'
+      add.title = withShortcut(l('newTabInGroup'), 'addTab')
       add.addEventListener('click', function () {
         browserUI.switchToTask(task.id)
         browserUI.addTab(tabs.add({ containerId: containers.containerForNewTab(task.id) }), { enterEditMode: false })
@@ -534,8 +551,7 @@ const overview = {
     if (!card) {
       return
     }
-    forgetThumb(tabId)
-    failedThumbs.delete(tabId)
+    thumbnailStore.forget(tabId)
     const img = card.querySelector('.ov-thumb img')
     if (img) {
       loadThumb(tab, img)
@@ -793,7 +809,6 @@ const overview = {
     document.getElementById('overview-button').addEventListener('click', overview.toggle)
 
     tasks.on('tab-destroyed', function (tabId) {
-      forgetThumb(tabId)
       overview.cardCache.delete(tabId)
     })
     tasks.on('tab-updated', function (id, key) {

@@ -10,9 +10,9 @@ const colorExtractorContext = colorExtractorCanvas.getContext('2d')
 const textColorNN = require('ext/textColor/textColor.js')
 
 const defaultColors = {
-  private: ['rgb(58, 44, 99)', 'white'],
-  lightMode: ['rgb(255, 255, 255)', 'black'],
-  darkMode: ['rgb(33, 37, 43)', 'white']
+  private: 'white',
+  lightMode: 'black',
+  darkMode: 'white'
 }
 
 function getHours () {
@@ -154,30 +154,17 @@ function getLuminance (c) {
   return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
 }
 
-function setColor (bg, fg, isLowContrast) {
-  document.body.style.setProperty('--theme-background-color', bg)
-  document.body.style.setProperty('--theme-foreground-color', fg)
-
-  const backgroundElements = document.getElementsByClassName('theme-background-color')
-  const textElements = document.getElementsByClassName('theme-text-color')
-
-  for (let i = 0; i < backgroundElements.length; i++) {
-    backgroundElements[i].style.backgroundColor = bg
-  }
-
-  for (let i = 0; i < textElements.length; i++) {
-    textElements[i].style.color = fg
+function setColor (bg, fg) {
+  if (bg) {
+    document.body.style.setProperty('--site-theme-bg', bg)
+  } else {
+    document.body.style.removeProperty('--site-theme-bg')
   }
 
   if (fg === 'white') {
     document.body.classList.add('dark-theme')
   } else {
     document.body.classList.remove('dark-theme')
-  }
-  if (isLowContrast) {
-    document.body.classList.add('theme-background-low-contrast')
-  } else {
-    document.body.classList.remove('theme-background-low-contrast')
   }
 }
 
@@ -291,26 +278,26 @@ const tabColor = {
 
     // private tabs have their own color scheme
     if (tab.private) {
-      return setColor(defaultColors.private[0], defaultColors.private[1])
+      return setColor(null, defaultColors.private)
     }
 
     if (tabColor.useSiteTheme) {
       // use the theme color
       if (tab.themeColor && tab.themeColor.color) {
-        return setColor(tab.themeColor.color, tab.themeColor.textColor, tab.themeColor.isLowContrast)
+        return setColor(tab.themeColor.color, tab.themeColor.textColor)
       }
 
       // use the colors extracted from the page icon
       if (tab.backgroundColor && tab.backgroundColor.color) {
-        return setColor(tab.backgroundColor.color, tab.backgroundColor.textColor, tab.backgroundColor.isLowContrast)
+        return setColor(tab.backgroundColor.color, tab.backgroundColor.textColor)
       }
     }
 
     // otherwise use the default colors
     if (window.isDarkMode) {
-      return setColor(defaultColors.darkMode[0], defaultColors.darkMode[1])
+      return setColor(null, defaultColors.darkMode)
     }
-    return setColor(defaultColors.lightMode[0], defaultColors.lightMode[1])
+    return setColor(null, defaultColors.lightMode)
   }
 }
 

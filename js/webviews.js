@@ -3,51 +3,29 @@ var settings = require('util/settings/settings.js')
 var containers = require('containers.js')
 var shellLayout = require('shellLayout.js')
 var tabState = require('tabState.js')
+var thumbnailStore = require('thumbnailStore.js')
 
 /* implements selecting webviews, switching between them, and creating new ones. */
 
 var placeholderImg = document.getElementById('webview-placeholder')
 
 var lastCaptureTimes = {}
-var thumbObjectUrls = {}
 
-function getThumbFilePath (tabId) {
-  var userData = (window.globalArgs && window.globalArgs['user-data-path']) || ''
-  if (!userData) {
-    return null
-  }
-  var sep = window.platformType === 'windows' ? '\\' : '/'
-  return userData + sep + 'thumbnails' + sep + tabId + '.jpg'
-}
-
-function loadThumbObjectURL (tabId, callback, retried) {
-  if (thumbObjectUrls[tabId]) {
-    callback(thumbObjectUrls[tabId])
-    return
-  }
-  var filePath = getThumbFilePath(tabId)
-  if (!filePath || typeof fs === 'undefined' || !fs.promises) {
-    return
-  }
-  fs.promises.readFile(filePath).then(function (buffer) {
-    if (!thumbObjectUrls[tabId]) {
-      thumbObjectUrls[tabId] = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
+function loadPlaceholderThumb (tabId, version, retried) {
+  thumbnailStore.load(tabId, version).then(function (url) {
+    if (url) {
+      if (webviews.selectedId === tabId && webviews.placeholderRequests.length > 0) {
+        placeholderImg.src = url
+        placeholderImg.hidden = false
+      }
+      return
     }
-    callback(thumbObjectUrls[tabId])
-  }).catch(function () {
     if (!retried) {
       setTimeout(function () {
-        loadThumbObjectURL(tabId, callback, true)
+        loadPlaceholderThumb(tabId, version, true)
       }, 300)
     }
   })
-}
-
-function forgetThumbObjectURL (tabId) {
-  if (thumbObjectUrls[tabId]) {
-    URL.revokeObjectURL(thumbObjectUrls[tabId])
-    delete thumbObjectUrls[tabId]
-  }
 }
 
 function captureTab (tabId, options) {
@@ -360,18 +338,13 @@ const webviews = {
       // create a new placeholder
 
       var associatedTab = tasks.getTaskContainingTab(webviews.selectedId).tabs.get(webviews.selectedId)
-      var thumbUrl = thumbObjectUrls[webviews.selectedId]
+      var thumbUrl = associatedTab ? thumbnailStore.peek(webviews.selectedId, associatedTab.thumbVersion) : null
       if (thumbUrl) {
         placeholderImg.src = thumbUrl
         placeholderImg.hidden = false
       } else if (associatedTab && associatedTab.url) {
         var placeholderTabId = webviews.selectedId
-        loadThumbObjectURL(placeholderTabId, function (url) {
-          if (url && webviews.selectedId === placeholderTabId && webviews.placeholderRequests.length > 0) {
-            placeholderImg.src = url
-            placeholderImg.hidden = false
-          }
-        })
+        loadPlaceholderThumb(placeholderTabId, associatedTab.thumbVersion)
         captureCurrentTab({ forceCapture: true })
       } else {
         placeholderImg.hidden = true
@@ -669,9 +642,9 @@ ipc.on('captureData', function (e, data) {
     task.tabs.update(data.id, { thumbVersion: data.version })
   }
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
-    forgetThumbObjectURL(data.id)
-    loadThumbObjectURL(data.id, function (url) {
-      if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
+    thumbnailStore.forget(data.id)
+    thumbnailStore.load(data.id, tab.thumbVersion).then(function (url) {
+      if (url && data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
         placeholderImg.src = url
         placeholderImg.hidden = false
       }
@@ -680,7 +653,6 @@ ipc.on('captureData', function (e, data) {
 })
 
 tasks.on('tab-destroyed', function (id) {
-  forgetThumbObjectURL(id)
   delete lastCaptureTimes[id]
   webviews.keptAlive.delete(id)
   ipc.send('deleteThumbnail', id)
