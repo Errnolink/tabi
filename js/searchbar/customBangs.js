@@ -15,25 +15,26 @@ const overview = require('overview/overview.js')
 const bookmarkConverter = require('bookmarkConverter.js')
 const searchbarPlugins = require('searchbar/searchbarPlugins.js')
 const tabEditor = require('navbar/tabEditor.js')
+const tabActions = require('tabActions.js')
 const formatRelativeDate = require('util/relativeDate.js')
 
 function moveToTaskCommand (taskId) {
-  // remove the tab from the current task
+  const newTask = tasks.get(taskId)
+  if (!newTask) {
+    return
+  }
 
-  const currentTab = tabs.get(tabs.getSelected())
-  tabs.destroy(currentTab.id)
+  const currentTabId = tabs.getSelected()
+
+  tabActions.moveToTask(currentTabId, newTask.id)
 
   // make sure the task has at least one tab in it
   if (tabs.count() === 0) {
-    tabs.add()
+    browserUI.addTab()
   }
 
-  const newTask = tasks.get(taskId)
-
-  newTask.tabs.add(currentTab, { atEnd: true })
-
   browserUI.switchToTask(newTask.id)
-  browserUI.switchToTab(currentTab.id)
+  browserUI.switchToTab(currentTabId)
 
   overview.show()
 

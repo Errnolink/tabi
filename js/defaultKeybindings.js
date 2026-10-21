@@ -4,6 +4,7 @@ var browserUI = require('browserUI.js')
 var focusMode = require('focusMode.js')
 var modalMode = require('modalMode.js')
 var tabEditor = require('navbar/tabEditor.js')
+var tabActions = require('tabActions.js')
 var urlParser = require('util/urlParser.js')
 var keyMapModule = require('util/keyMap.js')
 var settings = require('util/settings/settings.js')
@@ -50,7 +51,7 @@ const defaultKeybindings = {
 
     keybindings.defineShortcut('togglePinTab', function () {
       if (tabs.getSelected()) {
-        require('tabActions.js').togglePin(tabs.getSelected())
+        tabActions.togglePin(tabs.getSelected())
       }
     })
 
@@ -93,21 +94,7 @@ const defaultKeybindings = {
     })
 
     keybindings.defineShortcut('restoreTab', function (e) {
-      if (focusMode.enabled()) {
-        focusMode.warn()
-        return
-      }
-
-      var restoredTab = tasks.getSelected().tabHistory.pop()
-
-      // The tab history stack is empty
-      if (!restoredTab) {
-        return
-      }
-
-      browserUI.addTab(tabs.add(restoredTab), {
-        enterEditMode: false
-      })
+      tabActions.reopenClosed()
     })
 
     keybindings.defineShortcut('addToFavorites', function (e) {

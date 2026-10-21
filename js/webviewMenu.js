@@ -313,7 +313,10 @@ const webviewMenu = {
       {
         label: l('viewPageSource'),
         enabled: isWebPage,
-        click: () => browserUI.addTab(tabs.add({ url: 'view-source:' + pageURL, containerId: tabs.get(tabs.getSelected()).containerId }), { enterEditMode: false })
+        click: () => {
+          const currentTab = tabs.get(tabs.getSelected())
+          browserUI.addTab(tabs.add({ url: 'view-source:' + pageURL, containerId: currentTab.containerId, private: currentTab.private }), { enterEditMode: false })
+        }
       },
       {
         label: l('inspectElement'),

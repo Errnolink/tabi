@@ -34,13 +34,13 @@ function resolveContainerId (wanted) {
   return 'default'
 }
 
-function addBucketTabs (task, tabs, containerId) {
+function addBucketTabs (task, tabs, containerId, selectFirst) {
   tabs.forEach(function (tab, index) {
     task.tabs.add({
       url: tab.url,
       title: tab.title,
       containerId: containerId,
-      selected: index === 0
+      selected: selectFirst && index === 0
     }, { atEnd: true })
   })
 }
@@ -52,22 +52,28 @@ function createImportedTabs (data) {
 
   windowsList.forEach(function (windowData, index) {
     var taskId
+    var isNewBucket = true
     if (perWindow) {
       taskId = tasks.add({
         name: windowsList.length > 1 ? l('importWindowBucketName').replace('%s', data.sourceName || '').replace('%n', index + 1) : data.sourceName
       })
     } else {
       var existing = tasks.get(data.bucketId)
-      taskId = existing ? existing.id : tasks.add({ name: data.sourceName || 'Imported Tabs' })
+      if (existing) {
+        taskId = existing.id
+        isNewBucket = false
+      } else {
+        taskId = tasks.add({ name: data.sourceName || 'Imported Tabs' })
+      }
     }
-    addBucketTabs(tasks.get(taskId), windowData.tabs || [], containerId)
+    addBucketTabs(tasks.get(taskId), windowData.tabs || [], containerId, isNewBucket)
   })
 
   if (Array.isArray(data.bookmarks) && data.bookmarks.length > 0) {
     var bookmarkTask = tasks.get(tasks.add({
       name: l('importBookmarksBucketName').replace('%s', data.sourceName || '')
     }))
-    addBucketTabs(bookmarkTask, data.bookmarks, containerId)
+    addBucketTabs(bookmarkTask, data.bookmarks, containerId, true)
   }
 
   syncBuckets()

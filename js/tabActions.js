@@ -3,6 +3,7 @@
 const browserUI = require('browserUI.js')
 const webviews = require('webviews.js')
 const containers = require('containers.js')
+const focusMode = require('focusMode.js')
 
 function ownerOf (tabId) {
   return tasks.getTaskContainingTab(tabId)
@@ -166,6 +167,29 @@ const tabActions = {
     if (tab.url) {
       electron.clipboard.writeText(tab.url)
     }
+  },
+
+  reopenClosed: function (taskId) {
+    if (focusMode.enabled()) {
+      focusMode.warn()
+      return
+    }
+
+    const task = taskId ? tasks.get(taskId) : tasks.getSelected()
+    if (!task) {
+      return
+    }
+
+    const restoredTab = task.tabHistory.pop()
+
+    // The tab history stack is empty
+    if (!restoredTab) {
+      return
+    }
+
+    browserUI.addTab(task.tabs.add(restoredTab), {
+      enterEditMode: false
+    })
   }
 }
 

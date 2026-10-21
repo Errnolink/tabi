@@ -1,5 +1,6 @@
 var webviews = require('webviews.js')
 var keybindings = require('keybindings.js')
+var tabState = require('tabState.js')
 
 var tabAudio = {
   muteIcon: 'carbon:volume-mute',
@@ -21,8 +22,12 @@ var tabAudio = {
     return button
   },
   updateButton: function (tabId, button) {
-    var button = button || document.querySelector('.tab-audio-button[data-tab="{id}"]'.replace('{id}', tabId))
-    var tab = tabs.get(tabId)
+    button = button || document.querySelector('.tab-audio-button[data-tab="' + tabId + '"]')
+    var tab = tabState.getTabAnywhere(tabId)
+
+    if (!button || !tab) {
+      return
+    }
 
     var muteIcon = tabAudio.muteIcon
     var volumeIcon = tabAudio.volumeIcon
@@ -40,11 +45,14 @@ var tabAudio = {
     }
   },
   toggleAudio: function (tabId) {
-    var tab = tabs.get(tabId)
+    var tab = tabState.getTabAnywhere(tabId)
+    if (!tab) {
+      return
+    }
     // can be muted if has audio, can be unmuted if muted
     if (tab.hasAudio || tab.muted) {
       webviews.callAsync(tabId, 'setAudioMuted', !tab.muted)
-      tabs.update(tabId, { muted: !tab.muted })
+      tabState.updateTabAnywhere(tabId, { muted: !tab.muted })
     }
   },
   initialize: function () {
@@ -53,10 +61,17 @@ var tabAudio = {
     })
 
     webviews.bindEvent('media-started-playing', function (tabId) {
-      tabs.update(tabId, { hasAudio: true })
+      // skip if the view was destroyed for this same event (warm-up views are destroyed when audio starts)
+      if (!webviews.hasViewForTab(tabId)) {
+        return
+      }
+      tabState.updateTabAnywhere(tabId, { hasAudio: true })
     })
     webviews.bindEvent('media-paused', function (tabId) {
-      tabs.update(tabId, { hasAudio: false })
+      if (!webviews.hasViewForTab(tabId)) {
+        return
+      }
+      tabState.updateTabAnywhere(tabId, { hasAudio: false })
     })
   }
 }

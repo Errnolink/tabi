@@ -1,7 +1,6 @@
 var browserUI = require('browserUI.js')
 var webviews = require('webviews.js')
 var tabEditor = require('navbar/tabEditor.js')
-var tabState = require('tabState.js')
 var settings = require('util/settings/settings.js')
 var overview = require('overview/overview.js')
 var containers = require('containers.js')
@@ -201,8 +200,11 @@ const sessionRestore = {
 
       writeFileAtomic.sync(backupSavePath, savedStringData, {})
 
-      // destroy any tabs that were created during the restore attempt
-      tabState.initialize()
+      // destroy any tabs that were created during the restore attempt, keeping the same
+      // TaskList instance so that listeners registered on it (dirty flag, sidebar, sync) stay attached
+      tasks.slice().forEach(function (task) {
+        tasks.destroy(task.id)
+      })
 
       // create a new tab with an explanation of what happened
       var newTask = tasks.add()

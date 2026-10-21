@@ -2,6 +2,7 @@ var urlParser = require('util/urlParser.js')
 var settings = require('util/settings/settings.js')
 var containers = require('containers.js')
 var shellLayout = require('shellLayout.js')
+var tabState = require('tabState.js')
 
 /* implements selecting webviews, switching between them, and creating new ones. */
 
@@ -86,12 +87,12 @@ function captureCurrentTab (options) {
 // called whenever a new page starts loading, or an in-page navigation occurs
 function onPageURLChange (tab, url) {
   if (url.indexOf('https://') === 0 || url.indexOf('about:') === 0 || url.indexOf('chrome:') === 0 || url.indexOf('file://') === 0 || url.indexOf('min://') === 0) {
-    tabs.update(tab, {
+    tabState.updateTabAnywhere(tab, {
       secure: true,
       url: url
     })
   } else {
-    tabs.update(tab, {
+    tabState.updateTabAnywhere(tab, {
       secure: false,
       url: url
     })
@@ -227,7 +228,10 @@ const webviews = {
     return webviews.viewFullscreenMap[webviews.selectedId] ? 0 : shellLayout.pageRadius
   },
   add: function (tabId, existingViewId) {
-    var tabData = tabs.get(tabId)
+    var tabData = tabState.getTabAnywhere(tabId)
+    if (!tabData) {
+      return
+    }
 
     // needs to be called before the view is created to that its listeners can be registered
     if (tabData.scrollPosition) {
@@ -297,6 +301,7 @@ const webviews = {
       focus: !options || options.focus !== false
     })
     webviews.detachedTabs.delete(id)
+    webviews.warmupTabs.delete(id)
     webviews.emitEvent('view-shown', id)
   },
   update: function (id, url) {
@@ -304,17 +309,20 @@ const webviews = {
   },
   loadingTabs: new Set(),
   detachedTabs: new Set(),
+  warmupTabs: new Set(),
   isLoading: function (id) {
     return webviews.loadingTabs.has(id)
   },
   destroy: function (id) {
     webviews.loadingTabs.delete(id)
     webviews.detachedTabs.delete(id)
+    webviews.warmupTabs.delete(id)
     webviews.emitEvent('view-hidden', id)
 
     if (webviews.hasViewForTab(id)) {
-      tasks.getTaskContainingTab(id).tabs.update(id, {
-        hasWebContents: false
+      tabState.updateTabAnywhere(id, {
+        hasWebContents: false,
+        hasAudio: false
       })
     }
     // we may be destroying a view for which the tab object no longer exists, so this message should be sent unconditionally
@@ -342,6 +350,7 @@ const webviews = {
     if (!tabData || tabData.private || !tabData.url) {
       return
     }
+    webviews.warmupTabs.add(tabId)
     webviews.add(tabId)
   },
   requestPlaceholder: function (reason) {
@@ -521,16 +530,18 @@ webviews.bindEvent('did-navigate', function (tabId, url, httpResponseCode, httpS
 
 webviews.bindEvent('did-start-loading', function (tabId) {
   webviews.loadingTabs.add(tabId)
+  tabState.updateTabAnywhere(tabId, { loaded: false })
 })
 
 webviews.bindEvent('did-stop-loading', function (tabId) {
   webviews.loadingTabs.delete(tabId)
+  tabState.updateTabAnywhere(tabId, { loaded: true })
 })
 
 webviews.bindEvent('did-finish-load', onPageLoad)
 
 webviews.bindEvent('page-title-updated', function (tabId, title, explicitSet) {
-  tabs.update(tabId, {
+  tabState.updateTabAnywhere(tabId, {
     title: title
   })
 })
@@ -541,11 +552,18 @@ webviews.bindEvent('did-fail-load', function (tabId, errorCode, errorDesc, valid
   }
 })
 
-webviews.bindEvent('crashed', function (tabId, isKilled) {
-  var url = tabs.get(tabId).url
+webviews.bindEvent('render-process-gone', function (tabId, details) {
+  if (!details || details.reason === 'clean-exit') {
+    // clean-exit fires when a view is destroyed intentionally
+    return
+  }
+  var tab = tabState.getTabAnywhere(tabId)
+  if (!tab) {
+    return
+  }
 
-  tabs.update(tabId, {
-    url: webviews.internalPages.error + '?ec=crash&url=' + encodeURIComponent(url)
+  tabState.updateTabAnywhere(tabId, {
+    url: webviews.internalPages.error + '?ec=crash&url=' + encodeURIComponent(tab.url)
   })
 
   // the existing process has crashed, so we can't reuse it
@@ -591,13 +609,14 @@ settings.listen(function () {
 })
 
 webviews.bindIPC('scroll-position-change', function (tabId, args) {
-  tabs.update(tabId, {
+  tabState.updateTabAnywhere(tabId, {
     scrollPosition: args[0]
   })
 })
 
 webviews.bindIPC('downloadFile', function (tabId, args) {
-  if (tabs.get(tabId).url.startsWith('min://')) {
+  const tab = tabState.getTabAnywhere(tabId)
+  if (tab && tab.url && tab.url.startsWith('min://')) {
     webviews.callAsync(tabId, 'downloadURL', [args[0]])
   }
 })
@@ -624,7 +643,9 @@ ipc.on('view-ipc', function (e, args) {
 })
 
 webviews.bindEvent('media-started-playing', function (tabId) {
-  if (webviews.detachedTabs.has(tabId)) {
+  // only warm-up views that were never selected are killed when they start playing audio;
+  // real tabs are protected by the hasAudio exemption in discardInactive
+  if (webviews.warmupTabs.has(tabId)) {
     webviews.destroy(tabId)
   }
 })
@@ -634,10 +655,18 @@ ipc.on('captureData', function (e, data) {
   if (!task) {
     return
   }
-  if (typeof data.aspect === 'number' && isFinite(data.aspect) && data.aspect > 0) {
-    task.tabs.update(data.id, { thumbAspect: data.aspect })
+  const tab = task.tabs.get(data.id)
+  if (!tab) {
+    return
   }
-  if (typeof data.version === 'number' && data.version !== task.tabs.get(data.id).thumbVersion) {
+  if (typeof data.aspect === 'number' && isFinite(data.aspect) && data.aspect > 0) {
+    const current = tab.thumbAspect
+    const unchanged = typeof current === 'number' && isFinite(current) && current > 0 && Math.abs(current - data.aspect) / data.aspect <= 0.01
+    if (!unchanged) {
+      task.tabs.update(data.id, { thumbAspect: data.aspect })
+    }
+  }
+  if (typeof data.version === 'number' && data.version !== tab.thumbVersion) {
     task.tabs.update(data.id, { thumbVersion: data.version })
   }
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {

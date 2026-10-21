@@ -4,6 +4,7 @@ var containers = require('containers.js')
 
 var settings = require('util/settings/settings.js')
 var webviews = require('webviews.js')
+var tabState = require('tabState.js')
 var focusMode = require('focusMode.js')
 var tabBar = require('navbar/tabBar.js')
 var tabEditor = require('navbar/tabEditor.js')
@@ -243,11 +244,15 @@ tasks.on('tab-updated', function (id, key) {
 })
 
 webviews.bindEvent('did-create-popup', function (tabId, popupId, initialURL) {
+  const source = tabState.getTabAnywhere(tabId)
+  if (!source) {
+    return
+  }
   var popupTab = tabs.add({
     // in most cases, initialURL will be overwritten once the popup loads, but if the URL is a downloaded file, it will remain the same
     url: initialURL,
-    private: tabs.get(tabId).private,
-    containerId: tabs.get(tabId).containerId
+    private: source.private,
+    containerId: source.containerId
   })
   tabBar.addTab(popupTab)
   webviews.add(popupTab, popupId)
@@ -255,10 +260,14 @@ webviews.bindEvent('did-create-popup', function (tabId, popupId, initialURL) {
 })
 
 webviews.bindEvent('new-tab', function (tabId, url, openInForeground) {
+  const source = tabState.getTabAnywhere(tabId)
+  if (!source) {
+    return
+  }
   var newTab = tabs.add({
     url: url,
-    private: tabs.get(tabId).private, // inherit private status from the current tab
-    containerId: tabs.get(tabId).containerId // and the container
+    private: source.private, // inherit private status from the current tab
+    containerId: source.containerId // and the container
   })
 
   addTab(newTab, {
@@ -272,10 +281,12 @@ webviews.bindIPC('close-window', function (tabId, args) {
 })
 
 ipc.on('set-file-view', function (e, data) {
-  tabs.get().forEach(function (tab) {
-    if (tab.url === data.url) {
-      tabs.update(tab.id, { isFileView: data.isFileView })
-    }
+  tasks.forEach(function (task) {
+    task.tabs.get().forEach(function (tab) {
+      if (tab.url === data.url) {
+        task.tabs.update(tab.id, { isFileView: data.isFileView })
+      }
+    })
   })
 })
 

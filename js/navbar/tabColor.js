@@ -1,5 +1,6 @@
 var webviews = require('webviews.js')
 var settings = require('util/settings/settings.js')
+var tabState = require('tabState.js')
 
 const colorExtractorImage = document.createElement('img')
 colorExtractorImage.crossOrigin = 'anonymous'
@@ -205,7 +206,7 @@ const tabColor = {
      */
     webviews.bindEvent('did-start-navigation', function (tabId, url, isInPlace, isMainFrame, frameProcessId, frameRoutingId) {
       if (isMainFrame) {
-        tabs.update(tabId, {
+        tabState.updateTabAnywhere(tabId, {
           backgroundColor: null,
           favicon: null
         })
@@ -235,7 +236,7 @@ const tabColor = {
   },
   updateFromThemeColor: function (color, tabId) {
     if (!color) {
-      tabs.update(tabId, {
+      tabState.updateTabAnywhere(tabId, {
         themeColor: null
       })
       return
@@ -244,7 +245,7 @@ const tabColor = {
     const rgb = getColorFromString(color)
     const rgbAdjusted = adjustColorForTheme(rgb)
 
-    tabs.update(tabId, {
+    tabState.updateTabAnywhere(tabId, {
       themeColor: {
         color: getRGBString(rgbAdjusted),
         textColor: getTextColor(rgbAdjusted),
@@ -254,7 +255,8 @@ const tabColor = {
   },
   updateFromImage: function (favicons, tabId, callback) {
     // private tabs always use a special color, we don't need to get the icon
-    if (tabs.get(tabId).private === true) {
+    const tab = tabState.getTabAnywhere(tabId)
+    if (!tab || tab.private === true) {
       return
     }
 
@@ -263,7 +265,7 @@ const tabColor = {
         const backgroundColor = getColorFromImage(colorExtractorImage)
         const backgroundColorAdjusted = adjustColorForTheme(backgroundColor)
 
-        tabs.update(tabId, {
+        tabState.updateTabAnywhere(tabId, {
           backgroundColor: {
             color: getRGBString(backgroundColorAdjusted),
             textColor: getTextColor(backgroundColorAdjusted),
