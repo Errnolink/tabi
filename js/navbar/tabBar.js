@@ -478,8 +478,18 @@ const tabBar = {
     buckets.forEach(function (bucket, id) {
       if (!liveTaskIds.has(id)) {
         bucket.sortable.destroy()
-        bucket.el.remove()
         buckets.delete(id)
+        if (animate) {
+          const el = bucket.el
+          el.style.overflow = 'hidden'
+          el.style.pointerEvents = 'none'
+          el.animate([
+            { height: el.offsetHeight + 'px', opacity: 1 },
+            { height: '0px', opacity: 0, transform: 'translateX(-14px)' }
+          ], { duration: 320, easing: motion.spatial, fill: 'forwards' }).onfinish = () => el.remove()
+        } else {
+          bucket.el.remove()
+        }
       }
     })
 
@@ -640,7 +650,7 @@ const tabBar = {
       browserUI().addTask()
     })
 
-    const structural = ['task-added', 'task-removed', 'tab-added', 'tab-removed', 'tab-splice']
+    const structural = ['task-added', 'task-destroyed', 'tab-added', 'tab-destroyed', 'tab-splice']
     structural.forEach(name => tasks.on(name, tabBar.scheduleRender))
     tasks.on('task-updated', function (id, key) {
       if (key === 'collapsed') {

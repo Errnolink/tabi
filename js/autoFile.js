@@ -1,7 +1,7 @@
 var fs = require('fs')
 
 var browserUI = require('browserUI.js')
-var webviews = require('webviews.js')
+var tabActions = require('tabActions.js')
 
 var configPath = window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\autofile.json' : '/autofile.json')
 
@@ -96,12 +96,10 @@ function fileTab (tabId) {
 
   var wasSelectedTab = containing.id === tasks.getSelected().id && tabId === tabs.getSelected()
 
-  containing.tabs.destroy(tabId)
-  if (containing.tabs.count() === 0) {
-    containing.tabs.add()
+  if (containing.tabs.count() === 1) {
+    containing.tabs.add({ containerId: tab.containerId }, { atEnd: true })
   }
-  webviews.destroy(tabId)
-  target.tabs.add(tab, { atEnd: true })
+  tabActions.moveToTask(tabId, target.id)
 
   if (wasSelectedTab) {
     browserUI.switchToTask(target.id)
@@ -121,9 +119,11 @@ function queueFile (tabId) {
 
 function initialize () {
   rules = loadRules()
-  tasks.on('tab-added', function (tabId) {
+  tasks.on('tab-added', function (tabId, tab) {
+    if (tab && tab.url) {
+      return
+    }
     youngTabs[tabId] = true
-    queueFile(tabId)
   })
   tasks.on('tab-updated', function (id, key) {
     if (key === 'url' && youngTabs[id]) {

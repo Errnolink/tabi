@@ -41,7 +41,6 @@
 }
 
 #tab-editor.is-editing {
-  max-width: 900px;
   border-radius: 14px;
   background: color-mix(in srgb, var(--pill-fill), hsl(278 70% 72%) 10%);
   box-shadow:

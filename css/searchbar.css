@@ -1,125 +1,139 @@
-/* Sea Glass Searchbar Dropdown Suggestions
- * Material 3 Expressive x Liquid Glass
- */
+/* omnibox suggestions: a sheet that grows out of the omnibox */
 
 #searchbar {
-  z-index: 50;
   position: fixed;
-  top: calc(var(--control-space-top, 0px) + var(--toolbar-height, 44px) + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(720px, calc(100vw - 32px));
-  max-height: calc(100vh - 120px);
+  z-index: 50;
+  top: calc(var(--omnibox-bottom, 44px) + 6px);
+  left: var(--omnibox-left, 25%);
+  width: var(--omnibox-width, 50%);
+  max-height: min(560px, calc(100vh - var(--omnibox-bottom, 44px) - 24px));
   overflow-y: auto;
-  border-radius: var(--r-xl);
-  background: var(--glass-frost);
-  --glass-tint: var(--pebble-search);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  border: 1px solid var(--rim-border);
-  box-shadow: inset 0 1.5px 1px var(--rim-top),
-              inset 0 -2px 6px var(--rim-bottom),
-              0 12px 40px rgba(0, 0, 0, 0.28);
-  color: var(--sys-on-surface);
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--menu-fill);
+  backdrop-filter: blur(22px) saturate(1.5);
+  box-shadow: var(--menu-shadow);
+  color: var(--chrome-ink);
   font-family: var(--font-sans);
-  padding: 8px 10px;
-  box-sizing: border-box;
-  -webkit-user-select: none;
+  user-select: none;
+  scrollbar-width: thin;
+  transform-origin: top center;
+  animation: sheet-in var(--dur-spatial-fast) var(--spring-spatial-fast) both;
 }
 
-#searchbar::before {
-  content: "";
+#searchbar[hidden] {
+  display: none;
+}
+
+#searchbar:empty,
+#searchbar:not(:has(.searchbar-item, .searchbar-shortcut)) {
+  visibility: hidden;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(0.96);
+  }
+}
+
+#searchbar::after {
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  pointer-events: none;
   background-image: var(--grain-tile);
   background-size: 64px 64px;
-  opacity: var(--grain-opacity);
+  opacity: calc(var(--grain-opacity) * 1.4);
   mix-blend-mode: overlay;
-  z-index: -1;
+  pointer-events: none;
 }
 
 .searchbar-plugin-container {
   position: relative;
 }
 
+.searchbar-plugin-container:empty {
+  display: none;
+}
+
+.searchbar-plugin-container + .searchbar-plugin-container:not(:empty) {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--chrome-line);
+}
+
 .searchbar-heading {
+  padding: 8px 10px 4px;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--sys-on-surface-variant);
-  padding: 8px 10px 4px 10px;
+  color: var(--chrome-ink-faint);
   cursor: default;
 }
 
 .searchbar-floating-button {
   position: absolute;
   right: 8px;
-  top: 6px;
-  border: 1px solid var(--rim-border);
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
+  top: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
   font-size: 12px;
-  color: var(--sys-on-surface);
-  background: color-mix(in srgb, var(--sys-on-surface) 6%, transparent);
-  cursor: pointer;
-  transition: background var(--dur-effects-fast) var(--spring-effects);
+  color: var(--chrome-ink-muted);
+  background: var(--chrome-hover);
+  transition: background-color var(--dur-effects) var(--spring-effects);
 }
 
 .searchbar-floating-button:hover {
-  background: color-mix(in srgb, var(--sys-on-surface) 12%, transparent);
-}
-
-#searchbar .searchbar-item i,
-#searchbar .searchbar-item .icon-image {
-  margin-right: 8px;
-  vertical-align: middle;
-  color: var(--sys-on-surface-variant);
+  background: var(--chrome-press);
+  color: var(--chrome-ink);
 }
 
 #searchbar .image.color-circle {
-  width: 1.5em;
-  height: 1.5em;
-  border-radius: 50%;
-  float: left;
-  border: 1px solid var(--rim-border);
-  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 46% 54% 42% 58% / 55% 44% 56% 45%;
+  margin-right: 10px;
+  flex: none;
 }
 
 .search-feedback-link {
   display: block;
-  width: 100%;
-  font-size: 12px;
-  opacity: 0.75;
-  color: var(--sys-on-surface-variant);
-  text-decoration: underline;
   padding: 6px 10px;
+  font-size: 12px;
+  color: var(--chrome-ink-faint);
+  text-decoration: none;
 }
 
 .search-feedback-link:hover {
-  opacity: 1;
+  color: var(--chrome-ink);
   cursor: pointer;
 }
 
 .searchbar-shortcut {
-  display: inline-block;
-  font-size: 13px !important;
-  padding: 6px 12px;
-  margin: 4px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--rim-border);
-  background: color-mix(in srgb, var(--sys-on-surface) 4%, transparent);
-  color: var(--sys-on-surface);
-  cursor: pointer;
-  transition: background var(--dur-effects-fast) var(--spring-effects);
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  margin: 4px 2px;
+  padding: 0 12px;
+  border-radius: 15px;
+  font-size: 12.5px !important;
+  color: var(--chrome-ink-muted);
+  background: var(--pill-fill);
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 1px var(--pill-edge);
+  cursor: default;
+  transition: background-color var(--dur-effects) var(--spring-effects), transform var(--dur-spatial-fast) var(--spring-spatial-fast);
 }
 
 .searchbar-shortcut:hover,
 .searchbar-shortcut:focus {
-  background: color-mix(in srgb, var(--sys-primary) 16%, transparent);
+  color: var(--chrome-ink);
+  background: var(--menu-highlight);
+  outline: none;
 }
 
 .searchbar-shortcut:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }

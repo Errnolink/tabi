@@ -60,6 +60,7 @@ const tabEditor = {
     }
     tabEditor.input.scrollLeft = 0
 
+    tabEditor.anchorSearchbar()
     searchbar.show(tabEditor.input)
 
     if (showSearchbar !== false) {
@@ -69,6 +70,13 @@ const tabEditor = {
         searchbar.showResults('', null)
       }
     }
+  },
+  anchorSearchbar: function () {
+    const rect = tabEditor.container.getBoundingClientRect()
+    const root = document.documentElement.style
+    root.setProperty('--omnibox-left', Math.round(rect.left) + 'px')
+    root.setProperty('--omnibox-width', Math.round(rect.width) + 'px')
+    root.setProperty('--omnibox-bottom', Math.round(rect.bottom) + 'px')
   },
   hide: function () {
     tabEditor.isShown = false

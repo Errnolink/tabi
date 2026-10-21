@@ -6,29 +6,38 @@
   display: none;
 }
 
-body.is-edit-mode #overlay,
 body.is-modal-mode #overlay {
   display: block;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   background: rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(4px);
-  z-index: 40;
-  pointer-events: none;
-  transition: opacity var(--dur-effects) var(--spring-effects);
-}
-
-body.is-modal-mode #overlay {
-  pointer-events: all;
   z-index: 80;
+  pointer-events: all;
 }
 
-body.dark-mode.is-edit-mode #overlay,
 body.dark-mode.is-modal-mode #overlay {
   background: rgba(0, 0, 0, 0.55);
+}
+
+body.is-edit-mode #overlay {
+  display: block;
+  position: fixed;
+  top: var(--toolbar-height);
+  left: var(--sidebar-width);
+  right: var(--gutter);
+  bottom: var(--gutter);
+  border-radius: var(--page-radius);
+  background: rgb(8 8 14 / 0.32);
+  z-index: 40;
+  pointer-events: none;
+  animation: edit-veil-in var(--dur-effects) var(--spring-effects) both;
+}
+
+@keyframes edit-veil-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .modal {

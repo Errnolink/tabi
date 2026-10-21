@@ -9,6 +9,7 @@ const modalMode = require('modalMode.js')
 const containers = require('containers.js')
 const shellLayout = require('shellLayout.js')
 const urlParser = require('util/urlParser.js')
+const tabActions = require('tabActions.js')
 
 const MIN_COLUMN = 250
 const GAP = 16
@@ -16,6 +17,15 @@ const CARD_META = 62
 const thumbDir = window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\thumbnails\\' : '/thumbnails/')
 const thumbCache = new Map()
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+const motion = {
+  get spatial () { return curve('--spring-spatial') },
+  get spatialFast () { return curve('--spring-spatial-fast') },
+  get effects () { return curve('--spring-effects') }
+}
+
+function curve (name) {
+  return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim() || 'ease-out'
+}
 
 function canMorph () {
   return typeof document.startViewTransition === 'function' && !reduceMotion.matches
@@ -120,7 +130,7 @@ const overview = {
 
     search.addEventListener('input', function () {
       overview.query = search.value.trim().toLowerCase()
-      overview.applyFilter()
+      overview.relayout()
     })
     search.addEventListener('keydown', function (e) {
       if (e.key === 'ArrowDown' || e.key === 'Enter') {
@@ -181,7 +191,7 @@ const overview = {
       chip.addEventListener('click', function () {
         overview.containerFilter = container.id
         overview.renderChips()
-        overview.applyFilter()
+        overview.relayout()
       })
       overview.chips.appendChild(chip)
     })
@@ -294,52 +304,75 @@ const overview = {
   },
 
   moveTab: function (tabId, targetTaskId) {
-    const source = tasks.getTaskContainingTab(tabId)
-    const target = tasks.get(targetTaskId)
-    if (!source || !target || source.id === target.id) {
-      return
-    }
-    const tab = source.tabs.splice(source.tabs.getIndex(tabId), 1)[0]
-    if (tab.selected) {
-      tab.selected = false
-      const next = source.tabs.get().slice().sort((a, b) => b.lastActivity - a.lastActivity)[0]
-      if (next) {
-        source.tabs.setSelected(next.id)
-      }
-    }
-    target.tabs.splice(target.tabs.count(), 0, tab)
-    if (source.tabs.count() === 0) {
-      browserUI.closeTask(source.id)
-    }
-    overview.render()
+    tabActions.moveToTask(tabId, targetTaskId)
+    overview.relayout()
   },
 
   closeTab: function (tabId, card) {
-    const finish = function () {
-      forgetThumb(tabId)
-      const task = tasks.getTaskContainingTab(tabId)
-      if (!task) {
-        return
-      }
-      if (task.id === tasks.getSelected().id) {
-        browserUI.closeTab(tabId)
-      } else {
-        task.tabs.destroy(tabId)
-        webviews.destroy(tabId)
-        if (task.tabs.count() === 0) {
-          browserUI.closeTask(task.id)
-        }
-      }
-      overview.render()
+    if (card && !reduceMotion.matches) {
+      const rect = card.getBoundingClientRect()
+      const ghost = card.cloneNode(true)
+      ghost.classList.add('ov-ghost')
+      Object.assign(ghost.style, { position: 'fixed', left: rect.left + 'px', top: rect.top + 'px', width: rect.width + 'px', margin: '0', pointerEvents: 'none', zIndex: 5 })
+      overview.el.appendChild(ghost)
+      ghost.animate([
+        { opacity: 1, transform: 'none' },
+        { opacity: 0, transform: 'scale(0.86) translateY(8px)' }
+      ], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = () => ghost.remove()
     }
+    forgetThumb(tabId)
+    if (tasks.getTaskContainingTab(tabId)) {
+      tabActions.close(tabId)
+    }
+    overview.relayout()
+  },
+
+  matches: function (tab, task) {
+    if (overview.containerFilter && (tab.containerId || 'default') !== overview.containerFilter) {
+      return false
+    }
+    if (!overview.query) {
+      return true
+    }
+    const container = containers.get(tab.containerId || 'default')
+    const haystack = [tab.title, tab.url, task.name, container && container.name].join(' ').toLowerCase()
+    return overview.query.split(/\s+/).every(word => haystack.includes(word))
+  },
+
+  relayout: function () {
     if (reduceMotion.matches) {
-      finish()
+      overview.render()
       return
     }
-    card.animate([
-      { opacity: 1, transform: 'none' },
-      { opacity: 0, transform: 'scale(0.86) translateY(8px)' }
-    ], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = finish
+    const before = new Map()
+    overview.el.querySelectorAll('.ov-card').forEach(card => before.set(card.dataset.tab, card.getBoundingClientRect()))
+    const headsBefore = new Map()
+    overview.el.querySelectorAll('.ov-bucket').forEach(section => headsBefore.set(section.dataset.task, section.getBoundingClientRect().top))
+    overview.render()
+    overview.el.querySelectorAll('.ov-card').forEach(function (card) {
+      const old = before.get(card.dataset.tab)
+      if (!old) {
+        card.animate([{ opacity: 0, transform: 'scale(0.92)' }, { opacity: 1, transform: 'none' }], { duration: 360, easing: motion.spatialFast })
+        return
+      }
+      const now = card.getBoundingClientRect()
+      const dx = old.left - now.left
+      const dy = old.top - now.top
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        card.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'none' }], { duration: 420, easing: motion.spatial })
+      }
+    })
+    overview.el.querySelectorAll('.ov-bucket').forEach(function (section) {
+      const old = headsBefore.get(section.dataset.task)
+      if (old === undefined) {
+        section.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: motion.effects })
+        return
+      }
+      const dy = old - section.getBoundingClientRect().top
+      if (Math.abs(dy) > 0.5) {
+        section.querySelector('.ov-bucket-head').animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 420, easing: motion.spatial })
+      }
+    })
   },
 
   render: function () {
@@ -351,10 +384,17 @@ const overview = {
     overview.lastColumns = columns
     overview.renderChips()
     overview.content.textContent = ''
+    const filtering = !!(overview.query || overview.containerFilter)
 
     let cardIndex = 0
+    let shown = 0
     const selectedTab = tabs.getSelected()
     tasks.forEach(function (task, index) {
+      const visible = task.tabs.get().filter(tab => overview.matches(tab, task))
+      if (filtering && !visible.length) {
+        return
+      }
+      shown += visible.length
       const section = document.createElement('section')
       section.className = 'ov-bucket'
       section.dataset.task = task.id
@@ -369,7 +409,7 @@ const overview = {
       name.textContent = task.name || l('defaultTaskName').replace('%n', index + 1)
       const count = document.createElement('span')
       count.className = 'ov-count'
-      count.textContent = task.tabs.count()
+      count.textContent = filtering ? visible.length + ' / ' + task.tabs.count() : task.tabs.count()
       const add = document.createElement('button')
       add.className = 'ov-add i carbon:add'
       add.title = l('newTabAction')
@@ -391,7 +431,7 @@ const overview = {
         cols.push(col)
         heights.push(0)
       }
-      task.tabs.get().forEach(function (tab) {
+      visible.forEach(function (tab) {
         const card = overview.createCard(tab, task, cardIndex++)
         if (tab.id === selectedTab) {
           card.classList.add('current')
@@ -411,13 +451,19 @@ const overview = {
       overview.content.appendChild(section)
     })
 
+    if (filtering && !shown) {
+      const empty = document.createElement('div')
+      empty.className = 'ov-empty'
+      empty.textContent = l('noTabsMatch')
+      overview.content.appendChild(empty)
+    }
+
     const newZone = document.createElement('div')
     newZone.className = 'ov-new-zone'
     newZone.textContent = l('dropToCreateBucket')
     overview.makeDropTarget(newZone, null)
     overview.content.appendChild(newZone)
 
-    overview.applyFilter()
     if (focusedTab) {
       const again = overview.cardFor(focusedTab)
       if (again) {
@@ -431,29 +477,7 @@ const overview = {
   },
 
   visibleCards: function () {
-    return Array.from(overview.el.querySelectorAll('.ov-card:not(.dim)'))
-  },
-
-  applyFilter: function () {
-    const query = overview.query
-    overview.el.querySelectorAll('.ov-card').forEach(function (card) {
-      const found = tasks.getTaskContainingTab(card.dataset.tab)
-      if (!found) {
-        return
-      }
-      const tab = found.tabs.get(card.dataset.tab)
-      const container = containers.get(tab.containerId || 'default')
-      let match = true
-      if (overview.containerFilter && (tab.containerId || 'default') !== overview.containerFilter) {
-        match = false
-      }
-      if (match && query) {
-        const haystack = [tab.title, tab.url, found.name, container && container.name].join(' ').toLowerCase()
-        match = query.split(/\s+/).every(word => haystack.includes(word))
-      }
-      card.classList.toggle('dim', !match)
-      card.tabIndex = match ? 0 : -1
-    })
+    return Array.from(overview.el.querySelectorAll('.ov-card'))
   },
 
   onKeyDown: function (e) {
@@ -464,7 +488,7 @@ const overview = {
       if (overview.query && document.activeElement === overview.search) {
         overview.search.value = ''
         overview.query = ''
-        overview.applyFilter()
+        overview.relayout()
       } else {
         overview.hide()
       }

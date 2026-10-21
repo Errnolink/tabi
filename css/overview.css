@@ -302,11 +302,11 @@ body.ov-settled #webviews {
     0 22px 36px -18px hsl(var(--bucket-hue) 60% 30% / 0.7);
 }
 
-.ov-card.dim {
-  opacity: 0.16;
-  filter: saturate(0.3);
-  transform: scale(0.97);
-  pointer-events: none;
+.ov-empty {
+  padding: 64px 0 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--chrome-ink-faint);
 }
 
 .ov-card.dragging {
