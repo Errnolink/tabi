@@ -62,7 +62,8 @@ function loadThumb (tab, img) {
     forgetThumb(tab.id)
   }
   fs.promises.readFile(thumbDir + tab.id + '.jpg').then(function (buffer) {
-    const currentTab = tabs.get(tab.id)
+    const currentTask = tasks.getTaskContainingTab(tab.id)
+    const currentTab = currentTask ? currentTask.tabs.get(tab.id) : null
     if (!currentTab || currentTab.thumbVersion !== versionAtFetch) {
       return
     }
@@ -486,7 +487,8 @@ const overview = {
     if (!overview.isShown) {
       return
     }
-    const tab = tabs.get(tabId)
+    const owner = tasks.getTaskContainingTab(tabId)
+    const tab = owner ? owner.tabs.get(tabId) : null
     const card = tab ? overview.cardFor(tabId) : null
     if (!card) {
       return
