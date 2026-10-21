@@ -1,4 +1,4 @@
-document.title = l('userscriptInstallPageTitle') + ' | xb'
+document.title = l('userscriptInstallPageTitle') + ' | Tabi'
 
 const PAGE_PREFIX = 'userscriptsPage:'
 
@@ -49,20 +49,6 @@ function fieldVisible (id, visible) {
 let currentSource = ''
 let currentSourceURL = ''
 
-const GRANT_LABELS = {
-  getValue: 'GM_getValue',
-  setValue: 'GM_setValue',
-  deleteValue: 'GM_deleteValue',
-  listValues: 'GM_listValues',
-  addStyle: 'GM_addStyle',
-  xmlhttpRequest: 'GM_xmlhttpRequest',
-  openInTab: 'GM_openInTab',
-  setClipboard: 'GM_setClipboard',
-  registerMenuCommand: 'GM_registerMenuCommand',
-  info: 'GM_info',
-  unsafeWindow: 'unsafeWindow'
-}
-
 const GRANT_ALIASES = {
   GM_getValue: 'getValue',
   'GM.getValue': 'getValue',
@@ -90,10 +76,11 @@ const GRANT_ALIASES = {
 function grantedLabels (grants) {
   const names = []
   ;(grants || []).forEach(function (grant) {
-    const key = GRANT_ALIASES[String(grant).trim()]
-    if (key && key !== 'none' && !names.includes(GRANT_LABELS[key])) {
-      names.push(GRANT_LABELS[key])
+    const raw = String(grant).trim()
+    if (!GRANT_ALIASES[raw] || names.includes(raw)) {
+      return
     }
+    names.push(raw)
   })
   return names
 }
@@ -202,7 +189,7 @@ document.getElementById('error-retry').addEventListener('click', function () {
 
 const params = new URLSearchParams(location.search)
 const sourceURL = params.get('src')
-if (sourceURL && /^https?:\/\//i.test(sourceURL)) {
+if (sourceURL && /^(https?|file):\/\//i.test(sourceURL)) {
   inspect(sourceURL)
 } else {
   showError(l('userscriptInstallFetchError'))

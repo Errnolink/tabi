@@ -1,4 +1,4 @@
-document.title = l('userscriptsPageTitle') + ' | xb'
+document.title = l('userscriptsPageTitle') + ' | Tabi'
 
 const PAGE_PREFIX = 'userscriptsPage:'
 const SUGGESTED_META = {

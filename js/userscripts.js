@@ -68,6 +68,18 @@ function urlMatchesPattern (url, pattern) {
   return idx !== -1
 }
 
+var MANAGER_DETECT_HOSTS = ['greasyfork.org', 'sleazyfork.org']
+
+var MANAGER_DETECT_SCRIPT = '(function () {' +
+  'var api = { version: "5.3.3", isInstalled: function () { return Promise.resolve(null) } };' +
+  'var external = window.external;' +
+  'if (!external || typeof external !== "object") {' +
+  'external = {};' +
+  'try { Object.defineProperty(window, "external", { value: external, configurable: true }) } catch (err) { return }' +
+  '}' +
+  'try { Object.defineProperty(external, "Tampermonkey", { value: api, configurable: true }) } catch (err) { }' +
+  '})()'
+
 var GM_GRANT_ALIASES = {
   GM_getValue: 'getValue',
   'GM.getValue': 'getValue',
@@ -148,7 +160,7 @@ function buildGMWrappedScript (script, values) {
     'var __gmScript = ' + JSON.stringify(scriptInfo) + ';' +
     'var __gmValues = ' + JSON.stringify(values || {}) + ';' +
     'var __gmSeq = 0; var __gmPending = {}; var __gmMenuCommands = [];' +
-    'var __gmInfo = { script: __gmScript, scriptHandler: "xb userscripts", version: "1.0", scriptMetaStr: "" };' +
+    'var __gmInfo = { script: __gmScript, scriptHandler: "Tabi userscripts", version: "1.0", scriptMetaStr: "" };' +
     'function __gmRelay (call, args, cbId) { window.postMessage({ __xbGM: { scriptId: __gmScript.id, call: call, args: args, cbId: cbId } }, window.location.origin) }' +
     'window.addEventListener("message", function (e) { if (e.source !== window) { return } var d = e.data; if (!d || !d.__xbGMResult) { return } var cb = __gmPending[d.__xbGMResult.cbId]; if (!cb) { return } delete __gmPending[d.__xbGMResult.cbId]; cb(d.__xbGMResult) });'
 
@@ -329,6 +341,24 @@ const userscripts = {
       }
     })
   },
+  injectManagerDetection: function (tabId, src) {
+    if (!userscripts.masterEnabled) {
+      return
+    }
+    var host = ''
+    try {
+      host = new URL(src).hostname
+    } catch (err) {
+      return
+    }
+    var matched = MANAGER_DETECT_HOSTS.some(function (detectHost) {
+      return host === detectHost || host.endsWith('.' + detectHost)
+    })
+    if (!matched) {
+      return
+    }
+    webviews.callAsync(tabId, 'executeJavaScript', [MANAGER_DETECT_SCRIPT, false, null])
+  },
   runScript: function (tabId, script) {
     if (urlParser.isInternalURL(tabs.get(tabId).url)) {
       return
@@ -344,11 +374,13 @@ const userscripts = {
     webviews.callAsync(tabId, 'executeJavaScript', [script.content, false, null])
   },
   onPageLoad: function (tabId) {
+    var src = tabs.get(tabId).url
+
+    userscripts.injectManagerDetection(tabId, src)
+
     if (userscripts.scripts.length === 0) {
       return
     }
-
-    var src = tabs.get(tabId).url
 
     userscripts.getMatchingScripts(src).forEach(function (script) {
       // TODO run different types of scripts at the correct time

@@ -247,7 +247,7 @@
     "userscriptsDelete": "Delete",
     "userscriptsDeleteConfirm": "Click again to delete",
     "userscriptsEmptyTitle": "No userscripts installed",
-    "userscriptsEmptyDescription": "Userscripts tweak individual websites — hiding clutter, adding buttons, restyling pages. Find one on Greasy Fork and click its install link; xb will ask before installing it.",
+    "userscriptsEmptyDescription": "Userscripts tweak individual websites — hiding clutter, adding buttons, restyling pages. Find one on Greasy Fork and click its install link; Tabi will ask before installing it.",
     "userscriptsEmptyLink": "Browse Greasy Fork",
     "userscriptInstallPageTitle": "Install userscript",
     "userscriptInstallHeading": "This site wants to install a userscript",

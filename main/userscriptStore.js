@@ -4,6 +4,8 @@
    serves the GM API relay used by injected scripts. Injection itself stays in
    js/userscripts.js. */
 
+const { fileURLToPath } = require('url')
+
 var userscriptStoreDir = path.join(userDataPath, 'userscripts')
 
 var userscriptStoreSuggested = [
@@ -343,7 +345,7 @@ function userscriptStoreAutoUpdateSweep () {
 }
 
 function isUserScriptURL (url) {
-  return /^https?:\/\//i.test(url) && /\.user\.js([?#]|$)/i.test(url)
+  return /^(https?|file):\/\//i.test(url) && /\.user\.js([?#]|$)/i.test(url)
 }
 
 function userscriptInstallPageURL (sourceURL) {
@@ -626,16 +628,38 @@ ipc.handle('userscriptStore:getValues', function (e, id) {
   return gmReadValues(String(id))
 })
 
+function userscriptStoreReadSource (url) {
+  if (!/^file:\/\//i.test(url)) {
+    return net.fetch(url).then(function (res) {
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status)
+      }
+      return res.text()
+    })
+  }
+  return new Promise(function (resolve, reject) {
+    var filePath = ''
+    try {
+      filePath = fileURLToPath(url)
+    } catch (err) {
+      reject(new Error('invalid file URL'))
+      return
+    }
+    fs.readFile(filePath, 'utf-8', function (err, data) {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(data)
+      }
+    })
+  })
+}
+
 function userscriptStoreInspect (url) {
   if (!isUserScriptURL(url)) {
     return Promise.resolve({ ok: false, error: 'not a userscript URL' })
   }
-  return net.fetch(url).then(function (res) {
-    if (!res.ok) {
-      throw new Error('HTTP ' + res.status)
-    }
-    return res.text()
-  }).then(function (source) {
+  return userscriptStoreReadSource(url).then(function (source) {
     var features = parseUserScriptHeader(source)
     if (!features) {
       return { ok: false, error: 'header' }
@@ -669,6 +693,25 @@ ipc.handle('userscriptStore:page', function (e, payload) {
   }
 })
 
+var userscriptStorePromptLoads = new WeakMap()
+
+function userscriptStoreOpenPrompt (contents, sourceURL) {
+  if (userscriptStorePromptLoads.get(contents) === sourceURL) {
+    return
+  }
+  userscriptStorePromptLoads.set(contents, sourceURL)
+  setImmediate(function () {
+    if (contents.isDestroyed()) {
+      return
+    }
+    contents.loadURL(userscriptInstallPageURL(sourceURL)).catch(function () { }).finally(function () {
+      if (userscriptStorePromptLoads.get(contents) === sourceURL) {
+        userscriptStorePromptLoads.delete(contents)
+      }
+    })
+  })
+}
+
 app.on('web-contents-created', function (e, contents) {
   function intercept (url, cancel) {
     if (!isUserScriptURL(url)) {
@@ -690,26 +733,28 @@ app.on('web-contents-created', function (e, contents) {
     return 'redirect'
   }
   contents.on('will-navigate', function (e, url) {
-    var action = intercept(url, true)
-    if (!action) {
+    if (intercept(url, true) !== 'cancel') {
       return
     }
     e.preventDefault()
-    contents.loadURL(userscriptInstallPageURL(url)).catch(function () { })
+    userscriptStoreOpenPrompt(contents, url)
   })
   contents.on('did-start-navigation', function (e, url, isInPlace, isMainFrame) {
     if (!isMainFrame) {
       return
     }
-    if (!intercept(url, false)) {
+    if (intercept(url, false) !== 'redirect') {
       return
     }
-    contents.loadURL(userscriptInstallPageURL(url)).catch(function () { })
+    userscriptStoreOpenPrompt(contents, url)
   })
 
   /* the typed-URL path commits the .user.js entry before the redirect; drop it
      from history so going back from the install prompt skips the raw source */
   contents.on('did-navigate', function (e, url) {
+    if (intercept(url, false) === 'redirect') {
+      userscriptStoreOpenPrompt(contents, url)
+    }
     var match = /^min:\/\/app\/pages\/userscripts\/install\.html\?src=(.+)$/.exec(url)
     if (!match || contents.session === session.defaultSession) {
       return
