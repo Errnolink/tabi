@@ -10,7 +10,9 @@ X-focused browser fork for Chef. Min (28k LOC plain-JS Electron browser) reshape
 
 ## Fork base
 
-- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it). Active branch `feat/seaglass` (from `feat/buckets`). Installed runtime (the packaged zip, separate from this repo): `C:\Users\Chef\Apps\xb` — update it with `C:\Users\Public\xb-update.ps1 <zip>`. It is stale: it predates `feat/seaglass` and still has the old auto-file bug.
+- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it). Active branch `feat/seaglass` (from `feat/buckets`).
+- Installed runtime (Chef's daily xb): `C:\Users\Chef\Apps\xb\xb.exe`, shortcuts in the Start Menu, on the Desktop and `Apps\xb\xb.lnk`. Profile `%APPDATA%\xb`. Update: `npm run buildXb`, close xb, then `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\Public\xb-deploy.ps1 <repo>\dist\app\xb-v1.35.7-windows-x64.zip`. `-MigrateDevProfile` also replaces the daily profile with `%APPDATA%\xb-development` (minus caches; the old one is renamed `xb.old-<stamp>`). NEVER pass it again: Chef's daily tabs and logins now live in `%APPDATA%\xb`.
+- 2026-10-21 16:14: runtime rebuilt from `feat/seaglass` (`17e46ea`), dev profile migrated (119 tabs incl. Chrome 83 and Helium · Errno 20 imports; X login in the Alt container verified live). The two profiles diverge from here: the dev profile is for testing only.
 - Upstream: maintenance mode since 2025-10 but Chromium bumps continue (v1.35.7 = Electron 43.4.1). Engine updates = bump `electronVersion` in package.json; do this monthly-ish.
 
 ## Map (what we touch)
@@ -56,7 +58,7 @@ Research: `Documents/research/xb-browser-ux/FINDINGS.md` (+ 01–05, inspo/). Ch
   - Known gap: the page menu has no Reload/Save items yet (Min's `webviewMenu` inventory only).
 - Live verification is the main session's job only (agents do build + lint).
 - Status 2026-10-20 late evening: wave 1 integrated. Then Chef judged it "laggy, buggy, mid", and the main session rebuilt the shell (sidebar, toolbar, overview) itself (`26e00e6`, `a9a7323`). Verified live in the dev instance: clean boot (0 errors), sidebar indicator spring, overview open/close morph (probed via `document.getAnimations()`), rail mode, auto-file with zero lost tabs across four rule targets.
-- Not yet verified live: the containers E2E (two X logins side by side, survives restart) and the extensions E2E (store install of CPfT + uBO, popups). Both need Chef logged in. Both scripts are in the agents' reports. Packaged build (`C:\Users\Chef\Apps\xb`) not rebuilt from this branch.
+- Not yet verified live: the containers E2E (two X logins side by side, survives restart) and the extensions E2E (store install of CPfT + uBO, popups). Both need Chef logged in. Both scripts are in the agents' reports.
 
 ## Issues workflow
 
@@ -84,7 +86,6 @@ Also in round 1: page menu Reload/Save/Print/Copy link/View source (`575df2a`). 
 
 - 2026-10-21: Chef approved from the #6 pick list: Ghostery adblocker, URL cleaning, DoH, tab hover cards. Rejected: Helium bangs, PiP auto-enter. Approved the userscript manager (keep extension support beside it) and merge buckets. All six are queued in `issues.md`.
 - Containers: extension instances for a deleted default partition are not torn down. `containersDefaultLabel` is stale in non-English locales.
-- Rebuild the packaged runtime (`npm run buildXb`, then `xb-update.ps1`).
 
 ## Dev instance notes
 
