@@ -24,8 +24,8 @@
     "copy": "Copy", //this is a verb (as in "copy the currently-selected text")
     "paste": "Paste",
     "pasteAndMatchStyle": "Paste and Match Style",
-    "goBack": "Back (Alt+Left)",
-    "goForward": "Forward (Alt+Right)",
+    "goBack": "Back (Ctrl+Left)",
+    "goForward": "Forward (Ctrl+Right)",
     "inspectElement": "Inspect Element",
     "translatePage": "Translate Page",
     /* searchbar */

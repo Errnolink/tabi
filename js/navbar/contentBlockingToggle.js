@@ -43,7 +43,8 @@ const contentBlockingToggle = {
   create: function () {
     const button = document.createElement('button')
     button.className = 'tab-editor-button i carbon:manage-protection'
-
+    button.title = 'Ad and tracker blocking for this site'
+    button.setAttribute('aria-label', 'Ad and tracker blocking for this site')
     button.addEventListener('click', function (e) {
       contentBlockingToggle.showMenu(button)
     })

@@ -245,7 +245,7 @@ const omniboxActions = {
 
   initialize: function () {
     siteButton.title = 'View site information'
-    zoomChip.title = 'Reset zoom (Ctrl+0)'
+    zoomChip.title = 'Reset zoom'
     readerButton.title = 'Toggle reader view (Ctrl+Shift+R)'
     pipButton.title = 'Picture in picture'
     copyButton.title = 'Copy link (Ctrl+Shift+C)'

@@ -40,8 +40,8 @@ const navigationButtons = {
   },
   initialize: function () {
     navigationButtons.container.hidden = false
-    navigationButtons.backButton.title = 'Back (Alt+Left)'
-    navigationButtons.forwardButton.title = 'Forward (Alt+Right)'
+    navigationButtons.backButton.title = 'Back (Ctrl+Left)'
+    navigationButtons.forwardButton.title = 'Forward (Ctrl+Right)'
     navigationButtons.reloadButton.title = 'Reload (Ctrl+R)'
     navigationButtons.backButton.addEventListener('click', function () {
       const selectedId = tabs.getSelected()

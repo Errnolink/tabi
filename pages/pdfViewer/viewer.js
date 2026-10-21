@@ -130,7 +130,7 @@ loadingTask.promise.then(async function (_pdfDocument) {
 eventBus.on('pagesinit', function () {
   pdfViewer.currentScaleValue = 'page-width'
 
-  const saved = parseInt(localStorage.getItem('xb_pdf_last_page_' + rawUrl), 10)
+  const saved = parseInt(localStorage.getItem('tabi_pdf_last_page_' + rawUrl), 10)
   if (saved && saved >= 1 && saved <= pdfViewer.pagesCount) {
     pdfViewer.currentPageNumber = saved
   }
@@ -145,7 +145,7 @@ eventBus.on('pagechanging', function (evt) {
     thumbnailViewer.scrollThumbnailIntoView(evt.pageNumber)
   }
   try {
-    localStorage.setItem('xb_pdf_last_page_' + rawUrl, String(evt.pageNumber))
+    localStorage.setItem('tabi_pdf_last_page_' + rawUrl, String(evt.pageNumber))
   } catch (e) {}
 })
 
