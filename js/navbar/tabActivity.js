@@ -11,14 +11,18 @@ var tabActivity = {
       var time = Date.now()
 
       tabSet.forEach(function (tab) {
+        var el = tabBar.getTab(tab.id)
+        if (!el) {
+          return
+        }
         if (selected === tab.id) { // never fade the current tab
-          tabBar.getTab(tab.id).classList.remove('fade')
+          el.classList.remove('fade')
           return
         }
         if (time - tab.lastActivity > tabActivity.minFadeAge) { // the tab has been inactive for greater than minActivity, and it is not currently selected
-          tabBar.getTab(tab.id).classList.add('fade')
+          el.classList.add('fade')
         } else {
-          tabBar.getTab(tab.id).classList.remove('fade')
+          el.classList.remove('fade')
         }
       })
     })

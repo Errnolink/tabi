@@ -478,6 +478,27 @@ const overview = {
     return overview.el.querySelector('.ov-card[data-tab="' + tabId + '"]')
   },
 
+  swapCardThumb: function (tabId) {
+    if (!overview.isShown) {
+      return
+    }
+    const tab = tabs.get(tabId)
+    const card = tab ? overview.cardFor(tabId) : null
+    if (!card || !tab.thumbImage) {
+      return
+    }
+    const img = card.querySelector('.ov-thumb img')
+    if (img && img.src !== tab.thumbImage) {
+      img.src = tab.thumbImage
+    }
+  },
+
+  applyFreshPreview: function (tabId, promise) {
+    promise.then(function () {
+      overview.swapCardThumb(tabId)
+    })
+  },
+
   visibleCards: function () {
     return Array.from(overview.el.querySelectorAll('.ov-card'))
   },
@@ -564,9 +585,9 @@ const overview = {
 
     const placeholder = document.getElementById('webview-placeholder')
     const selected = tabs.getSelected()
-    let morph = canMorph() && !!selected && webviews.hasViewForTab(selected)
+    const morph = canMorph() && !!selected && webviews.hasViewForTab(selected)
     if (morph) {
-      morph = await overview.freshPreview(selected)
+      overview.applyFreshPreview(selected, overview.freshPreview(selected))
     }
     document.body.classList.add('overview-morph')
     webviews.requestPlaceholder('overview')
@@ -720,8 +741,14 @@ const overview = {
 
     tasks.on('tab-destroyed', forgetThumb)
     tasks.on('tab-updated', function (id, key) {
-      if (key === 'previewImage' && overview.previewWaiter && overview.previewWaiter.id === id) {
+      if (key !== 'previewImage') {
+        return
+      }
+      if (overview.previewWaiter && overview.previewWaiter.id === id) {
         overview.previewWaiter.resolve(true)
+      }
+      if (overview.isShown) {
+        overview.swapCardThumb(id)
       }
     })
     tasks.on('state-sync-change', function () {

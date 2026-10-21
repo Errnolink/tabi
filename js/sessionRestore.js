@@ -6,12 +6,16 @@ var settings = require('util/settings/settings.js')
 var overview = require('overview/overview.js')
 var containers = require('containers.js')
 const writeFileAtomic = require('write-file-atomic')
-const statistics = require('js/statistics.js')
+const TabList = require('tabState/tab.js')
 
 const sessionRestore = {
   savePath: window.globalArgs['user-data-path'] + (platformType === 'windows' ? '\\sessionRestore.json' : '/sessionRestore.json'),
   previousState: null,
   restored: false,
+  dirty: false,
+  markDirty: function () {
+    sessionRestore.dirty = true
+  },
   save: function (forceSave, sync) {
     if (!sessionRestore.restored) {
       return
@@ -20,44 +24,50 @@ const sessionRestore = {
     if (!document.body.classList.contains('focused')) {
       return
     }
-
-    var stateString = JSON.stringify(tasks.getStringifyableState())
-    var data = {
-      version: 2,
-      state: JSON.parse(stateString),
-      saveTime: Date.now()
+    if (!sessionRestore.dirty && forceSave !== true) {
+      return
     }
+
+    var state = tasks.getStringifyableState()
 
     // save all tabs that aren't private
 
-    for (var i = 0; i < data.state.tasks.length; i++) {
-      data.state.tasks[i].tabs = data.state.tasks[i].tabs.filter(function (tab) {
+    state.tasks = state.tasks.map(function (task) {
+      return Object.assign({}, task, { tabs: task.tabs.filter(function (tab) {
         return !tab.private
-      })
-    }
+      }) })
+    })
 
     //if startupTabOption is "open a new blank task", don't save any tabs in the current task
     if (settings.get('startupTabOption') === 3) {
-      for (var i = 0; i < data.state.tasks.length; i++) {
-        if (tasks.get(data.state.tasks[i].id).selectedInWindow) { //need to re-fetch the task because temporary properties have been removed
-          data.state.tasks[i].tabs = []
+      state.tasks = state.tasks.map(function (task) {
+        var live = tasks.get(task.id)
+        if (live && live.selectedInWindow) {
+          return Object.assign({}, task, { tabs: [] })
         }
-      }
+        return task
+      })
     }
 
-    if (forceSave === true || stateString !== sessionRestore.previousState) {
-      if (sync === true) {
-        writeFileAtomic.sync(sessionRestore.savePath, JSON.stringify(data), {})
-      } else {
-        writeFileAtomic(sessionRestore.savePath, JSON.stringify(data), {}, function (err) {
-          if (err) {
-            console.warn(err)
-            statistics.incrementValue('sessionRestoreSaveAsyncWriteErrors')
-          }
-        })
-      }
-      sessionRestore.previousState = stateString
+    var stateString = JSON.stringify(state)
+    if (forceSave !== true && stateString === sessionRestore.previousState) {
+      sessionRestore.dirty = false
+      return
     }
+
+    var data = '{"version":2,"state":' + stateString + ',"saveTime":' + Date.now() + '}'
+
+    if (sync === true) {
+      writeFileAtomic.sync(sessionRestore.savePath, data, {})
+    } else {
+      writeFileAtomic(sessionRestore.savePath, data, {}, function (err) {
+        if (err) {
+          console.warn(err)
+        }
+      })
+    }
+    sessionRestore.previousState = stateString
+    sessionRestore.dirty = false
   },
   restoreFromFile: function () {
     var savedStringData
@@ -200,8 +210,6 @@ const sessionRestore = {
 
       browserUI.switchToTask(newTask)
       browserUI.switchToTab(newSessionErrorTab)
-
-      statistics.incrementValue('sessionRestorationErrors')
     }
   },
   syncWithWindow: function () {
@@ -244,6 +252,16 @@ const sessionRestore = {
   },
   initialize: function () {
     setInterval(sessionRestore.save, 30000)
+
+    const persistedMutations = ['task-added', 'task-updated', 'task-destroyed', 'task-selected', 'tab-added', 'tab-destroyed', 'tab-selected', 'tab-splice', 'state-sync-change']
+    persistedMutations.forEach(function (name) {
+      tasks.on(name, sessionRestore.markDirty)
+    })
+    tasks.on('tab-updated', function (id, key) {
+      if (!TabList.temporaryProperties.includes(key)) {
+        sessionRestore.markDirty()
+      }
+    })
 
     window.onbeforeunload = function (e) {
       if (!sessionRestore.restored) {

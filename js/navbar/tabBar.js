@@ -51,10 +51,44 @@ function bucketName (task, index) {
 const rows = new Map()
 const buckets = new Map()
 const leaving = new Set()
+const pendingFavicons = new Set()
 let renamingTaskId = null
 let dragging = false
 let renderQueued = false
 let indicatorPlaced = false
+let faviconBatchScheduled = false
+let currentTaskId = null
+
+function flushFaviconBatch () {
+  faviconBatchScheduled = false
+  let applied = 0
+  for (const tabId of pendingFavicons) {
+    pendingFavicons.delete(tabId)
+    const row = rows.get(tabId)
+    if (row && row.faviconUrl) {
+      row.favicon.src = row.faviconUrl
+    }
+    applied++
+    if (applied >= 10) {
+      break
+    }
+  }
+  if (pendingFavicons.size > 0) {
+    scheduleFaviconBatch()
+  }
+}
+
+function scheduleFaviconBatch () {
+  if (faviconBatchScheduled) {
+    return
+  }
+  faviconBatchScheduled = true
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(flushFaviconBatch, { timeout: 300 })
+  } else {
+    setTimeout(flushFaviconBatch, 32)
+  }
+}
 
 const tabBar = {
   container: document.getElementById('sidebar'),
@@ -77,7 +111,7 @@ const tabBar = {
     stripe.className = 'tab-stripe'
 
     const icon = document.createElement('span')
-    icon.className = 'tab-icon'
+    icon.className = 'tab-icon no-favicon'
     const favicon = document.createElement('img')
     favicon.className = 'tab-favicon'
     favicon.decoding = 'async'
@@ -188,7 +222,8 @@ const tabBar = {
     if (faviconUrl !== row.faviconUrl) {
       row.faviconUrl = faviconUrl
       if (faviconUrl) {
-        row.favicon.src = faviconUrl
+        pendingFavicons.add(tabId)
+        scheduleFaviconBatch()
       } else {
         row.favicon.removeAttribute('src')
         row.icon.classList.add('no-favicon')
@@ -437,6 +472,7 @@ const tabBar = {
     }
 
     const selectedTask = tasks.getSelected()
+    currentTaskId = selectedTask.id
     const liveTabIds = new Set()
     const liveTaskIds = new Set()
     const entering = []
@@ -461,27 +497,33 @@ const tabBar = {
       }
       bucket.count.textContent = String(task.tabs.count())
 
-      let rowCursor = bucket.list.firstChild
-      task.tabs.get().forEach(function (tab) {
-        liveTabIds.add(tab.id)
-        let row = rows.get(tab.id)
-        const isNew = !row
-        if (!row) {
-          row = tabBar.createRow(tab.id)
-        }
-        while (rowCursor && leaving.has(rowCursor.getAttribute('data-tab'))) {
-          rowCursor = rowCursor.nextSibling
-        }
-        if (row.el !== rowCursor) {
-          bucket.list.insertBefore(row.el, rowCursor)
-        } else {
-          rowCursor = rowCursor.nextSibling
-        }
-        tabBar.updateTab(tab.id)
-        if (isNew && animate) {
-          entering.push(row.el)
-        }
-      })
+      if (!task.collapsed) {
+        let rowCursor = bucket.list.firstChild
+        task.tabs.get().forEach(function (tab) {
+          liveTabIds.add(tab.id)
+          let row = rows.get(tab.id)
+          const isNew = !row
+          if (!row) {
+            row = tabBar.createRow(tab.id)
+          }
+          while (rowCursor && leaving.has(rowCursor.getAttribute('data-tab'))) {
+            rowCursor = rowCursor.nextSibling
+          }
+          if (row.el !== rowCursor) {
+            bucket.list.insertBefore(row.el, rowCursor)
+          } else {
+            rowCursor = rowCursor.nextSibling
+          }
+          tabBar.updateTab(tab.id)
+          if (isNew && animate) {
+            entering.push(row.el)
+          }
+        })
+      } else if (bucket.rowsFoldable) {
+        task.tabs.get().forEach(function (tab) {
+          liveTabIds.add(tab.id)
+        })
+      }
     })
 
     rows.forEach(function (row, id) {
@@ -583,6 +625,72 @@ const tabBar = {
     tabBar.render()
   },
 
+  discardBucketRows: function (taskId) {
+    const bucket = buckets.get(taskId)
+    if (!bucket) {
+      return
+    }
+    bucket.rowsFoldable = false
+    bucket.rowTeardown = null
+    rows.forEach(function (row, id) {
+      if (leaving.has(id)) {
+        return
+      }
+      if (row.el.closest('.bucket') === bucket.el) {
+        row.el.remove()
+        rows.delete(id)
+      }
+    })
+  },
+
+  deferCollapsedRows: function (taskId) {
+    const bucket = buckets.get(taskId)
+    if (!bucket) {
+      return
+    }
+    if (bucket.rowTeardown) {
+      clearTimeout(bucket.rowTeardown)
+      bucket.rowTeardown = null
+    }
+    const task = tasks.get(taskId)
+    if (task && task.collapsed && !reduceMotion.matches) {
+      bucket.rowsFoldable = true
+      bucket.rowTeardown = setTimeout(function () {
+        tabBar.discardBucketRows(taskId)
+      }, 450)
+    } else {
+      bucket.rowsFoldable = false
+    }
+  },
+
+  taskSwitched: function (taskId) {
+    const task = tasks.get(taskId)
+    if (!task) {
+      return
+    }
+    const bucket = buckets.get(taskId)
+    if (bucket) {
+      buckets.forEach(function (b) {
+        b.el.classList.toggle('is-current', b === bucket)
+      })
+    }
+    if (currentTaskId && currentTaskId !== taskId) {
+      const previous = buckets.get(currentTaskId)
+      if (previous) {
+        previous.list.querySelectorAll('.tab-permissions').forEach(function (el) {
+          el.textContent = ''
+        })
+      }
+    }
+    currentTaskId = taskId
+    task.tabs.get().forEach(function (tab) {
+      if (rows.has(tab.id)) {
+        tabBar.updateTab(tab.id)
+      }
+    })
+    tabBar.placeIndicator(!reduceMotion.matches)
+  },
+
   addTab: function (tabId) {
     tabBar.render()
   },
@@ -677,6 +785,7 @@ const tabBar = {
     structural.forEach(name => tasks.on(name, tabBar.scheduleRender))
     tasks.on('task-updated', function (id, key) {
       if (key === 'collapsed') {
+        tabBar.deferCollapsedRows(id)
         tabBar.render()
         const bucket = buckets.get(id)
         if (bucket) {

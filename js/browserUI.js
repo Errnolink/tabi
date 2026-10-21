@@ -1,4 +1,3 @@
-var statistics = require('js/statistics.js')
 var searchEngine = require('js/util/searchEngine.js')
 var urlParser = require('js/util/urlParser.js')
 var containers = require('containers.js')
@@ -60,7 +59,10 @@ function addTab (tabId = tabs.add({ containerId: defaultContainerForSelectedTask
       tabEditor.show(tabId)
     }
   } else {
-    tabBar.getTab(tabId).scrollIntoView()
+    const row = tabBar.getTab(tabId)
+    if (row) {
+      row.scrollIntoView()
+    }
   }
 }
 
@@ -177,7 +179,7 @@ function setWindowTitle () {
 function switchToTask (id) {
   tasks.setSelected(id)
 
-  tabBar.updateAll()
+  tabBar.taskSwitched(id)
 
   var taskData = tasks.get(id)
 
@@ -280,11 +282,6 @@ ipc.on('set-file-view', function (e, data) {
 })
 
 searchbar.events.on('url-selected', function (data) {
-  var searchbarQuery = searchEngine.getSearch(urlParser.parse(data.url))
-  if (searchbarQuery) {
-    statistics.incrementValue('searchCounts.' + searchbarQuery.engine)
-  }
-
   if (data.background) {
     var newTab = tabs.add({
       url: data.url,

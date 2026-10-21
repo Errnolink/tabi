@@ -269,9 +269,6 @@
     "userscriptInstallHeaderError": "This file doesn't look like a userscript — the ==UserScript== header is missing.",
     "settingsUserAgentToggle": "Use a custom user agent",
     "settingsUpdateNotificationsToggle": "Automatically check for updates",
-    "settingsUsageStatisticsToggle": {
-      "unsafeHTML": "Send usage statistics (<a href=\"https://github.com/minbrowser/min/blob/master/docs/statistics.md\">More info</a>)"
-    },
     "settingsStartupOptions": "When Tabi starts: ",
     "settingsStartupCreateTask": "Re-open previous tabs",
     "settingsStartupNewTaskandBackground": "Move previous tabs to a background group",

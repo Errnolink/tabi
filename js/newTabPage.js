@@ -1,6 +1,5 @@
 const path = require('path')
 const fs = require('fs')
-const statistics = require('js/statistics.js')
 const settings = require('util/settings/settings.js')
 const searchbar = require('searchbar/searchbar.js')
 const tabEditor = require('navbar/tabEditor.js')
@@ -686,10 +685,6 @@ const newTabPage = {
         }
       })
     }
-
-    statistics.registerGetter('ntpHasBackground', function () {
-      return newTabPage.hasBackground
-    })
   }
 }
 
