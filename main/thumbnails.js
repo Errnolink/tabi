@@ -1,6 +1,8 @@
-/* global path, app, fs, ipc */
+/* global path, app, fs, ipc, windows, getWindowWebContents */
 
 const THUMBNAIL_MAX_FILES = 300
+
+var captureVersion = 0
 
 const thumbnailManager = {
   dir: null,
@@ -82,9 +84,23 @@ const thumbnailManager = {
     this.lruMap.set(tabId, Date.now())
     this.pruneLRU()
 
-    return {
+    const result = {
       aspect: thumbSize.width / thumbSize.height
     }
+
+    captureVersion++
+    windows.openWindows.forEach(function (w) {
+      if (w.closed) {
+        return
+      }
+      try {
+        getWindowWebContents(w.win).send('captureData', { id: tabId, aspect: result.aspect, version: captureVersion })
+      } catch (err) {
+        // the window's UI view can already be torn down during shutdown
+      }
+    })
+
+    return result
   },
 
   delete: function (tabId) {

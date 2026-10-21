@@ -7,6 +7,7 @@ const discardInactive = require('discardInactive.js')
 
 const thumbCache = new Map()
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+const STALE_THUMB_AGE = 10000
 
 let el = null
 let thumbWrap = null
@@ -69,18 +70,46 @@ function getThumbPath (tabId) {
   return userData + sep + 'thumbnails' + sep + tabId + '.jpg'
 }
 
+function requestSelectedThumbRefresh (tabId) {
+  if (tabs.getSelected() !== tabId) {
+    return
+  }
+  const filePath = getThumbPath(tabId)
+  if (!filePath || !window.fs || !window.fs.promises) {
+    return
+  }
+  window.fs.promises.stat(filePath).then(function (stats) {
+    return Date.now() - stats.mtimeMs
+  }).catch(function () {
+    return Infinity
+  }).then(function (age) {
+    if (age >= STALE_THUMB_AGE && currentTabId === tabId && isCardVisible) {
+      webviews.captureTab(tabId)
+    }
+  })
+}
+
 function fetchThumb (tab) {
   const cached = thumbCache.get(tab.id)
   if (cached) {
-    return Promise.resolve(cached)
+    if (cached.version === tab.thumbVersion) {
+      return Promise.resolve(cached.url)
+    }
+    URL.revokeObjectURL(cached.url)
+    thumbCache.delete(tab.id)
   }
   const filePath = getThumbPath(tab.id)
   if (!filePath || !window.fs || !window.fs.promises) {
     return Promise.resolve(null)
   }
+  const expectedVersion = tab.thumbVersion
   return window.fs.promises.readFile(filePath).then(function (buffer) {
+    const found = findTab(tab.id)
+    if (!found || found.tab.thumbVersion !== expectedVersion) {
+      return null
+    }
     const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
-    thumbCache.set(tab.id, url)
+    thumbCache.set(tab.id, { url: url, version: expectedVersion })
     return url
   }).catch(function () {
     return null
@@ -88,9 +117,9 @@ function fetchThumb (tab) {
 }
 
 function forgetThumb (tabId) {
-  const url = thumbCache.get(tabId)
-  if (url) {
-    URL.revokeObjectURL(url)
+  const cached = thumbCache.get(tabId)
+  if (cached) {
+    URL.revokeObjectURL(cached.url)
     thumbCache.delete(tabId)
   }
 }
@@ -187,8 +216,8 @@ function updateCardContent (tabId, rowEl) {
   }
 
   const syncThumb = thumbCache.get(tab.id)
-  if (syncThumb) {
-    thumbImg.src = syncThumb
+  if (syncThumb && syncThumb.version === tab.thumbVersion) {
+    thumbImg.src = syncThumb.url
     thumbWrap.hidden = false
     el.classList.remove('no-thumb')
   } else {
@@ -299,6 +328,8 @@ function show (tabId, rowEl) {
   positionCard(rowEl)
   uiLayer.raise('tab-hover-card')
 
+  requestSelectedThumbRefresh(tabId)
+
   requestAnimationFrame(function () {
     if (isCardVisible && currentTabId === tabId) {
       el.classList.add('visible')
@@ -327,6 +358,11 @@ const tabHoverCard = {
       tasks.on('task-updated', function (taskId, key) {
         if (key === 'collapsed') {
           tabHoverCard.hide()
+        }
+      })
+      tasks.on('tab-updated', function (tabId, key) {
+        if (key === 'thumbVersion') {
+          forgetThumb(tabId)
         }
       })
       tasks.on('tab-updated', function (tabId) {

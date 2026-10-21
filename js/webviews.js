@@ -637,6 +637,9 @@ ipc.on('captureData', function (e, data) {
   if (typeof data.aspect === 'number' && isFinite(data.aspect) && data.aspect > 0) {
     task.tabs.update(data.id, { thumbAspect: data.aspect })
   }
+  if (typeof data.version === 'number' && data.version !== task.tabs.get(data.id).thumbVersion) {
+    task.tabs.update(data.id, { thumbVersion: data.version })
+  }
   if (data.id === webviews.selectedId && webviews.placeholderRequests.length > 0) {
     forgetThumbObjectURL(data.id)
     loadThumbObjectURL(data.id, function (url) {

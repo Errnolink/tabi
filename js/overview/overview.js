@@ -52,14 +52,22 @@ function cardAspect (tab) {
 }
 
 function loadThumb (tab, img) {
+  const versionAtFetch = tab.thumbVersion
   const cached = thumbCache.get(tab.id)
   if (cached) {
-    img.src = cached
-    return
+    if (cached.version === versionAtFetch) {
+      img.src = cached.url
+      return
+    }
+    forgetThumb(tab.id)
   }
   fs.promises.readFile(thumbDir + tab.id + '.jpg').then(function (buffer) {
+    const currentTab = tabs.get(tab.id)
+    if (!currentTab || currentTab.thumbVersion !== versionAtFetch) {
+      return
+    }
     const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }))
-    thumbCache.set(tab.id, url)
+    thumbCache.set(tab.id, { url: url, version: versionAtFetch })
     img.src = url
   }).catch(function () {
     img.closest('.ov-thumb').classList.add('empty')
@@ -67,9 +75,9 @@ function loadThumb (tab, img) {
 }
 
 function forgetThumb (tabId) {
-  const url = thumbCache.get(tabId)
-  if (url) {
-    URL.revokeObjectURL(url)
+  const cached = thumbCache.get(tabId)
+  if (cached) {
+    URL.revokeObjectURL(cached.url)
     thumbCache.delete(tabId)
   }
 }
@@ -738,13 +746,13 @@ const overview = {
 
     tasks.on('tab-destroyed', forgetThumb)
     tasks.on('tab-updated', function (id, key) {
-      if (key !== 'thumbAspect') {
+      if (key !== 'thumbAspect' && key !== 'thumbVersion') {
         return
       }
       if (overview.previewWaiter && overview.previewWaiter.id === id) {
         overview.previewWaiter.resolve(true)
       }
-      if (overview.isShown) {
+      if (key === 'thumbVersion' && overview.isShown) {
         overview.swapCardThumb(id)
       }
     })
