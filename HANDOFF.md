@@ -10,7 +10,7 @@ X-focused browser fork for Chef. Min (28k LOC plain-JS Electron browser) reshape
 
 ## Fork base
 
-- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it), branch `feat/buckets`. Installed runtime (the packaged zip, separate from this repo): `C:\Users\Chef\Apps\xb` — update it with `C:\Users\Public\xb-update.ps1 <zip>`.
+- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it). Active branch `feat/seaglass` (from `feat/buckets`). Installed runtime (the packaged zip, separate from this repo): `C:\Users\Chef\Apps\xb` — update it with `C:\Users\Public\xb-update.ps1 <zip>`. It is stale: it predates `feat/seaglass` and still has the old auto-file bug.
 - Upstream: maintenance mode since 2025-10 but Chromium bumps continue (v1.35.7 = Electron 43.4.1). Engine updates = bump `electronVersion` in package.json; do this monthly-ish.
 
 ## Map (what we touch)
@@ -56,7 +56,45 @@ Research: `Documents/research/xb-browser-ux/FINDINGS.md` (+ 01–05, inspo/). Ch
   - Known gap: the page menu has no Reload/Save items yet (Min's `webviewMenu` inventory only).
 - Live verification is the main session's job only (agents do build + lint).
 - Status 2026-10-20 late evening: wave 1 integrated. Then Chef judged it "laggy, buggy, mid", and the main session rebuilt the shell (sidebar, toolbar, overview) itself (`26e00e6`, `a9a7323`). Verified live in the dev instance: clean boot (0 errors), sidebar indicator spring, overview open/close morph (probed via `document.getAnimations()`), rail mode, auto-file with zero lost tabs across four rule targets.
-- Not yet verified live: the containers E2E (two X logins side by side, survives restart) and the extensions E2E (store install of CPfT + uBO, popups). Both scripts are in the agents' reports. Packaged build (`C:\Users\Chef\Apps\xb`) not rebuilt from this branch.
+- Not yet verified live: the containers E2E (two X logins side by side, survives restart) and the extensions E2E (store install of CPfT + uBO, popups). Both need Chef logged in. Both scripts are in the agents' reports. Packaged build (`C:\Users\Chef\Apps\xb`) not rebuilt from this branch.
+
+## Issues workflow
+
+Chef writes issues in `issues.md` (repo root), one per line, screenshots as `issues-N.png` beside it. Read it at session start. Fix each item, then log it below under "Issues log" with commit and root cause, remove it from `issues.md`, and move its screenshots to `Documents/research/xb-browser-ux/issues-<date>/`.
+
+## Issues log
+
+### Round 1 (2026-10-21), archived at `Documents/research/xb-browser-ux/issues-2026-10-21/`
+
+1. Search bar dropdown looks bad. Fixed in `6e5dea4`, `32897cb`. The suggestions are a sheet anchored to the omnibox (`tabEditor.anchorSearchbar()` sets `--omnibox-left/width/bottom`; `css/searchbar.css`, `css/listItem.css`). Edit mode veils only the page card (`css/modal.css`). The dev-mode notification row is deleted. Action chips are styled; the double-quoted bucket name in `placesPlugin.js` is fixed.
+2. Cannot remove the default container. Fixed in `d1e7dd3`, `4f928cf`, `32897cb`. The default is a movable role (`containers.defaultId()`, `isDefault()`, `sanitizeContainerId()`). Added a clear-data action, and delete-default with a promotion picker. Chef chose "both".
+3. Overview filter view. Fixed in `6e5dea4`. Search and container chips relayout the masonry with FLIP (`overview.relayout()`, `overview.matches()`) instead of dimming. Each bucket shows "N / total". An empty filter shows "No tabs match".
+4. Toolbar needs more features. Fixed in `1c22c58`, `32897cb`. Downloads are a toolbar button with a progress ring and a glass popover; the bottom bar is removed (`js/downloadManager.js`, `css/downloadManager.css`). `js/navbar/omniboxActions.js` adds: site-info popover (security, container, blocking toggle, zoom, clear site data via IPC `clearSiteData` in `main/remoteActions.js`), zoom chip, PiP/reader/copy link, bookmarks button, back/forward history on long-press or right-click. `glassMenu.openPanel()`/`begin()` host custom panels.
+5. Settings and min:// pages look bad. Fixed in `4757493`. Shared sea glass sheet `pages/shared/seaglass.css`. Settings has a left nav with scroll-spy. Error, phishing, prompt, sessionRestoreError, newtab and pagebase are restyled.
+6. Take features from Helium/Brave/Chrome. Research only: `Documents/research/xb-browser-ux/06-chromium-yoink.md`. Proposed pick list, NOT approved yet: Ghostery `@ghostery/adblocker-electron` built-in, Brave URL cleaning (query params, debounce, de-AMP), Helium bangs, DoH via `app.configureHostResolver`, tab hover cards, PiP auto-enter. Rejected: sync, Safe Browsing, Widevine, Cast. Chromium page freezing is not reachable from Electron.
+7. Closing a bucket or tab does not update the other view. Fixed in `6e5dea4`. Root cause: the sidebar listened to `task-removed`/`tab-removed`, which do not exist; the real events are `task-destroyed`/`tab-destroyed`. The overview closed tabs in the animation `onfinish`, which raced re-renders; it now closes through `tabActions.close` at once and animates a ghost clone. Verified live: the sidebar row, model entry and card all go.
+8. Ctrl/middle-click links open in the wrong bucket. Fixed in `6e5dea4`. Root cause: auto-file filed every new tab by URL rule, including link tabs, and moved them with destroy+add (a reload). Now `js/autoFile.js` files only tabs created empty (typed URLs) and moves them with `tabActions.moveToTask` without reload. Verified live: a middle-clicked link stays in its opener's bucket and container.
+9. Import tabs from other browsers. Done in `af3274b`, `c2d7ac7`. `main/importTabs.js` reads Chromium SNSS sessions and Firefox mozlz4 sessions; `pages/import/*` is the picker (browser cards, tabs grouped by site with tri-state checks, filter, sticky "Into … as … Import" bar); `js/importTabs.js` creates the bucket with sleeping tabs. App menu entry opens `min://app/pages/import/index.html`. Bugs fixed in `c2d7ac7`: titles came through at half length because Pickle String16 lengths count UTF-16 units, not bytes; imported tabs were jumbled because `TabList.add` inserts after the selected tab (now `{ atEnd: true }`). Verified live: Zen import gives one "Zen" bucket with 4 tabs in source order.
+10. Performance and transitions. Fixed in `cdd3d1d`, `4b85af6`. `js/uiLayer.js` is a ref-counted UI raise (`raise(reason)`/`lower(reason)`); the omnibox keeps the page live instead of capture+blur on every focus. No page captures while the window is hidden (they failed with `UnknownVizError`).
+11. Tabs reload when switching back. Fixed in `6e5dea4`, `3d7c847`. Root cause: discard-inactive destroyed every view outside the selected bucket on each bucket switch. `js/discardInactive.js` now sleeps only tabs idle longer than `tabSleepMinutes` (default 60; setting 15 min / 1 h / 4 h / never), never pinned, private or audio tabs. Chef chose "keep alive, sleep after a time I set".
+
+Also in round 1: page menu Reload/Save/Print/Copy link/View source (`575df2a`). Containers boot crash during an agent's broken edit briefly hid Chef's tabs; the session survived because `sessionRestore.save` refuses to write before restore (backup: `%APPDATA%\xb-development\sessionRestore.keep-1159.json`).
+
+### Open after round 1
+
+- Chef to approve the #6 pick list before any of it is built.
+- Chef to decide: userscript manager (Tampermonkey replacement). uBlock Origin MV2 should install through electron-chrome-extensions; uBO Lite and Tampermonkey/Violentmonkey will not work.
+- Containers: extension instances for a deleted default partition are not torn down. `containersDefaultLabel` is stale in non-English locales.
+- Rebuild the packaged runtime (`npm run buildXb`, then `xb-update.ps1`).
+
+## Dev instance notes
+
+- Run `node_modules/electron/dist/electron.exe . --development-mode --remote-debugging-port=9333` from the repo root. Profile: `%APPDATA%\xb-development`. Restart after any `main/*` change.
+- Reload the UI target `min://app/index.html` with CDP `Page.reload {ignoreCache: true}`. A plain reload can keep running a cached old `dist/bundle.js`.
+- Keyboard shortcuts cannot be sent as CDP key events to the UI. Use `ipc.emit('before-input-event', {}, {type: 'keyDown', key, code, control, shift, alt: false, meta: false, isAutoRepeat: false, modifiers: [...]})`.
+- Open an internal page from the UI context with `ipc.emit('addTab', {}, {url: 'min://app/pages/…'})`.
+- `main/*.js` is concatenated into one scope (`scripts/buildMain.js`): run `node --check main.build.js` after a build; top-level names must not collide.
+- Never reload the UI or restart xb while an agent has uncommitted or broken code.
 
 ## Decisions log
 
@@ -68,7 +106,7 @@ Research: `Documents/research/xb-browser-ux/FINDINGS.md` (+ 01–05, inspo/). Ch
 - 2026-10-20: auto-file (`js/autoFile.js`) committed — first-match prefix rules in `%APPDATA%/xb-development/autofile.json` (seeded Home/Search/Reading), hooks `tab-added` + `tab-updated(url)` debounced 250 ms, arms 3 s after boot to stay clear of session restore, moves with the customBangs destroy+add sequence, view follows a moved selected tab. Behavioral E2E pending: Chef types `x.com/search?q=test` in the address bar; expect a new Search bucket and title ending `| Search | xb`.
 - 2026-10-20: auto-file v2 (`88adff9`) — SPA in-view navigation no longer re-files the viewed tab (root cause of Chef's "breaking on tweet click": every pushState yanked + reloaded the live view). Only young tabs file; young clears on first real URL. New E2E: NEW tab → x.com/search?q=test → settles into Search bucket.
 - 2026-10-20: Control Panel for Twitter bundled (`84749a4`): script lives at `ext/userscripts/control-panel-for-twitter.user.js` (Greasy Fork v220, MIT, keep header for attribution); `main.js` passes `--app-path`; `userscripts.js` loadScripts() reads `ext/userscripts/` synchronously before the user-dir scan. Verify by eye on the Home / X tab (Following-forced timeline, promoted/upsell hidden).
-- 2026-10-20: discard-inactive (`js/discardInactive.js`): sweeps WebContentsViews of all tabs outside the selected bucket on bucket switch (1.5 s debounce) and every 60 s; skips private tabs and `tab.hasAudio`. Views recreate lazily via setView; scroll restored from tab state. Live from next app start.
+- 2026-10-20: discard-inactive (`js/discardInactive.js`), superseded 2026-10-21 (issue 11): views now sleep only after `tabSleepMinutes` idle, not on bucket switch. Skips pinned, private and `tab.hasAudio` tabs. Views recreate lazily via setView; scroll restored from tab state.
 - 2026-10-20: subagent-spawned processes do not reliably outlive the subagent kernel — the RailPolish agent's "verified" instance died with its session while its windowless tree held the profile singleton lock, silently bouncing later launches (electron exits code 0 immediately). Recovery: `cmd /c "taskkill /F /IM electron.exe"` (xb-only; chrome.exe untouched) then relaunch from the main session. Rule: the main session owns the dev instance lifecycle; agents verify by build+lint+code inspection only.
 - 2026-10-20: overhaul decisions (Chef, via ask). Thin top toolbar, not an omnibox in the sidebar. Containers per tab, with a bucket default container (no x.com site rules: every account shares one domain). Night sea glass follows the dark-mode setting. Sea-glass DOM menus, not native ones. Extensions via electron-chrome-extensions: xb becomes GPL-3.0 (package.json + AGENTS.md updated in `d81e701`). Gemini agents run through `~/.omp/agent/agents/gemini.md` (gemini-3.1-pro, fallback 3.8-flash). The agent cap was raised to 4 for this work.
 - 2026-10-20: platform facts that shape the design. Pages are native views above the UI DOM, so glass is DWM acrylic on chrome only, and DOM menus need the UI view raised. CSS masonry (`grid-lanes`) is unshipped in Chromium 150, so the overview uses JS masonry. `View.setBounds(bounds, {animate})` exists in 43.4.1 (verified in `electron.d.ts`). uBlock Origin MV2 works, but Min's own `session.webRequest` filter must turn off when it is installed. uBO Lite is broken (static DNR rules never load).
