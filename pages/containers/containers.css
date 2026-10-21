@@ -327,3 +327,84 @@
   gap: 10px;
   margin-top: 8px;
 }
+
+/* Delete Default Successor Picker */
+#delete-picker {
+  margin-bottom: 16px;
+  border-radius: 20px;
+  padding: 20px 22px;
+  box-shadow:
+    inset 0 1.5px 0 var(--pill-rim),
+    inset 0 0 0 1px var(--pill-edge),
+    0 18px 40px -16px color-mix(in srgb, var(--chrome-ink) 28%, transparent);
+}
+
+#delete-picker:not([hidden]) {
+  display: block;
+  animation: sheet-spring-in var(--dur-spatial, 421ms) var(--spring-spatial) both;
+}
+
+.delete-picker-desc {
+  font-size: 13.5px;
+  color: var(--chrome-ink-muted);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+.delete-choice-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.delete-choice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--r-pill, 9999px);
+  background: var(--pill-fill);
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 1px var(--pill-edge);
+  color: var(--chrome-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--dur-spatial-fast, 353ms) var(--spring-spatial-fast),
+    background-color var(--dur-effects, 219ms) var(--spring-effects),
+    box-shadow var(--dur-effects, 219ms) var(--spring-effects);
+}
+
+.delete-choice-chip:hover {
+  background: var(--chrome-hover);
+  transform: translateY(-1px);
+}
+
+.delete-choice-chip.selected {
+  background: var(--jewel-bg);
+  color: var(--jewel-ink);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), var(--jewel-shadow);
+  transform: scale(1.04);
+}
+
+.delete-choice-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 46% 54% 42% 58% / 55% 44% 56% 45%;
+  flex: none;
+}
+
+.container-default-btn,
+.container-clear-btn {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  flex: none;
+}
+
+.container-row button {
+  flex: none;
+}

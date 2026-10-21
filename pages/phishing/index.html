@@ -2,31 +2,39 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-
     <title data-string="phishingErrorTitle"></title>
+    <link rel="stylesheet" href="../../css/tokens.css" />
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
     <link rel="stylesheet" href="../pagebase.css" />
     <link rel="stylesheet" href="phishingError.css" />
-    <!-- hack to turn the browser tabs red -->
+    <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
     <link rel="icon" href="redFavicon.png" />
   </head>
 
   <body>
-    <div id="page-wrapper">
+    <div id="page-wrapper" class="pebble-card phishing-card">
+      <div class="phishing-pebble">
+        <i class="i carbon:warning-alt"></i>
+      </div>
       <h1 data-string="phishingErrorTitle"></h1>
       <h2 data-string="phishingErrorMessage"></h2>
 
-      <button
-        class="secondary-button"
-        id="ignore-button"
-        data-string="phishingErrorVisitAnyway"
-      ></button>
-      <button
-        class="primary-button"
-        id="continue-button"
-        data-string="phishingErrorLeave"
-      ></button>
+      <div class="phishing-actions">
+        <button
+          class="secondary-button btn-tonal"
+          id="ignore-button"
+          data-string="phishingErrorVisitAnyway"
+        ></button>
+        <button
+          class="primary-button btn-jewel"
+          id="continue-button"
+          data-string="phishingErrorLeave"
+        ></button>
+      </div>
 
       <script src="../../js/util/settings/settingsContent.js"></script>
+      <script src="../../js/util/theme.js"></script>
       <script src="../../dist/localization.build.js"></script>
       <script src="phishingError.js"></script>
     </div>

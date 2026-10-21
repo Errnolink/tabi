@@ -2,21 +2,29 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-
+    <link rel="stylesheet" href="../../css/tokens.css" />
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
     <link rel="stylesheet" href="../pagebase.css" />
+    <link rel="stylesheet" href="../../ext/icons/iconfont.css" />
   </head>
 
   <body>
-    <div id="page-wrapper">
-      <h1 id="error-name"></h1>
-      <h2 id="error-desc"></h2>
+    <div id="page-wrapper" class="pebble-card error-card">
+      <div class="error-pebble">
+        <i class="i carbon:warning-alt"></i>
+      </div>
+      <h1 id="error-name" class="error-title"></h1>
+      <h2 id="error-desc" class="error-subtitle"></h2>
 
-      <button id="secondary-button" class="secondary-button" hidden></button>
-      <button
-        id="primary-button"
-        class="primary-button"
-        data-string="errorPagePrimaryAction"
-      ></button>
+      <div class="error-actions">
+        <button id="secondary-button" class="secondary-button btn-tonal" hidden></button>
+        <button
+          id="primary-button"
+          class="primary-button btn-jewel"
+          data-string="errorPagePrimaryAction"
+        ></button>
+      </div>
     </div>
 
     <script src="../../js/util/settings/settingsContent.js"></script>

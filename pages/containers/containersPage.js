@@ -21,11 +21,14 @@ const CARBON_ICONS = {
 
 var state = {
   containers: [],
+  defaultId: 'default',
   counts: {},
   colors: {},
   icons: [],
   editing: null, // null | { id: null } for a new container | { id }
-  armedDeleteId: null
+  armedDeleteId: null,
+  armedClearId: null,
+  moveTargetId: null // chosen successor while the delete-default picker is open
 }
 
 var requestCounter = 0
@@ -54,7 +57,8 @@ window.addEventListener('message', function (e) {
       }
     }
   } else if (e.data.message === 'containersPage:changed') {
-    state.containers = e.data.list
+    state.containers = e.data.state.containers
+    state.defaultId = e.data.state.defaultId
     refreshCounts().then(render)
   }
 })
@@ -72,10 +76,15 @@ function carbonClass (name) {
 /* list */
 
 function render () {
+  var main = document.querySelector('.containers-main')
   var editor = document.getElementById('container-editor')
   var listNode = document.getElementById('container-list')
   if (editor && editor.parentNode === listNode) {
-    document.querySelector('.containers-main').appendChild(editor)
+    main.appendChild(editor)
+  }
+  var picker = document.getElementById('delete-picker')
+  if (picker && picker.parentNode === listNode) {
+    main.appendChild(picker)
   }
   listNode.textContent = ''
 
@@ -87,10 +96,11 @@ function render () {
 }
 
 function buildRow (container) {
+  var isDefault = state.defaultId === container.id
   var row = document.createElement('div')
   row.className = 'container-row pebble-card' +
-    (state.armedDeleteId === container.id ? ' armed' : '') +
-    (container.builtIn ? ' is-default' : '')
+    (state.armedDeleteId === container.id || state.armedClearId === container.id ? ' armed' : '') +
+    (isDefault ? ' is-default' : '')
   row.dataset.containerId = container.id
   row.style.setProperty('--container-color', container.color)
 
@@ -109,7 +119,7 @@ function buildRow (container) {
   name.textContent = container.name
   row.appendChild(name)
 
-  if (container.builtIn) {
+  if (isDefault) {
     var badge = document.createElement('span')
     badge.className = 'container-default-badge'
     badge.textContent = l('containersDefaultLabel')
@@ -121,16 +131,65 @@ function buildRow (container) {
   count.textContent = l('containersOpenTabs').replace('%n', state.counts[container.id] || 0)
   row.appendChild(count)
 
+  if (!isDefault) {
+    var makeDefaultButton = document.createElement('button')
+    makeDefaultButton.className = 'container-default-btn btn-tonal'
+    makeDefaultButton.textContent = l('containersMakeDefault')
+    makeDefaultButton.addEventListener('click', function () {
+      state.armedDeleteId = null
+      state.armedClearId = null
+      callMain('setDefault', { id: container.id }).catch(function (err) {
+        console.warn('failed to set default container', err)
+      })
+    })
+    row.appendChild(makeDefaultButton)
+  }
+
+  var clearButton = document.createElement('button')
+  clearButton.className = 'container-clear-btn' + (state.armedClearId === container.id ? ' chip-coral armed' : ' btn-tonal')
+  if (state.armedClearId === container.id) {
+    clearButton.textContent = l('containersClearConfirm')
+  } else {
+    clearButton.textContent = l('containersClearData')
+    clearButton.title = l('containersClearWarning').replace('%s', container.name)
+  }
+  clearButton.addEventListener('click', function () {
+    if (state.armedClearId === container.id) {
+      state.armedClearId = null
+      callMain('clear', { id: container.id }).catch(function (err) {
+        console.warn('failed to clear container data', err)
+      })
+      render()
+    } else {
+      state.armedClearId = container.id
+      state.armedDeleteId = null
+      render()
+    }
+  })
+  row.appendChild(clearButton)
+
   var editButton = document.createElement('button')
   editButton.className = 'container-edit-btn btn-tonal'
   editButton.textContent = l('containersEdit')
   editButton.addEventListener('click', function () {
     state.armedDeleteId = null
+    state.armedClearId = null
     showEditor({ id: container.id })
   })
   row.appendChild(editButton)
 
-  if (!container.builtIn) {
+  if (isDefault) {
+    if (state.containers.length >= 2) {
+      var deleteDefaultButton = document.createElement('button')
+      deleteDefaultButton.className = 'container-delete-btn chip-coral'
+      deleteDefaultButton.textContent = l('containersDelete')
+      deleteDefaultButton.title = l('containersDeleteWarning').replace('%s', container.name)
+      deleteDefaultButton.addEventListener('click', function () {
+        openDeletePicker(container)
+      })
+      row.appendChild(deleteDefaultButton)
+    }
+  } else {
     var deleteButton = document.createElement('button')
     deleteButton.className = 'container-delete-btn chip-coral' + (state.armedDeleteId === container.id ? ' armed' : '')
     if (state.armedDeleteId === container.id) {
@@ -147,6 +206,7 @@ function buildRow (container) {
         })
       } else {
         state.armedDeleteId = container.id
+        state.armedClearId = null
         render()
       }
     })
@@ -154,6 +214,75 @@ function buildRow (container) {
   }
 
   return row
+}
+
+/* delete-default picker: choose which container inherits the tabs and the default role */
+
+function otherContainers () {
+  return state.containers.filter(c => c.id !== state.armedDeleteId)
+}
+
+function openDeletePicker (container) {
+  state.editing = null
+  hideEditor()
+  state.armedClearId = null
+  state.armedDeleteId = container.id
+
+  var others = otherContainers()
+  if (!others.some(c => c.id === state.moveTargetId)) {
+    state.moveTargetId = others[0].id
+  }
+
+  var picker = document.getElementById('delete-picker')
+  document.getElementById('delete-picker-heading').textContent = l('containersDeleteDefaultTitle').replace('%s', container.name)
+  document.getElementById('delete-picker-desc').textContent = l('containersDeleteDefaultPrompt')
+  document.getElementById('delete-picker-cancel').textContent = l('containersCancel')
+  document.getElementById('delete-picker-confirm').textContent = l('containersDeleteDefaultConfirm')
+
+  var chipList = document.getElementById('delete-choice-list')
+  chipList.textContent = ''
+  others.forEach(function (other) {
+    var chip = document.createElement('button')
+    chip.type = 'button'
+    chip.className = 'delete-choice-chip' + (other.id === state.moveTargetId ? ' selected' : '')
+    chip.dataset.containerId = other.id
+
+    var choiceDot = document.createElement('span')
+    choiceDot.className = 'delete-choice-dot'
+    choiceDot.style.backgroundColor = other.color
+    chip.appendChild(choiceDot)
+
+    var choiceIcon = document.createElement('i')
+    choiceIcon.className = 'i ' + carbonClass(other.icon)
+    chip.appendChild(choiceIcon)
+
+    var choiceName = document.createElement('span')
+    choiceName.textContent = other.name
+    chip.appendChild(choiceName)
+
+    chip.addEventListener('click', function () {
+      state.moveTargetId = other.id
+      chipList.querySelectorAll('.delete-choice-chip').forEach(function (c) {
+        c.classList.remove('selected')
+      })
+      chip.classList.add('selected')
+    })
+    chipList.appendChild(chip)
+  })
+
+  var row = document.querySelector('[data-container-id="' + container.id + '"]')
+  if (row && row.parentNode) {
+    row.after(picker)
+  } else {
+    document.getElementById('container-list').before(picker)
+  }
+  picker.hidden = false
+}
+
+function hideDeletePicker () {
+  state.armedDeleteId = null
+  state.moveTargetId = null
+  document.getElementById('delete-picker').hidden = true
 }
 
 /* editor */
@@ -176,7 +305,7 @@ function updateEditorPreviewDot (color) {
 function showEditor (target) {
   state.editing = target
   state.armedDeleteId = null
-
+  hideDeletePicker()
   var container = selectedEditorContainer()
   var nameInput = document.getElementById('container-name-input')
   nameInput.value = container ? container.name : ''
@@ -300,6 +429,24 @@ document.getElementById('editor-cancel').addEventListener('click', hideEditor)
 var closeBtn = document.getElementById('editor-close-btn')
 if (closeBtn) {
   closeBtn.addEventListener('click', hideEditor)
+}
+var deleteCancelBtn = document.getElementById('delete-picker-cancel')
+if (deleteCancelBtn) {
+  deleteCancelBtn.addEventListener('click', hideDeletePicker)
+}
+var deleteConfirmBtn = document.getElementById('delete-picker-confirm')
+if (deleteConfirmBtn) {
+  deleteConfirmBtn.addEventListener('click', function () {
+    if (!state.armedDeleteId || !state.moveTargetId) {
+      return
+    }
+    var id = state.armedDeleteId
+    var moveTarget = state.moveTargetId
+    hideDeletePicker()
+    callMain('remove', { id: id, moveTargetId: moveTarget }).catch(function (err) {
+      console.warn('failed to remove default container', err)
+    })
+  })
 }
 document.getElementById('container-name-input').addEventListener('keypress', function (e) {
   if (e.key === 'Enter') {

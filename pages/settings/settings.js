@@ -494,6 +494,7 @@ function createKeyMapListItem (action, keyMap) {
 
   input.type = 'text'
   input.id = input.name = action
+  input.className = 'key-chip-input'
   input.value = formatKeyValue(keyMap[action])
   input.addEventListener('input', onKeyMapChange)
 
@@ -693,4 +694,57 @@ function createBang (bang, snippet, redirect) {
   li.appendChild(xButton)
 
   return li
+}
+
+/* scroll-spy and smooth scroll for settings nav */
+var navItems = Array.from(document.querySelectorAll('#settings-nav .nav-item'))
+var sectionIds = navItems.map(function (item) {
+  var href = item.getAttribute('href') || ''
+  return href.startsWith('#') ? href.slice(1) : ''
+}).filter(Boolean)
+var sections = sectionIds.map(function (id) {
+  return document.getElementById(id)
+}).filter(Boolean)
+
+function onNavClick (e) {
+  var href = this.getAttribute('href')
+  if (href && href.startsWith('#')) {
+    var target = document.getElementById(href.slice(1))
+    if (target) {
+      e.preventDefault()
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      navItems.forEach(function (i) {
+        i.classList.remove('active')
+      })
+      this.classList.add('active')
+    }
+  }
+}
+
+navItems.forEach(function (item) {
+  item.addEventListener('click', onNavClick)
+})
+
+if (typeof IntersectionObserver !== 'undefined') {
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        var id = entry.target.id
+        navItems.forEach(function (item) {
+          if (item.getAttribute('href') === '#' + id) {
+            item.classList.add('active')
+          } else {
+            item.classList.remove('active')
+          }
+        })
+      }
+    })
+  }, {
+    rootMargin: '-10% 0px -70% 0px',
+    threshold: 0
+  })
+
+  sections.forEach(function (sec) {
+    observer.observe(sec)
+  })
 }

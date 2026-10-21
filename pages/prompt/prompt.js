@@ -20,12 +20,11 @@ function response () {
 
 // flip the button order on mac
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   if (navigator.platform === 'MacIntel') {
     document.getElementById('cancel').parentNode.insertBefore(document.getElementById('cancel'), document.getElementById('ok'))
   }
 })
-
 
 window.addEventListener('load', function () {
   var options = ipcRenderer.sendSync('open-prompt', '')

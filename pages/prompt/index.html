@@ -2,21 +2,21 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-
-    <!-- title is set in JS -->
-
+    <link rel="stylesheet" href="../../css/tokens.css" />
     <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../shared/seaglass.css" />
     <link rel="stylesheet" href="prompt.css" />
   </head>
   <body>
-    <div class="container padding">
-      <p id="label"></p>
-      <div class="input-container" id="input-container"></div>
-      <div class="buttons">
-        <input type="button" id="ok" value="OK" />
-        <input type="button" id="cancel" value="Cancel" />
+    <div class="prompt-container">
+      <div class="prompt-dialog pebble-card">
+        <p id="label" class="prompt-label"></p>
+        <div class="input-container" id="input-container"></div>
+        <div class="buttons">
+          <input type="button" id="cancel" class="btn-tonal" value="Cancel" />
+          <input type="button" id="ok" class="btn-jewel" value="OK" />
+        </div>
       </div>
     </div>
-    <!-- prompt initialized from preload -->
   </body>
 </html>

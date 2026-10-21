@@ -3,7 +3,7 @@
  */
 
 :root {
-  --page-max-width: 760px;
+  --page-max-width: 960px;
   --card-radius: 18px;
 }
 
@@ -122,9 +122,9 @@ body::after {
   background: var(--chrome-hover);
 }
 
-/* Sea Glass Page Container */
+/* Sea Glass Page Containers */
 .sea-container {
-  max-width: var(--page-max-width, 760px);
+  max-width: var(--page-max-width, 960px);
   margin: 0 auto;
   padding: 36px 24px 64px;
   position: relative;
@@ -172,7 +172,7 @@ body::after {
   line-height: 1.5;
   color: var(--chrome-ink-muted);
   margin: 0;
-  max-width: 580px;
+  max-width: 640px;
 }
 
 /* Pebble Card */
@@ -324,6 +324,175 @@ body::after {
   0% { transform: scale(0.92); }
   60% { transform: scale(1.04); }
   100% { transform: scale(1); }
+}
+
+/* M3 Expressive Form Controls */
+
+/* Custom Checkbox as Switch */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 40px;
+  height: 24px;
+  border-radius: var(--r-pill, 9999px);
+  background: var(--pill-fill);
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 1px var(--pill-edge);
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  vertical-align: middle;
+  flex: none;
+  transition: background-color var(--dur-spatial-fast, 353ms) var(--spring-spatial-fast),
+    box-shadow var(--dur-effects, 219ms) var(--spring-effects);
+}
+
+input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--chrome-ink-muted);
+  box-shadow: 0 2px 6px -1px rgba(0, 0, 0, 0.25);
+  transition: transform var(--dur-spatial-fast, 353ms) var(--spring-spatial-fast),
+    background-color var(--dur-effects, 219ms) var(--spring-effects);
+}
+
+input[type="checkbox"]:checked {
+  background: var(--sys-primary-container, #dfe0ff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 4px 12px -3px color-mix(in srgb, var(--sys-primary, #525a92) 50%, transparent);
+}
+
+input[type="checkbox"]:checked::after {
+  transform: translateX(16px);
+  background: var(--sys-primary, #525a92);
+  box-shadow: 0 2px 8px -1px color-mix(in srgb, var(--sys-primary, #525a92) 60%, transparent);
+}
+
+body.dark-mode input[type="checkbox"]:checked::after {
+  background: var(--sys-on-primary, #232c61);
+}
+
+/* Custom Radio */
+input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--pill-fill);
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 1.5px var(--pill-edge);
+  cursor: pointer;
+  outline: none;
+  vertical-align: middle;
+  position: relative;
+  flex: none;
+  transition: box-shadow var(--dur-effects, 219ms) var(--spring-effects),
+    transform var(--dur-spatial-fast, 353ms) var(--spring-spatial-fast);
+}
+
+input[type="radio"]::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--sys-primary, #525a92);
+  transform: scale(0);
+  transition: transform var(--dur-spatial-fast, 353ms) var(--spring-spatial-fast);
+}
+
+input[type="radio"]:checked {
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 2px var(--sys-primary, #525a92),
+    0 3px 10px -2px color-mix(in srgb, var(--sys-primary, #525a92) 50%, transparent);
+}
+
+input[type="radio"]:checked::after {
+  transform: scale(1);
+}
+
+body.dark-mode input[type="radio"]::after {
+  background: var(--sys-primary, #bbc3ff);
+}
+
+/* Select Dropdown */
+select {
+  height: 38px;
+  padding: 0 34px 0 14px;
+  border-radius: 12px;
+  background: var(--pill-fill);
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 1px var(--pill-edge);
+  color: var(--chrome-ink);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(128,128,128,0.8)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: box-shadow var(--dur-effects, 219ms) var(--spring-effects);
+}
+
+select:focus {
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 2px var(--sys-primary, #525a92),
+    0 6px 18px -6px color-mix(in srgb, var(--sys-primary, #525a92) 35%, transparent);
+}
+
+/* Text Inputs and Textarea */
+input[type="text"],
+input[type="password"],
+textarea {
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: var(--pill-fill);
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 1px var(--pill-edge);
+  color: var(--chrome-ink);
+  font-family: inherit;
+  font-size: 13.5px;
+  border: none;
+  outline: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: box-shadow var(--dur-effects, 219ms) var(--spring-effects);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 2px var(--sys-primary, #525a92),
+    0 6px 18px -6px color-mix(in srgb, var(--sys-primary, #525a92) 35%, transparent);
+}
+
+/* Key Chip Input */
+.key-chip-input {
+  font-family: var(--font-mono, monospace) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em;
+  height: 32px;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  background: var(--pill-fill) !important;
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 1px var(--pill-edge), 0 2px 4px -1px rgba(0, 0, 0, 0.08) !important;
+  color: var(--chrome-ink) !important;
+  border: none !important;
+  outline: none !important;
+  text-align: center;
+  transition: box-shadow var(--dur-effects, 219ms) var(--spring-effects);
+}
+
+.key-chip-input:focus {
+  box-shadow: inset 0 1px 0 var(--pill-rim), inset 0 0 0 2px var(--sys-primary, #525a92),
+    0 4px 12px -3px color-mix(in srgb, var(--sys-primary, #525a92) 40%, transparent) !important;
 }
 
 /* Entrance Animations */
