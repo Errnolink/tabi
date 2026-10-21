@@ -13,7 +13,8 @@ try {
 } catch (e) { }
 
 /* document-start injection: this preload runs before any page script, so matching
-   scripts fetched synchronously from main apply before the page renders */
+   scripts fetched synchronously from main apply before the page renders; execution
+   waits for documentElement so scripts see the same DOM root Tampermonkey provides */
 ;(function () {
   try {
     var protocol = window.location.protocol
@@ -21,21 +22,43 @@ try {
       return
     }
     var startScripts = ipc.sendSync('userscript-sync-userscripts', window.location.href)
-    if (!Array.isArray(startScripts)) {
+    if (!Array.isArray(startScripts) || startScripts.length === 0) {
       return
     }
-    startScripts.forEach(function (entry) {
-      if (!entry || typeof entry.code !== 'string' || !entry.code) {
+    var executeStartScripts = function () {
+      startScripts.forEach(function (entry) {
+        if (!entry || typeof entry.code !== 'string' || !entry.code) {
+          return
+        }
+        try {
+          if (entry.world === 'isolated') {
+            electron.webFrame.executeJavaScriptInIsolatedWorld(GM_WORLD_ID, [{ code: entry.code }], false)
+          } else {
+            electron.webFrame.executeJavaScript(entry.code, false)
+          }
+        } catch (err) { }
+      })
+    }
+    if (document.documentElement) {
+      executeStartScripts()
+      return
+    }
+    var executed = false
+    var observer = null
+    var executeOnce = function () {
+      if (executed || !document.documentElement) {
         return
       }
-      try {
-        if (entry.world === 'isolated') {
-          electron.webFrame.executeJavaScriptInIsolatedWorld(GM_WORLD_ID, [{ code: entry.code }], false)
-        } else {
-          electron.webFrame.executeJavaScript(entry.code, false)
-        }
-      } catch (err) { }
-    })
+      executed = true
+      if (observer) {
+        observer.disconnect()
+      }
+      document.removeEventListener('readystatechange', executeOnce)
+      executeStartScripts()
+    }
+    observer = new MutationObserver(executeOnce)
+    observer.observe(document, { childList: true })
+    document.addEventListener('readystatechange', executeOnce)
   } catch (e) { }
 })()
 

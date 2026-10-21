@@ -1,6 +1,7 @@
 var webviews = require('webviews.js')
 var keybindings = require('keybindings.js')
 var urlParser = require('util/urlParser.js')
+var tabState = require('tabState.js')
 
 var readerDecision = require('readerDecision.js')
 
@@ -94,11 +95,14 @@ var readerView = {
       if (isInPlace) {
         return
       }
+      if (!tabState.getTabAnywhere(tabId)) {
+        return
+      }
       if (readerDecision.shouldRedirect(url) === 1) {
         // if this URL has previously been marked as readerable, load reader view without waiting for the page to load
         readerView.enter(tabId, url)
       } else if (isMainFrame) {
-        tabs.update(tabId, {
+        tabState.updateTabAnywhere(tabId, {
           readerable: false // assume the new page can't be readered, we'll get another message if it can
         })
 
