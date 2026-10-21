@@ -190,12 +190,35 @@ const glassMenu = {
 
   open: function (sections, options) {
     options = options || {}
-    if (session) {
-      glassMenu.close(true)
-    }
     const normalized = normalize(sections)
     if (!normalized.length) {
       return
+    }
+    glassMenu.begin(options)
+    const x = typeof options.x === 'number' ? options.x : lastPointer.x
+    const y = typeof options.y === 'number' ? options.y : lastPointer.y
+    glassMenu.pushPanel(normalized, x, y, null)
+  },
+
+  openPanel: function (content, options) {
+    options = options || {}
+    glassMenu.begin(options)
+    const panel = document.createElement('div')
+    panel.className = 'gm gm-panel' + (options.className ? ' ' + options.className : '')
+    if (reduceMotion.matches) {
+      panel.classList.add('no-motion')
+    }
+    panel._entries = []
+    panel.appendChild(content)
+    layer.appendChild(panel)
+    place(panel, options.x, options.y, null)
+    stack.push({ panel, focused: null, custom: true })
+    return panel
+  },
+
+  begin: function (options) {
+    if (session) {
+      glassMenu.close(true)
     }
     ensureLayer()
     session = {
@@ -209,9 +232,6 @@ const glassMenu = {
     }
     layer.hidden = false
     stack = []
-    const x = typeof options.x === 'number' ? options.x : lastPointer.x
-    const y = typeof options.y === 'number' ? options.y : lastPointer.y
-    glassMenu.pushPanel(normalized, x, y, null)
     window.addEventListener('keydown', glassMenu.onKeyDown, true)
     window.addEventListener('blur', glassMenu.onBlur)
   },
@@ -297,6 +317,14 @@ const glassMenu = {
       return
     }
     const level = stack[stack.length - 1]
+    if (level.custom) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        glassMenu.close()
+      }
+      return
+    }
     const entries = level.panel._entries.filter(entry => entry.enabled)
     const current = level.focused && level.focused.enabled ? entries.indexOf(level.focused) : -1
     let handled = true

@@ -1,86 +1,188 @@
-/* Sea Glass Download Manager Bar
- * Material 3 Expressive x Liquid Glass
- */
+/* downloads: toolbar button with a progress ring, popover list */
 
-#download-bar {
-  display: flex;
-  position: fixed;
-  bottom: 14px;
-  left: calc(var(--sidebar-width, 260px) + 16px);
-  max-width: calc(100vw - var(--sidebar-width, 260px) - 32px);
-  background: var(--glass-frost);
-  --glass-tint: var(--pebble-peach);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  border: 1px solid var(--rim-border);
-  box-shadow: inset 0 1px 1px var(--rim-top),
-              0 8px 28px rgba(0, 0, 0, 0.22);
-  border-radius: var(--r-l);
-  color: var(--sys-on-surface);
-  font-family: var(--font-sans);
-  padding: 0 12px;
-  z-index: 90;
-  align-items: center;
+#downloads-button {
+  position: relative;
+  color: var(--chrome-ink-muted);
 }
 
-#download-bar::before {
-  content: "";
+#downloads-button .download-ring {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.download-ring-track,
+.download-ring-fill {
+  fill: none;
+  stroke-width: 2.4;
+}
+
+.download-ring-track {
+  stroke: var(--chrome-line);
+  opacity: 0;
+}
+
+.download-ring-fill {
+  stroke: hsl(205 80% 70%);
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  opacity: 0;
+  transition: stroke-dasharray var(--dur-spatial) var(--spring-spatial), opacity var(--dur-effects) var(--spring-effects);
+}
+
+#downloads-button.active .download-ring-track,
+#downloads-button.active .download-ring-fill {
+  opacity: 1;
+}
+
+#downloads-button.active {
+  color: hsl(205 80% 75%);
+}
+
+#downloads-button.bump {
+  animation: dl-bump var(--dur-spatial-fast) var(--spring-spatial-fast);
+}
+
+@keyframes dl-bump {
+  40% {
+    transform: translateY(3px) scale(0.9);
+  }
+}
+
+.dl-popover {
+  width: 340px;
+}
+
+.dl-head {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px 8px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chrome-ink-faint);
+}
+
+.dl-clear {
+  margin-left: auto;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--chrome-ink-muted);
+}
+
+.dl-clear:hover {
+  background: var(--chrome-hover);
+  color: var(--chrome-ink);
+}
+
+.dl-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.dl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px 8px 10px;
+  border-radius: 11px;
+  cursor: default;
+  transition: background-color var(--dur-effects-fast) var(--spring-effects);
+}
+
+.dl-row:hover {
+  background: var(--chrome-hover);
+}
+
+.dl-icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 16px;
+  color: hsl(205 80% 75%);
+  background: hsl(205 70% 60% / 0.14);
+}
+
+.dl-row.interrupted .dl-icon {
+  color: #ff8a7a;
+  background: rgb(255 97 61 / 0.14);
+}
+
+.dl-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dl-name {
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dl-meta {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--chrome-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-bar {
+  position: relative;
+  height: 3px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: var(--chrome-line);
+  overflow: hidden;
+}
+
+.dl-bar::after {
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  pointer-events: none;
-  background-image: var(--grain-tile);
-  background-size: 64px 64px;
-  opacity: var(--grain-opacity);
-  mix-blend-mode: overlay;
-  z-index: -1;
+  background: hsl(205 80% 70%);
+  transform-origin: left;
+  transform: scaleX(var(--p));
+  transition: transform var(--dur-spatial) var(--spring-spatial);
 }
 
-#download-container {
+.dl-actions {
   display: flex;
-  flex: 1;
-  overflow-x: auto;
-  height: 44px;
-  align-items: center;
-  gap: 8px;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur-effects) var(--spring-effects);
 }
 
-.download-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: var(--r-m);
-  background: color-mix(in srgb, var(--sys-on-surface) 6%, transparent);
-  font-size: 13px;
-  color: var(--sys-on-surface);
+.dl-row:hover .dl-actions,
+.dl-row.progressing .dl-actions {
+  opacity: 1;
 }
 
-.download-item .download-title {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.download-item .download-progress {
-  font-size: 11px;
-  color: var(--sys-on-surface-variant);
-}
-
-#download-bar button {
+.dl-action {
   width: 28px;
   height: 28px;
-  border-radius: var(--r-pill);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--sys-on-surface);
-  cursor: pointer;
-  transition: background var(--dur-effects-fast) var(--spring-effects);
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 14px;
+  color: var(--chrome-ink-muted);
 }
 
-#download-bar button:hover {
-  background: color-mix(in oklab, var(--pebble-fab) 40%, transparent);
+.dl-action:hover {
+  background: var(--chrome-press);
+  color: var(--chrome-ink);
 }

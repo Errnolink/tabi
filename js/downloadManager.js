@@ -1,211 +1,176 @@
-var webviews = require('webviews.js')
-const remoteMenu = require('remoteMenuRenderer.js')
+/* global ipc, electron */
 
-function getFileSizeString (bytes) {
-  const prefixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+const glassMenu = require('glassMenu.js')
 
-  let size = bytes
-  let prefixIndex = 0
-
-  while (size > 900) { // prefer "0.9 KB" to "949 bytes"
+function sizeString (bytes) {
+  const prefixes = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = bytes || 0
+  let i = 0
+  while (size > 900 && i < prefixes.length - 1) {
     size /= 1024
-    prefixIndex++
+    i++
   }
-
-  return (Math.round(size * 10) / 10) + ' ' + prefixes[prefixIndex]
+  return (Math.round(size * 10) / 10) + ' ' + prefixes[i]
 }
 
+const button = document.getElementById('downloads-button')
+const ringFill = button.querySelector('.download-ring-fill')
+
 const downloadManager = {
-  isShown: false,
-  bar: document.getElementById('download-bar'),
-  container: document.getElementById('download-container'),
-  closeButton: document.getElementById('download-close-button'),
-  height: 40,
-  lastDownloadCompleted: null,
-  downloadItems: {},
-  downloadBarElements: {},
-  show: function () {
-    if (!downloadManager.isShown) {
-      downloadManager.isShown = true
-      downloadManager.bar.hidden = false
-      webviews.adjustMargin([0, 0, downloadManager.height, 0])
-    }
-  },
-  hide: function () {
-    if (downloadManager.isShown) {
-      downloadManager.isShown = false
-      downloadManager.bar.hidden = true
-      webviews.adjustMargin([0, 0, downloadManager.height * -1, 0])
+  items: new Map(),
+  list: null,
 
-      // remove all completed or failed items
-      for (const item in downloadManager.downloadItems) {
-        if (downloadManager.downloadItems[item].status !== 'progressing') {
-          downloadManager.removeItem(item)
-        }
+  progress: function () {
+    let received = 0
+    let total = 0
+    let active = 0
+    downloadManager.items.forEach(function (item) {
+      if (item.status === 'progressing') {
+        active++
+        received += item.size.received
+        total += item.size.total
       }
-    }
-  },
-  removeItem: function (path) {
-    if (downloadManager.downloadBarElements[path]) {
-      downloadManager.downloadBarElements[path].container.remove()
-    }
-
-    delete downloadManager.downloadBarElements[path]
-    delete downloadManager.downloadItems[path]
-
-    if (Object.keys(downloadManager.downloadItems).length === 0) {
-      downloadManager.hide()
-    }
-  },
-  openFolder: function (path) {
-    ipc.invoke('showItemInFolder', path)
-  },
-  onItemClicked: function (path) {
-    if (downloadManager.downloadItems[path].status === 'completed') {
-      electron.shell.openPath(path)
-      // provide a bit of time for the file to open before the download bar disappears
-      setTimeout(function () {
-        downloadManager.removeItem(path)
-      }, 100)
-    }
-  },
-  onItemDragged: function (path) {
-    ipc.invoke('startFileDrag', path)
-  },
-  onDownloadCompleted: function () {
-    downloadManager.lastDownloadCompleted = Date.now()
-    setTimeout(function () {
-      if (Date.now() - downloadManager.lastDownloadCompleted >= 120000 && Object.values(downloadManager.downloadItems).filter(i => i.status === 'progressing').length === 0) {
-        downloadManager.hide()
-      }
-    }, 120 * 1000)
-  },
-  createItem: function (downloadItem) {
-    const container = document.createElement('div')
-    container.className = 'download-item'
-    container.setAttribute('role', 'listitem')
-    container.setAttribute('draggable', 'true')
-
-    const title = document.createElement('div')
-    title.className = 'download-title'
-    title.textContent = downloadItem.name
-    container.appendChild(title)
-
-    const infoBox = document.createElement('div')
-    infoBox.className = 'download-info'
-    container.appendChild(infoBox)
-
-    const detailedInfoBox = document.createElement('div')
-    detailedInfoBox.className = 'download-info detailed'
-    container.appendChild(detailedInfoBox)
-
-    const progress = document.createElement('div')
-    progress.className = 'download-progress'
-    container.appendChild(progress)
-
-    const dropdown = document.createElement('button')
-    dropdown.className = 'download-action-button i carbon:chevron-down'
-    container.appendChild(dropdown)
-
-    const openFolder = document.createElement('button')
-    openFolder.className = 'download-action-button i carbon:folder'
-    openFolder.hidden = true
-    container.appendChild(openFolder)
-
-    container.addEventListener('click', function () {
-      downloadManager.onItemClicked(downloadItem.path)
     })
-    container.addEventListener('dragstart', function (e) {
-      e.preventDefault()
-      downloadManager.onItemDragged(downloadItem.path)
-    })
-
-    dropdown.addEventListener('click', function (e) {
-      e.stopPropagation()
-      var template = [
-        [
-          {
-            label: l('downloadCancel'),
-            click: function () {
-              ipc.send('cancelDownload', downloadItem.path)
-              downloadManager.removeItem(downloadItem.path)
-            }
-          }
-        ]
-      ]
-
-      remoteMenu.open(template, Math.round(dropdown.getBoundingClientRect().left), Math.round(dropdown.getBoundingClientRect().top - 15))
-    })
-
-    openFolder.addEventListener('click', function (e) {
-      e.stopPropagation()
-      downloadManager.openFolder(downloadItem.path)
-      downloadManager.removeItem(downloadItem.path)
-    })
-
-    downloadManager.container.appendChild(container)
-    downloadManager.downloadBarElements[downloadItem.path] = { container, title, infoBox, detailedInfoBox, progress, dropdown, openFolder }
+    return { active, fraction: total > 0 ? received / total : 0 }
   },
-  updateItem: function (downloadItem) {
-    const elements = downloadManager.downloadBarElements[downloadItem.path]
 
-    if (downloadItem.status === 'completed') {
-      elements.container.classList.remove('loading')
-      elements.container.classList.add('completed')
-      elements.progress.hidden = true
-      elements.dropdown.hidden = true
-      elements.openFolder.hidden = false
-      elements.infoBox.textContent = l('downloadStateCompleted')
-      elements.detailedInfoBox.textContent = l('downloadStateCompleted')
-    } else if (downloadItem.status === 'interrupted') {
-      elements.container.classList.remove('loading')
-      elements.container.classList.remove('completed')
-      elements.progress.hidden = true
-      elements.dropdown.hidden = true
-      elements.openFolder.hidden = true
-      elements.infoBox.textContent = l('downloadStateFailed')
-      elements.detailedInfoBox.textContent = l('downloadStateFailed')
+  updateButton: function () {
+    const { active, fraction } = downloadManager.progress()
+    button.hidden = downloadManager.items.size === 0
+    button.classList.toggle('active', active > 0)
+    ringFill.style.strokeDasharray = (active > 0 ? Math.max(4, fraction * 100) : 100) + ' 100'
+    button.title = active > 0 ? Math.round(fraction * 100) + '%' : l('downloadsTitle')
+  },
+
+  renderRow: function (item) {
+    const row = document.createElement('div')
+    row.className = 'dl-row ' + item.status
+
+    const icon = document.createElement('span')
+    icon.className = 'dl-icon i ' + (item.status === 'completed' ? 'carbon:document' : item.status === 'interrupted' ? 'carbon:warning-alt' : 'carbon:download')
+
+    const text = document.createElement('div')
+    text.className = 'dl-text'
+    const name = document.createElement('div')
+    name.className = 'dl-name'
+    name.textContent = item.name
+    const meta = document.createElement('div')
+    meta.className = 'dl-meta'
+    if (item.status === 'completed') {
+      meta.textContent = sizeString(item.size.total)
+    } else if (item.status === 'interrupted') {
+      meta.textContent = l('downloadStateFailed')
     } else {
-      elements.container.classList.add('loading')
-      elements.container.classList.remove('completed')
-      elements.progress.hidden = false
-      elements.dropdown.hidden = false
-      elements.openFolder.hidden = true
-      elements.infoBox.textContent = getFileSizeString(downloadItem.size.total)
-      elements.detailedInfoBox.textContent = getFileSizeString(downloadItem.size.received) + ' / ' + getFileSizeString(downloadItem.size.total)
-
-      // the progress bar has a minimum width so that it's visible even if there's 0 download progress
-      const adjustedProgress = 0.025 + ((downloadItem.size.received / downloadItem.size.total) * 0.975)
-      elements.progress.style.transform = 'scaleX(' + adjustedProgress + ')'
+      meta.textContent = sizeString(item.size.received) + ' / ' + sizeString(item.size.total)
     }
-  },
-  initialize: function () {
-    this.closeButton.addEventListener('click', function () {
-      downloadManager.hide()
+    text.append(name, meta)
+
+    if (item.status === 'progressing') {
+      const bar = document.createElement('div')
+      bar.className = 'dl-bar'
+      bar.style.setProperty('--p', item.size.total ? item.size.received / item.size.total : 0)
+      text.appendChild(bar)
+    }
+
+    const actions = document.createElement('div')
+    actions.className = 'dl-actions'
+    const action = function (iconName, title, fn) {
+      const b = document.createElement('button')
+      b.className = 'dl-action i ' + iconName
+      b.title = title
+      b.addEventListener('click', function (e) {
+        e.stopPropagation()
+        fn()
+      })
+      actions.appendChild(b)
+    }
+    if (item.status === 'progressing') {
+      action('carbon:close', l('downloadCancel'), function () {
+        ipc.send('cancelDownload', item.path)
+      })
+    } else {
+      action('carbon:folder', l('downloadShowInFolder'), () => ipc.invoke('showItemInFolder', item.path))
+      action('carbon:close', l('downloadRemove'), function () {
+        downloadManager.items.delete(item.path)
+        downloadManager.refresh()
+      })
+    }
+
+    row.append(icon, text, actions)
+    row.addEventListener('click', function () {
+      if (item.status === 'completed') {
+        electron.shell.openPath(item.path)
+        glassMenu.close()
+      }
     })
+    row.draggable = item.status === 'completed'
+    row.addEventListener('dragstart', function (e) {
+      e.preventDefault()
+      ipc.invoke('startFileDrag', item.path)
+    })
+    return row
+  },
+
+  refresh: function () {
+    downloadManager.updateButton()
+    if (!downloadManager.list || !downloadManager.list.isConnected) {
+      return
+    }
+    downloadManager.list.textContent = ''
+    if (downloadManager.items.size === 0) {
+      glassMenu.close()
+      return
+    }
+    Array.from(downloadManager.items.values()).reverse().forEach(function (item) {
+      downloadManager.list.appendChild(downloadManager.renderRow(item))
+    })
+  },
+
+  openPopover: function () {
+    const content = document.createElement('div')
+    content.className = 'dl-popover'
+    const head = document.createElement('div')
+    head.className = 'dl-head'
+    head.textContent = l('downloadsTitle')
+    const clear = document.createElement('button')
+    clear.className = 'dl-clear'
+    clear.textContent = l('downloadsClear')
+    clear.addEventListener('click', function () {
+      downloadManager.items.forEach(function (item, path) {
+        if (item.status !== 'progressing') {
+          downloadManager.items.delete(path)
+        }
+      })
+      downloadManager.refresh()
+    })
+    head.appendChild(clear)
+    downloadManager.list = document.createElement('div')
+    downloadManager.list.className = 'dl-list'
+    content.append(head, downloadManager.list)
+    const rect = button.getBoundingClientRect()
+    glassMenu.openPanel(content, { x: Math.round(rect.right), y: Math.round(rect.bottom + 6), onClose: () => { downloadManager.list = null } })
+    downloadManager.refresh()
+  },
+
+  initialize: function () {
+    button.addEventListener('click', downloadManager.openPopover)
 
     ipc.on('download-info', function (e, info) {
       if (!info.path) {
-        // download save location hasn't been chosen yet
         return
       }
-
       if (info.status === 'cancelled') {
-        downloadManager.removeItem(info.path)
-        return
+        downloadManager.items.delete(info.path)
+      } else {
+        const isNew = !downloadManager.items.has(info.path)
+        downloadManager.items.set(info.path, info)
+        if (isNew) {
+          button.classList.remove('bump')
+          button.getBoundingClientRect()
+          button.classList.add('bump')
+        }
       }
-
-      if (info.status === 'completed') {
-        downloadManager.onDownloadCompleted()
-      }
-
-      if (!downloadManager.downloadItems[info.path]) {
-        downloadManager.show()
-        downloadManager.createItem(info)
-      }
-      downloadManager.updateItem(info)
-
-      downloadManager.downloadItems[info.path] = info
+      downloadManager.refresh()
     })
   }
 }

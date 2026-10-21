@@ -132,11 +132,31 @@
       </div>
 
       <div id="tab-editor" class="omnibox">
-        <i class="omnibox-search-icon i carbon:search"></i>
+        <button id="site-info-button" class="omnibox-search-icon i carbon:search" tabindex="-1"></button>
         <button id="omnibox-container" hidden tabindex="-1"></button>
         <input id="tab-editor-input" spellcheck="false" />
+        <div id="omnibox-actions">
+          <button id="zoom-chip" hidden tabindex="-1"></button>
+          <button id="pip-button" class="omnibox-action i carbon:popup" hidden tabindex="-1"></button>
+          <button id="reader-button" class="omnibox-action i carbon:book" hidden tabindex="-1"></button>
+          <button id="copy-link-button" class="omnibox-action i carbon:link" tabindex="-1"></button>
+        </div>
         <span class="omnibox-progress" hidden></span>
       </div>
+
+      <button
+        id="bookmarks-button"
+        class="navbar-action-button i carbon:bookmark"
+        tabindex="-1"
+      ></button>
+
+      <button id="downloads-button" class="navbar-action-button" hidden tabindex="-1">
+        <svg viewBox="0 0 36 36" class="download-ring">
+          <circle class="download-ring-track" cx="18" cy="18" r="15" />
+          <circle class="download-ring-fill" cx="18" cy="18" r="15" pathLength="100" />
+        </svg>
+        <i class="i carbon:download"></i>
+      </button>
 
       <button
         id="overview-button"
@@ -222,27 +242,6 @@
       </button>
     </div>
 
-    <div id="task-overlay" class="" hidden tabindex="-1">
-      <div
-        class="simulated-navbar windowDragHandle"
-        id="task-overlay-navbar"
-      >
-      <div class="task-search-input-container">
-        <i class="i carbon:search"></i>
-        <input type="search" id="task-search-input"/>
-      </div>
-    </div>
-      <div id="task-area"></div>
-      <button id="add-task">
-        <i class="i carbon:new-tab"></i>
-        <span></span>
-      </button>
-    </div>
-
-    <div id="download-bar" hidden>
-      <div id="download-container" role="list" class="has-thin-scrollbar"></div>
-      <button id="download-close-button" class="i carbon:close"></button>
-    </div>
 
     <div class="modal" id="manager-setup-dialog" hidden>
       <h3 class="modal-title" id="manager-setup-heading"></h3>

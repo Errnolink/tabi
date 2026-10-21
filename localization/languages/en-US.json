@@ -319,6 +319,10 @@
     "downloadCancel": "Cancel",
     "downloadStateCompleted": "Completed",
     "downloadStateFailed": "Failed",
+    "downloadShowInFolder": "Show in folder",
+    "downloadRemove": "Remove from list",
+    "downloadsTitle": "Downloads",
+    "downloadsClear": "Clear",
     /* Update Notifications */
     "updateNotificationTitle": "A new version of xb is available",
     /* Autofill settings */
