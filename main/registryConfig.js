@@ -125,16 +125,5 @@ var registryInstaller = {
         })
       })
     })
-  },
-  uninstall: function () {
-    return new Promise(function (resolve, reject) {
-      regedit.deleteKey(keysToCreate, function (err) {
-        if (err) {
-          reject()
-        } else {
-          resolve()
-        }
-      })
-    })
   }
 }

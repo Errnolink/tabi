@@ -34,29 +34,11 @@ if (process.argv.some(arg => arg === '-v' || arg === '--version')) {
   process.exit()
 }
 
-let isInstallerRunning = false
 const isDevelopmentMode = process.argv.some(arg => arg === '--development-mode')
 const isDebuggingEnabled = process.argv.some(arg => arg === '--debug-browser')
 
 function clamp (n, min, max) {
   return Math.max(Math.min(n, max), min)
-}
-
-if (process.platform === 'win32') {
-  (async function () {
-    var squirrelCommand = process.argv[1]
-    if (squirrelCommand === '--squirrel-install' || squirrelCommand === '--squirrel-updated') {
-      isInstallerRunning = true
-      await registryInstaller.install()
-    }
-    if (squirrelCommand === '--squirrel-uninstall') {
-      isInstallerRunning = true
-      await registryInstaller.uninstall()
-    }
-    if (require('electron-squirrel-startup')) {
-      app.quit()
-    }
-  })()
 }
 
 if (isDevelopmentMode) {
@@ -388,12 +370,6 @@ function createWindowWithBounds (bounds, customArgs) {
 app.on('ready', function () {
   settings.set('restartNow', false)
   appIsReady = true
-
-  /* the installer launches the app to install registry items and shortcuts,
-  but if that's happening, we shouldn't display anything */
-  if (isInstallerRunning) {
-    return
-  }
 
   registerBundleProtocol(session.defaultSession)
 

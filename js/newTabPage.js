@@ -21,14 +21,34 @@ const WALLPAPER_PRESETS = [
   { id: 'sunset', label: 'Sunset', className: 'ntp-wallpaper-sunset' }
 ]
 
-function getFaviconUrl (url) {
+const faviconMemoryCache = new Map()
+const faviconFailures = new Set()
+
+function resolveFavicon (url) {
+  let host
   try {
-    const host = new URL(url).hostname
-    if (!host) return null
-    return 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(host) + '&sz=128'
+    host = new URL(url).hostname
   } catch (e) {
-    return null
+    return Promise.resolve(null)
   }
+  if (!host || faviconFailures.has(host)) {
+    return Promise.resolve(null)
+  }
+  if (faviconMemoryCache.has(host)) {
+    return faviconMemoryCache.get(host)
+  }
+  const pending = ipc.invoke('fetchFavicon', host).then(function (result) {
+    if (result && result.dataUrl) {
+      return result.dataUrl
+    }
+    faviconFailures.add(host)
+    return null
+  }).catch(function () {
+    faviconFailures.add(host)
+    return null
+  })
+  faviconMemoryCache.set(host, pending)
+  return pending
 }
 
 function cleanTitleFromUrl (url) {
@@ -125,11 +145,6 @@ const newTabPage = {
     newTabPage.updateActiveSwatch(wallpaperType || 'stars')
   },
 
-  reloadBackground: function () {
-    const current = settings.get('newTabWallpaper') || 'stars'
-    newTabPage.applyWallpaper(current)
-  },
-
   updateActiveSwatch: function (activeType) {
     if (!newTabPage.customizePanel) return
     const options = newTabPage.customizePanel.querySelectorAll('.ntp-wallpaper-option')
@@ -144,6 +159,29 @@ const newTabPage = {
     const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
     if (newTabPage.clockTime) newTabPage.clockTime.textContent = timeStr
     if (newTabPage.clockDate) newTabPage.clockDate.textContent = dateStr
+  },
+
+  startClock: function () {
+    if (newTabPage.clockTimer) {
+      return
+    }
+    newTabPage.updateClock()
+    var schedule = function () {
+      newTabPage.clockTimer = setTimeout(function () {
+        newTabPage.clockTimer = null
+        if (!document.body.classList.contains('is-ntp')) {
+          return
+        }
+        newTabPage.updateClock()
+        schedule()
+      }, 60000 - (Date.now() % 60000) + 50)
+    }
+    schedule()
+  },
+
+  stopClock: function () {
+    clearTimeout(newTabPage.clockTimer)
+    newTabPage.clockTimer = null
   },
 
   renderShortcuts: function () {
@@ -164,23 +202,31 @@ const newTabPage = {
       img.className = 'ntp-shortcut-icon'
       img.loading = 'lazy'
       img.decoding = 'async'
-      const iconUrl = getFaviconUrl(shortcut.url)
+      img.hidden = true
 
       const fallback = document.createElement('div')
       fallback.className = 'ntp-shortcut-letter'
       const letter = (shortcut.title || cleanTitleFromUrl(shortcut.url) || '?').charAt(0).toUpperCase()
       fallback.textContent = letter
+      tile.appendChild(fallback)
 
-      if (iconUrl) {
-        img.src = iconUrl
-        img.onerror = function () {
-          img.remove()
-          if (!tile.contains(fallback)) tile.insertBefore(fallback, tile.firstChild)
+      resolveFavicon(shortcut.url).then(function (dataUrl) {
+        if (!img.isConnected) {
+          return
         }
-        tile.appendChild(img)
-      } else {
-        tile.appendChild(fallback)
-      }
+        if (dataUrl) {
+          img.onerror = function () {
+            img.hidden = true
+            if (!tile.contains(fallback)) {
+              tile.insertBefore(fallback, img)
+            }
+          }
+          img.src = dataUrl
+          img.hidden = false
+          fallback.remove()
+        }
+      })
+      tile.appendChild(img)
 
       const menuBtn = document.createElement('button')
       menuBtn.className = 'ntp-shortcut-menu-btn i carbon:overflow-menu-horizontal'
@@ -341,7 +387,7 @@ const newTabPage = {
   renderBookmarks: async function () {
     if (!newTabPage.bookmarksContainer) return
     try {
-      const items = await places.searchPlaces('', { searchBookmarks: true, limit: Infinity })
+      const items = await places.searchPlaces('', { searchBookmarks: true, limit: 12 })
       newTabPage.bookmarksContainer.innerHTML = ''
       if (!items || items.length === 0) {
         const empty = document.createElement('div')
@@ -357,19 +403,23 @@ const newTabPage = {
         chip.className = 'ntp-bookmark-chip'
         chip.title = (bm.title || bm.url) + '\n' + bm.url
 
-        const iconUrl = getFaviconUrl(bm.url)
         const img = document.createElement('img')
         img.loading = 'lazy'
         img.decoding = 'async'
-        if (iconUrl) {
-          img.src = iconUrl
-          img.onerror = function () {
-            img.className = 'i carbon:bookmark'
-            img.removeAttribute('src')
+        img.className = 'i carbon:bookmark'
+        resolveFavicon(bm.url).then(function (dataUrl) {
+          if (!img.isConnected) {
+            return
           }
-        } else {
-          img.className = 'i carbon:bookmark'
-        }
+          if (dataUrl) {
+            img.onerror = function () {
+              img.className = 'i carbon:bookmark'
+              img.removeAttribute('src')
+            }
+            img.src = dataUrl
+            img.className = ''
+          }
+        })
         chip.appendChild(img)
 
         const title = document.createElement('span')
@@ -385,6 +435,61 @@ const newTabPage = {
     } catch (e) {
       console.warn('Failed to load bookmarks on new tab page', e)
     }
+  },
+
+  requestDefaultBrowser: function () {
+    ipc.invoke('setDefaultBrowser').then(function (ok) {
+      if (ok) {
+        newTabPage.closeDefaultPrompt()
+      }
+    })
+  },
+
+  closeDefaultPrompt: function () {
+    if (newTabPage.defaultPromptEl && newTabPage.defaultPromptEl.isConnected) {
+      newTabPage.defaultPromptEl.remove()
+    }
+    newTabPage.defaultPromptEl = null
+  },
+
+  buildDefaultBrowserPrompt: function () {
+    if (window.platformType !== 'windows') {
+      return
+    }
+    if (settings.get('defaultBrowserPromptDismissed') || settings.get('defaultBrowserRegistered')) {
+      return
+    }
+    const banner = document.createElement('div')
+    banner.className = 'ntp-default-prompt'
+    banner.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,0.12);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.22);box-shadow:0 4px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.28);color:#fff;font-family:var(--font-sans);font-size:13px;'
+
+    const text = document.createElement('span')
+    text.textContent = l('defaultBrowserPrompt')
+    banner.appendChild(text)
+
+    const setBtn = document.createElement('button')
+    setBtn.textContent = l('defaultBrowserPromptButton')
+    setBtn.style.cssText = 'border:none;cursor:pointer;padding:5px 12px;border-radius:9999px;background:rgba(255,255,255,0.22);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;'
+    setBtn.addEventListener('click', function (e) {
+      e.stopPropagation()
+      newTabPage.requestDefaultBrowser()
+    })
+    banner.appendChild(setBtn)
+
+    const closeBtn = document.createElement('button')
+    closeBtn.className = 'i carbon:close'
+    closeBtn.tabIndex = -1
+    closeBtn.setAttribute('aria-label', l('closeDialog'))
+    closeBtn.style.cssText = 'border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,0.75);font-size:14px;padding:4px;'
+    closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation()
+      settings.set('defaultBrowserPromptDismissed', true)
+      newTabPage.closeDefaultPrompt()
+    })
+    banner.appendChild(closeBtn)
+
+    newTabPage.defaultPromptEl = banner
+    newTabPage.container.appendChild(banner)
   },
 
   buildDOM: function () {
@@ -650,6 +755,7 @@ const newTabPage = {
 
     newTabPage.container.appendChild(newTabPage.wallpaperLayer)
     newTabPage.container.appendChild(newTabPage.scrimLayer)
+    newTabPage.buildDefaultBrowserPrompt()
     newTabPage.container.appendChild(newTabPage.mainEl)
     newTabPage.container.appendChild(newTabPage.customizeBtn)
     newTabPage.container.appendChild(newTabPage.customizePanel)
@@ -658,13 +764,8 @@ const newTabPage = {
 
   initialize: function () {
     newTabPage.buildDOM()
-    newTabPage.reloadBackground()
-    newTabPage.updateClock()
     newTabPage.renderShortcuts()
     newTabPage.renderBookmarks()
-
-    clearInterval(newTabPage.clockTimer)
-    newTabPage.clockTimer = setInterval(newTabPage.updateClock, 1000)
 
     settings.listen('newTabWallpaper', function (val) {
       newTabPage.applyWallpaper(val || 'stars')
@@ -674,12 +775,31 @@ const newTabPage = {
       newTabPage.renderShortcuts()
     })
 
+    settings.listen('defaultBrowserRequested', function (ts) {
+      if (typeof ts !== 'number' || Date.now() - ts > 30000) {
+        return
+      }
+      settings.set('defaultBrowserRequested', null)
+      newTabPage.requestDefaultBrowser()
+    })
+
+    newTabPage.clockObserver = new MutationObserver(function () {
+      if (document.body.classList.contains('is-ntp')) {
+        newTabPage.startClock()
+      } else {
+        newTabPage.stopClock()
+      }
+    })
+    newTabPage.clockObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+    if (document.body.classList.contains('is-ntp')) {
+      newTabPage.startClock()
+    }
+
     if (window.tasks) {
       tasks.on('tab-selected', function (id) {
         if (window.tabs) {
           const tab = tabs.get(id)
           if (tab && !tab.url) {
-            newTabPage.updateClock()
             newTabPage.renderBookmarks()
           }
         }

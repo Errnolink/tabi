@@ -158,6 +158,20 @@
                 <select id="setting-language-picker"></select>
               </div>
             </div>
+
+            <div class="setting-row" id="default-browser-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="btn-set-default-browser" data-string="settingsDefaultBrowser">Default browser</label>
+                <div class="setting-row-desc" data-string="settingsDefaultBrowserDesc">Open links from other apps in Tabi. Windows will ask you to confirm the choice.</div>
+              </div>
+              <div class="setting-row-control action-group">
+                <span class="default-browser-status" id="default-browser-status"></span>
+                <button type="button" class="btn-tonal" id="btn-set-default-browser">
+                  <i class="i carbon:checkmark-outline"></i>
+                  <span data-string="settingsMakeDefault">Set as default…</span>
+                </button>
+              </div>
+            </div>
           </section>
 
           <!-- Appearance -->
@@ -336,6 +350,54 @@
                 <input type="checkbox" id="checkbox-block-image" />
               </div>
             </div>
+
+            <div class="setting-row" id="clear-data-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="btn-show-clear-data" data-string="settingsClearData">Clear browsing data</label>
+                <div class="setting-row-desc" data-string="settingsClearDataDesc">Delete history, cookies and site data, cache, thumbnails, and the downloads list.</div>
+              </div>
+              <div class="setting-row-control">
+                <button type="button" class="btn-tonal" id="btn-show-clear-data">
+                  <i class="i carbon:trash-can"></i>
+                  <span data-string="settingsClearDataOpen">Clear data…</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="clear-data-panel" class="setting-subpanel" hidden>
+              <div class="clear-data-grid">
+                <div class="clear-data-col">
+                  <label class="subpanel-label" for="clear-data-range" data-string="settingsClearDataRange">Time range</label>
+                  <select id="clear-data-range" class="settings-text-input">
+                    <option value="hour" data-string="settingsClearDataHour">Last hour</option>
+                    <option value="day" data-string="settingsClearDataDay">Last 24 hours</option>
+                    <option value="week" data-string="settingsClearDataWeek">Last 7 days</option>
+                    <option value="month" data-string="settingsClearDataMonth">Last 4 weeks</option>
+                    <option value="all" data-string="settingsClearDataAll" selected>All time</option>
+                  </select>
+
+                  <label class="subpanel-label" for="clear-data-containers" data-string="settingsClearDataContainers">Cookies and site data from</label>
+                  <select id="clear-data-containers" class="settings-text-input">
+                    <option value="all" data-string="settingsClearDataAllContainers">All containers</option>
+                  </select>
+                </div>
+                <div class="clear-data-col">
+                  <label class="clear-check"><input type="checkbox" id="clear-check-history" checked /> <span data-string="settingsClearDataHistory">Browsing history</span></label>
+                  <label class="clear-check"><input type="checkbox" id="clear-check-sitedata" checked /> <span data-string="settingsClearDataSiteData">Cookies and site data</span></label>
+                  <label class="clear-check"><input type="checkbox" id="clear-check-cache" checked /> <span data-string="settingsClearDataCache">Cached images and files</span></label>
+                  <label class="clear-check"><input type="checkbox" id="clear-check-thumbnails" /> <span data-string="settingsClearDataThumbnails">Tab thumbnails</span></label>
+                  <label class="clear-check"><input type="checkbox" id="clear-check-downloads" /> <span data-string="settingsClearDataDownloads">Download history</span></label>
+                </div>
+              </div>
+              <div class="clear-data-actions">
+                <span id="clear-data-status" class="clear-data-status" aria-live="polite"></span>
+                <button type="button" class="btn-tonal" id="btn-clear-data-cancel" data-string="newTabCancel">Cancel</button>
+                <button type="button" class="btn-jewel" id="btn-clear-data-confirm">
+                  <i class="i carbon:trash-can"></i>
+                  <span data-string="settingsClearDataConfirmButton">Clear data</span>
+                </button>
+              </div>
+            </div>
           </section>
 
           <!-- Search Engine -->
@@ -405,6 +467,27 @@
                   <i class="i carbon:fingerprint-recognition"></i>
                   <span data-string="settingsManageContainers">Manage containers</span>
                 </a>
+              </div>
+            </div>
+
+            <div class="setting-row" id="autofile-editor-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" data-string="settingsAutoFileHeading">Auto-file rules</label>
+                <div class="setting-row-desc" data-string="settingsAutoFileDesc">When you type an address that matches a rule's prefixes, the tab opens in the tab group with the rule's name.</div>
+              </div>
+            </div>
+
+            <div class="setting-section autofile-section">
+              <ul id="autofile-rules"></ul>
+              <div class="bangs-action-bar">
+                <button type="button" class="btn-jewel" id="btn-autofile-x-preset">
+                  <i class="i carbon:add"></i>
+                  <span data-string="settingsAutoFileXPreset">Add X/Twitter preset</span>
+                </button>
+                <button type="button" class="btn-jewel" id="btn-autofile-add">
+                  <i class="i carbon:add"></i>
+                  <span data-string="settingsAutoFileAdd">Add rule</span>
+                </button>
               </div>
             </div>
           </section>

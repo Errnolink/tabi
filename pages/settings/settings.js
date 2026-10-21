@@ -884,3 +884,292 @@ if (typeof IntersectionObserver !== 'undefined') {
     observer.observe(section)
   })
 }
+
+var defaultBrowserRow = document.getElementById('default-browser-row')
+var setDefaultBrowserBtn = document.getElementById('btn-set-default-browser')
+var defaultBrowserStatus = document.getElementById('default-browser-status')
+
+if (defaultBrowserRow && navigator.userAgent.indexOf('Windows') === -1) {
+  defaultBrowserRow.hidden = true
+}
+
+if (setDefaultBrowserBtn) {
+  settings.listen('defaultBrowserRegistered', function (registered) {
+    if (defaultBrowserStatus) {
+      defaultBrowserStatus.textContent = registered === true ? l('settingsDefaultBrowserRegistered') : ''
+    }
+  })
+
+  setDefaultBrowserBtn.addEventListener('click', function () {
+    settings.set('defaultBrowserRequested', Date.now())
+    if (defaultBrowserStatus) {
+      defaultBrowserStatus.textContent = l('settingsDefaultBrowserWorking')
+    }
+  })
+}
+
+var clearDataPanel = document.getElementById('clear-data-panel')
+var showClearDataBtn = document.getElementById('btn-show-clear-data')
+var clearDataCancelBtn = document.getElementById('btn-clear-data-cancel')
+var clearDataConfirmBtn = document.getElementById('btn-clear-data-confirm')
+var clearDataRangeSelect = document.getElementById('clear-data-range')
+var clearDataContainersSelect = document.getElementById('clear-data-containers')
+var clearDataStatus = document.getElementById('clear-data-status')
+var clearDataChecks = {
+  history: document.getElementById('clear-check-history'),
+  siteData: document.getElementById('clear-check-sitedata'),
+  cache: document.getElementById('clear-check-cache'),
+  thumbnails: document.getElementById('clear-check-thumbnails'),
+  downloads: document.getElementById('clear-check-downloads')
+}
+var clearDataSentId = null
+var containersListRequestId = null
+
+function loadContainerOptions () {
+  containersListRequestId = Math.random()
+  window.postMessage({ message: 'containersPage:list', id: containersListRequestId }, window.location.toString())
+}
+
+window.addEventListener('message', function (e) {
+  if (!e.data || e.data.message !== 'containersPage:result' || e.data.id !== containersListRequestId) {
+    return
+  }
+  containersListRequestId = null
+  var state = e.data.result
+  var select = clearDataContainersSelect
+  if (!state || !Array.isArray(state.containers) || !select) {
+    return
+  }
+  var current = select.value
+  while (select.options.length > 1) {
+    select.remove(1)
+  }
+  state.containers.forEach(function (container) {
+    var option = document.createElement('option')
+    option.value = container.id
+    option.textContent = container.name || container.id
+    select.appendChild(option)
+  })
+  if (current) {
+    select.value = current
+  }
+})
+
+function openClearDataPanel () {
+  if (!clearDataPanel) {
+    return
+  }
+  clearDataPanel.hidden = false
+  loadContainerOptions()
+  var section = document.getElementById('privacy-settings-container')
+  if (section) {
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  var privacyNav = document.querySelector('#settings-nav a[href="#privacy-settings-container"]')
+  if (privacyNav) {
+    navItems.forEach(function (item) {
+      item.classList.toggle('active', item === privacyNav)
+    })
+  }
+}
+
+if (showClearDataBtn) {
+  showClearDataBtn.addEventListener('click', openClearDataPanel)
+}
+
+if (clearDataCancelBtn) {
+  clearDataCancelBtn.addEventListener('click', function () {
+    clearDataPanel.hidden = true
+  })
+}
+
+if (clearDataChecks.siteData && clearDataContainersSelect) {
+  clearDataChecks.siteData.addEventListener('change', function () {
+    clearDataContainersSelect.disabled = !this.checked
+  })
+}
+
+if (clearDataConfirmBtn) {
+  clearDataConfirmBtn.addEventListener('click', function () {
+    var containerValue = clearDataContainersSelect ? clearDataContainersSelect.value : 'all'
+    var request = {
+      id: Date.now() + '-' + Math.floor(Math.random() * 1e6),
+      history: clearDataChecks.history.checked,
+      range: clearDataRangeSelect ? clearDataRangeSelect.value : 'all',
+      siteData: clearDataChecks.siteData.checked,
+      allContainers: containerValue === 'all',
+      containerIds: containerValue === 'all' ? [] : [containerValue],
+      cache: clearDataChecks.cache.checked,
+      thumbnails: clearDataChecks.thumbnails.checked,
+      downloads: clearDataChecks.downloads.checked
+    }
+    if (!request.history && !request.siteData && !request.cache && !request.thumbnails && !request.downloads) {
+      return
+    }
+    clearDataSentId = request.id
+    if (clearDataStatus) {
+      clearDataStatus.textContent = l('settingsClearDataWorking')
+    }
+    settings.set('clearDataRequest', request)
+  })
+}
+
+settings.listen('clearDataResult', function (result) {
+  if (!result || result.id !== clearDataSentId) {
+    return
+  }
+  clearDataSentId = null
+  if (clearDataStatus) {
+    clearDataStatus.textContent = result.ok ? l('settingsClearDataDone') : l('settingsClearDataFailed')
+  }
+})
+
+var autoFileList = document.getElementById('autofile-rules')
+var autoFileAddBtn = document.getElementById('btn-autofile-add')
+var autoFilePresetBtn = document.getElementById('btn-autofile-x-preset')
+
+var AUTOFILE_X_PRESET = [
+  { name: 'Home', patterns: ['x.com/home', 'x.com/notifications', 'x.com/messages', 'x.com/i/'] },
+  { name: 'Search', patterns: ['x.com/search', 'x.com/explore'] },
+  { name: 'Reading', patterns: ['x.com/', 'twitter.com/'] }
+]
+
+function updateAutoFilePresetButton (rules) {
+  if (autoFilePresetBtn) {
+    autoFilePresetBtn.disabled = AUTOFILE_X_PRESET.every(function (preset) {
+      return (rules || []).some(function (rule) {
+        return rule.name === preset.name
+      })
+    })
+  }
+}
+
+function createAutoFileRule (rule) {
+  var current = { name: rule.name, patterns: rule.patterns.slice() }
+
+  var li = document.createElement('li')
+  var nameInput = document.createElement('input')
+  var patternsInput = document.createElement('input')
+  var deleteButton = document.createElement('button')
+
+  nameInput.className = 'settings-text-input'
+  patternsInput.className = 'settings-text-input autofile-patterns-input'
+  deleteButton.className = 'custom-bang-delete-button'
+
+  nameInput.value = rule.name
+  nameInput.placeholder = l('settingsAutoFileGroupName')
+  nameInput.autocomplete = 'off'
+  nameInput.spellcheck = false
+
+  patternsInput.value = rule.patterns.join(', ')
+  patternsInput.placeholder = l('settingsAutoFilePrefixes')
+  patternsInput.autocomplete = 'off'
+  patternsInput.spellcheck = false
+
+  deleteButton.setAttribute('type', 'button')
+  deleteButton.innerHTML = '<i class="i carbon:trash-can"></i>'
+
+  var saveTimer = null
+  function update (key, value) {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(function () {
+      settings.get('autoFileRules', function (stored) {
+        var filtered = (stored || []).filter(function (r) {
+          return r.name !== current.name
+        })
+        current[key] = value
+        var name = current.name.trim()
+        var patterns = current.patterns.map(function (p) {
+          return p.trim()
+        }).filter(Boolean)
+        if (name && patterns.length > 0) {
+          filtered.push({ name: name, patterns: patterns })
+        }
+        settings.set('autoFileRules', filtered)
+        updateAutoFilePresetButton(filtered)
+      })
+    }, 350)
+  }
+
+  nameInput.addEventListener('input', function () {
+    update('name', nameInput.value)
+  })
+  patternsInput.addEventListener('input', function () {
+    update('patterns', patternsInput.value.split(','))
+  })
+
+  deleteButton.addEventListener('click', function () {
+    li.remove()
+    settings.get('autoFileRules', function (stored) {
+      var filtered = (stored || []).filter(function (r) {
+        return r.name !== current.name
+      })
+      settings.set('autoFileRules', filtered)
+      updateAutoFilePresetButton(filtered)
+    })
+  })
+
+  li.appendChild(nameInput)
+  li.appendChild(patternsInput)
+  li.appendChild(deleteButton)
+  return li
+}
+
+function renderAutoFileRules (rules) {
+  if (!autoFileList) {
+    return
+  }
+  autoFileList.textContent = ''
+  ;(rules || []).forEach(function (rule) {
+    autoFileList.appendChild(createAutoFileRule(rule))
+  })
+  updateAutoFilePresetButton(rules)
+}
+
+if (autoFileList) {
+  settings.get('autoFileRules', function (rules) {
+    renderAutoFileRules(rules || [])
+  })
+}
+
+if (autoFileAddBtn) {
+  autoFileAddBtn.addEventListener('click', function () {
+    settings.get('autoFileRules', function (stored) {
+      var rules = (stored || []).slice()
+      var baseName = l('settingsAutoFileNewGroup')
+      var name = baseName
+      var n = 2
+      while (rules.some(function (r) {
+        return r.name === name
+      })) {
+        name = baseName + ' ' + n
+        n++
+      }
+      rules.push({ name: name, patterns: ['example.com/'] })
+      settings.set('autoFileRules', rules)
+      renderAutoFileRules(rules)
+    })
+  })
+}
+
+if (autoFilePresetBtn) {
+  autoFilePresetBtn.addEventListener('click', function () {
+    settings.get('autoFileRules', function (stored) {
+      var rules = (stored || []).slice()
+      AUTOFILE_X_PRESET.forEach(function (preset) {
+        var exists = rules.some(function (rule) {
+          return rule.name === preset.name
+        })
+        if (!exists) {
+          rules.push({ name: preset.name, patterns: preset.patterns.slice() })
+        }
+      })
+      settings.set('autoFileRules', rules)
+      renderAutoFileRules(rules)
+    })
+  })
+}
+
+if (new URLSearchParams(window.location.search).has('clearData')) {
+  openClearDataPanel()
+}

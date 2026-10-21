@@ -90,6 +90,113 @@ ipc.handle('clearStorageData', function () {
   ]))
 })
 
+ipc.handle('clearBrowsingData', function (e, options) {
+  options = options || {}
+  var jobs = []
+
+  var partitions = []
+  if (options.siteData || options.cache) {
+    if (options.allContainers === false && Array.isArray(options.containerIds) && options.containerIds.length > 0) {
+      options.containerIds.forEach(function (id) {
+        var container = containerRegistry.containers.find(function (c) { return c.id === id })
+        if (container && partitions.indexOf(container.partition) === -1) {
+          partitions.push(container.partition)
+        }
+      })
+    } else {
+      partitions = containerPartitions()
+    }
+  }
+
+  if (options.siteData) {
+    partitions.forEach(function (partition) {
+      var ses = session.fromPartition(partition)
+      jobs.push(ses.clearStorageData().then(function () {
+        return ses.cookies.flushStore()
+      }))
+    })
+  }
+
+  if (options.cache) {
+    partitions.forEach(function (partition) {
+      var ses = session.fromPartition(partition)
+      jobs.push(ses.clearCache().then(function () {
+        return ses.clearHostResolverCache()
+      }).then(function () {
+        return ses.clearAuthCache()
+      }))
+    })
+    jobs.push(session.defaultSession.clearCache())
+    jobs.push(session.defaultSession.clearHostResolverCache())
+  }
+
+  if (options.thumbnails) {
+    try {
+      var thumbDir = thumbnailManager.getDir()
+      fs.readdirSync(thumbDir).forEach(function (file) {
+        if (file.endsWith('.jpg')) {
+          thumbnailManager.delete(file.slice(0, -4))
+        }
+      })
+    } catch (err) { }
+  }
+
+  return Promise.all(jobs).then(function () {
+    return true
+  })
+})
+
+ipc.handle('fetchFavicon', async function (e, host) {
+  if (typeof host !== 'string' || host.length > 253 || !/^[a-z0-9.-]+\.[a-z0-9-]+$/i.test(host)) {
+    return null
+  }
+  var safeHost = host.toLowerCase()
+  var cacheDir = path.join(userDataPath, 'faviconCache')
+  var controller = new AbortController()
+  var timer = setTimeout(function () {
+    controller.abort()
+  }, 10000)
+  try {
+    var response = await net.fetch('https://' + safeHost + '/favicon.ico', {
+      signal: controller.signal,
+      headers: { Accept: 'image/*' }
+    })
+    if (!response.ok) {
+      return null
+    }
+    var contentType = (response.headers.get('content-type') || 'image/x-icon').split(';')[0].trim()
+    if (!contentType.startsWith('image/')) {
+      return null
+    }
+    var buffer = Buffer.from(await response.arrayBuffer())
+    if (buffer.length === 0 || buffer.length > 512 * 1024) {
+      return null
+    }
+    try {
+      fs.mkdirSync(cacheDir, { recursive: true })
+      fs.writeFileSync(path.join(cacheDir, safeHost + '.bin'), buffer)
+    } catch (err) { }
+    return { dataUrl: 'data:' + contentType + ';base64,' + buffer.toString('base64') }
+  } catch (err) {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+})
+
+ipc.handle('setDefaultBrowser', function () {
+  if (process.platform !== 'win32') {
+    return Promise.resolve(false)
+  }
+  return registryInstaller.install().then(function () {
+    settings.set('defaultBrowserRegistered', true)
+    shell.openExternal('ms-settings:defaultapps?registeredAppUser=Tabi')
+    return true
+  }).catch(function () {
+    return false
+  })
+})
+
 /* window actions */
 
 ipc.handle('minimize', function (e) {

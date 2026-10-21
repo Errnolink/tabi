@@ -8,6 +8,9 @@ var tabActions = require('tabActions.js')
 var urlParser = require('util/urlParser.js')
 var keyMapModule = require('util/keyMap.js')
 var settings = require('util/settings/settings.js')
+var places = require('places/places.js')
+var containers = require('containers.js')
+var downloadManager = require('downloadManager.js')
 
 var keyMap = keyMapModule.userKeyMap(settings.get('keyMap'))
 
@@ -277,6 +280,84 @@ const defaultKeybindings = {
           html: anchorTag.outerHTML
         })
       }
+    })
+
+    keybindings.defineShortcut('showDownloads', function () {
+      downloadManager.openPopover()
+    })
+
+    keybindings.defineShortcut('clearBrowsingData', function () {
+      if (modalMode.enabled() || focusMode.enabled()) {
+        return
+      }
+      var selectedTask = tasks.getSelected()
+      var newTab = tabs.add({
+        url: 'min://app/pages/settings/index.html?clearData=1',
+        containerId: containers.containerForNewTab(selectedTask ? selectedTask.id : null)
+      })
+      browserUI.addTab(newTab, { enterEditMode: false })
+    })
+
+    var browsingData = {
+      lastRequestId: null,
+      ranges: {
+        hour: 60 * 60 * 1000,
+        day: 24 * 60 * 60 * 1000,
+        week: 7 * 24 * 60 * 60 * 1000,
+        month: 4 * 7 * 24 * 60 * 60 * 1000
+      },
+      deleteHistory: function (range) {
+        var span = browsingData.ranges[range]
+        if (!span) {
+          places.deleteAllHistory()
+          return Promise.resolve()
+        }
+        return places.getAllItems().then(function (items) {
+          var cutoff = Date.now() - span
+          ;(items || []).forEach(function (item) {
+            if (!item.isBookmarked && (item.lastVisit || 0) >= cutoff) {
+              places.deleteHistory(item.url)
+            }
+          })
+        })
+      },
+      run: function (request) {
+        if (!request || !request.id || request.id === browsingData.lastRequestId) {
+          return
+        }
+        browsingData.lastRequestId = request.id
+
+        var jobs = []
+        if (request.history) {
+          jobs.push(browsingData.deleteHistory(request.range))
+        }
+        if (request.downloads) {
+          downloadManager.clearAll()
+        }
+        if (request.siteData || request.cache || request.thumbnails) {
+          jobs.push(ipc.invoke('clearBrowsingData', {
+            siteData: request.siteData === true,
+            cache: request.cache === true,
+            thumbnails: request.thumbnails === true,
+            allContainers: request.allContainers !== false,
+            containerIds: Array.isArray(request.containerIds) ? request.containerIds : []
+          }))
+        }
+
+        Promise.all(jobs).then(function () {
+          settings.set('clearDataResult', { id: request.id, ok: true })
+        }).catch(function () {
+          settings.set('clearDataResult', { id: request.id, ok: false })
+        })
+      }
+    }
+
+    var pendingClearRequest = settings.get('clearDataRequest')
+    if (pendingClearRequest && pendingClearRequest.id) {
+      browsingData.lastRequestId = pendingClearRequest.id
+    }
+    settings.listen('clearDataRequest', function (request) {
+      browsingData.run(request)
     })
   }
 }

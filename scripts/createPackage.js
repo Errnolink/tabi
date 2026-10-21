@@ -61,6 +61,9 @@ module.exports = function (platform, extraOptions) {
 
     await flipFuses(electronBinaryPath, {
       version: FuseVersion.V1,
+      [FuseV1Options.RunAsNode]: false,
+      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+      [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.GrantFileProtocolExtraPrivileges]: false
     })
   }
@@ -113,7 +116,8 @@ module.exports = function (platform, extraOptions) {
       createStartMenuShortcut: true,
       shortcutName: 'Tabi',
       deleteAppDataOnUninstall: false,
-      artifactName: 'Tabi-Setup-${version}.exe'
+      artifactName: 'Tabi-Setup-${version}.exe',
+      include: 'resources/installer.nsh'
     },
     mac: {
       icon: 'icons/icon.icns',

@@ -1,6 +1,25 @@
 /* global ipc, electron */
 
 const glassMenu = require('glassMenu.js')
+const settings = require('util/settings/settings.js')
+const keyMapModule = require('util/keyMap.js')
+
+const DOWNLOAD_HISTORY_LIMIT = 50
+
+function shortcutLabel (binding) {
+  let value = Array.isArray(binding) ? binding[0] : binding
+  if (!value) {
+    return ''
+  }
+  if (window.platformType === 'mac') {
+    value = value.replace(/\bmod\b/g, 'Cmd')
+  } else {
+    value = value.replace(/\bmod\b/g, 'Ctrl')
+  }
+  return value.split('+').map(function (part) {
+    return part.charAt(0).toUpperCase() + part.slice(1)
+  }).join('+')
+}
 
 function sizeString (bytes) {
   const prefixes = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -19,6 +38,53 @@ const ringFill = button.querySelector('.download-ring-fill')
 const downloadManager = {
   items: new Map(),
   list: null,
+  saveTimer: null,
+
+  persist: function () {
+    const entries = []
+    downloadManager.items.forEach(function (item) {
+      if (item.status === 'completed' || item.status === 'interrupted') {
+        entries.push({ path: item.path, name: item.name, status: item.status, size: item.size })
+      }
+    })
+    settings.set('downloadList', entries.slice(-DOWNLOAD_HISTORY_LIMIT))
+  },
+
+  schedulePersist: function () {
+    clearTimeout(downloadManager.saveTimer)
+    downloadManager.saveTimer = setTimeout(downloadManager.persist, 750)
+  },
+
+  restore: function () {
+    const saved = settings.get('downloadList')
+    if (!Array.isArray(saved)) {
+      return
+    }
+    saved.slice(-DOWNLOAD_HISTORY_LIMIT).forEach(function (item) {
+      if (item && item.path && (item.status === 'completed' || item.status === 'interrupted')) {
+        downloadManager.items.set(item.path, {
+          path: item.path,
+          name: item.name || item.path.split(/[\\/]/).pop(),
+          status: item.status,
+          size: item.size || { received: 0, total: 0 }
+        })
+      }
+    })
+  },
+
+  clearAll: function () {
+    const doomed = []
+    downloadManager.items.forEach(function (item, path) {
+      if (item.status !== 'progressing') {
+        doomed.push(path)
+      }
+    })
+    doomed.forEach(function (path) {
+      downloadManager.items.delete(path)
+    })
+    downloadManager.persist()
+    downloadManager.refresh()
+  },
 
   progress: function () {
     let received = 0
@@ -36,10 +102,11 @@ const downloadManager = {
 
   updateButton: function () {
     const { active, fraction } = downloadManager.progress()
+    const keys = shortcutLabel(keyMapModule.userKeyMap(settings.get('keyMap')).showDownloads)
     button.hidden = downloadManager.items.size === 0
     button.classList.toggle('active', active > 0)
     ringFill.style.strokeDasharray = (active > 0 ? Math.max(4, fraction * 100) : 100) + ' 100'
-    button.title = active > 0 ? Math.round(fraction * 100) + '%' : l('downloadsTitle')
+    button.title = active > 0 ? Math.round(fraction * 100) + '%' : l('downloadsTitle') + (keys ? ' (' + keys + ')' : '')
   },
 
   renderRow: function (item) {
@@ -118,7 +185,10 @@ const downloadManager = {
     }
     downloadManager.list.textContent = ''
     if (downloadManager.items.size === 0) {
-      glassMenu.close()
+      const empty = document.createElement('div')
+      empty.className = 'dl-empty'
+      empty.textContent = l('downloadsEmpty')
+      downloadManager.list.appendChild(empty)
       return
     }
     Array.from(downloadManager.items.values()).reverse().forEach(function (item) {
@@ -136,23 +206,28 @@ const downloadManager = {
     clear.className = 'dl-clear'
     clear.textContent = l('downloadsClear')
     clear.addEventListener('click', function () {
-      downloadManager.items.forEach(function (item, path) {
-        if (item.status !== 'progressing') {
-          downloadManager.items.delete(path)
-        }
-      })
-      downloadManager.refresh()
+      downloadManager.clearAll()
     })
     head.appendChild(clear)
     downloadManager.list = document.createElement('div')
     downloadManager.list.className = 'dl-list'
     content.append(head, downloadManager.list)
-    const rect = button.getBoundingClientRect()
-    glassMenu.openPanel(content, { x: Math.round(rect.right), y: Math.round(rect.bottom + 6), onClose: () => { downloadManager.list = null } })
+    let x, y
+    if (button.hidden) {
+      x = window.innerWidth - 16
+      y = 52
+    } else {
+      const rect = button.getBoundingClientRect()
+      x = Math.round(rect.right)
+      y = Math.round(rect.bottom + 6)
+    }
+    glassMenu.openPanel(content, { x: x, y: y, onClose: () => { downloadManager.list = null } })
     downloadManager.refresh()
   },
 
   initialize: function () {
+    downloadManager.restore()
+    downloadManager.updateButton()
     button.addEventListener('click', downloadManager.openPopover)
 
     ipc.on('download-info', function (e, info) {
@@ -169,6 +244,11 @@ const downloadManager = {
           button.getBoundingClientRect()
           button.classList.add('bump')
         }
+      }
+      if (info.status === 'progressing') {
+        downloadManager.schedulePersist()
+      } else {
+        downloadManager.persist()
       }
       downloadManager.refresh()
     })

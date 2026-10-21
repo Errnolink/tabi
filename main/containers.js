@@ -85,7 +85,7 @@ function loadContainersRegistry () {
 }
 
 function saveContainersRegistry () {
-  fs.writeFileSync(containersPath, JSON.stringify(containerRegistry, null, 2))
+  writeFileAtomic(containersPath, JSON.stringify(containerRegistry, null, 2))
 }
 
 function newContainerId () {
@@ -272,7 +272,7 @@ function queuePendingContainerRemoval (dirName) {
   var pending = pendingContainerRemovals()
   if (!pending.includes(dirName)) {
     pending.push(dirName)
-    fs.writeFileSync(pendingContainerRemovalsPath, JSON.stringify(pending))
+    writeFileAtomic(pendingContainerRemovalsPath, JSON.stringify(pending))
   }
 }
 
@@ -301,7 +301,7 @@ function retryPendingContainerRemovals () {
     return !removeContainerPartitionDir(dirName)
   })
   if (remaining.length > 0) {
-    fs.writeFileSync(pendingContainerRemovalsPath, JSON.stringify(remaining))
+    writeFileAtomic(pendingContainerRemovalsPath, JSON.stringify(remaining))
   } else {
     fs.rmSync(pendingContainerRemovalsPath, { force: true })
   }
@@ -431,11 +431,17 @@ ipc.handle('containers:page', function (e, payload) {
   } catch (err) {
     return null
   }
-  if (!senderURL || !senderURL.startsWith('min://app/pages/containers/')) {
+  var fromContainersPage = senderURL && senderURL.startsWith('min://app/pages/containers/')
+  var fromSettingsPage = senderURL && senderURL.startsWith('min://app/pages/settings/')
+  if (!fromContainersPage && !fromSettingsPage) {
     return null
   }
 
   if (!payload || typeof payload.op !== 'string') {
+    return null
+  }
+
+  if (fromSettingsPage && payload.op !== 'list' && payload.op !== 'vocabulary') {
     return null
   }
 

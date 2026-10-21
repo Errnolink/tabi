@@ -3,6 +3,10 @@ const settings = require('util/settings/settings.js')
 const remoteMenu = require('remoteMenuRenderer.js')
 
 const contentBlockingToggle = {
+  blockingDisabledGlobally: function () {
+    var setting = settings.get('filtering')
+    return !!(setting && setting.blockingLevel === 0)
+  },
   enableBlocking: function (url) {
     if (!url) {
       return
@@ -31,6 +35,9 @@ const contentBlockingToggle = {
     webviews.callAsync(tabs.getSelected(), 'reload')
   },
   isBlockingEnabled: function (url) {
+    if (contentBlockingToggle.blockingDisabledGlobally()) {
+      return false
+    }
     try {
       var domain = new URL(url).hostname
     } catch (e) {
@@ -53,11 +60,13 @@ const contentBlockingToggle = {
   },
   showMenu: function (button) {
     var url = tabs.get(tabs.getSelected()).url
+    var globallyOff = contentBlockingToggle.blockingDisabledGlobally()
     var menu = [
       [
         {
           type: 'checkbox',
-          label: l('enableBlocking'),
+          label: globallyOff ? l('blockingOffGlobally') : l('enableBlocking'),
+          enabled: !globallyOff,
           checked: contentBlockingToggle.isBlockingEnabled(url),
           click: function () {
             if (contentBlockingToggle.isBlockingEnabled(url)) {

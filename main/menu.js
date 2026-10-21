@@ -77,6 +77,17 @@ function buildAppMenu (options = {}) {
           sendIPCToWindow(window, 'showHistory')
         }
       }
+    },
+    {
+      label: l('appMenuClearData'),
+      accelerator: getFormattedKeyMapEntry('clearBrowsingData'),
+      click: function (item, window, event) {
+        if (!event.triggeredByAccelerator) {
+          sendIPCToWindow(window, 'addTab', {
+            url: 'min://app/pages/settings/index.html?clearData=1'
+          })
+        }
+      }
     }
   ]
 

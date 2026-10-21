@@ -563,6 +563,95 @@ body.dark-mode .content-stats-chip strong {
   justify-content: flex-start;
 }
 
+/* Default browser row */
+.default-browser-status {
+  font-size: 12.5px;
+  color: var(--chrome-ink-muted);
+}
+
+/* Clear browsing data */
+.clear-data-grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1fr);
+  gap: 16px;
+}
+
+.clear-data-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clear-data-col .subpanel-label {
+  margin-bottom: 0;
+}
+
+.clear-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--chrome-ink);
+  cursor: pointer;
+}
+
+.clear-check input {
+  flex: none;
+}
+
+.clear-data-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.clear-data-status {
+  margin-right: auto;
+  font-size: 12.5px;
+  color: var(--chrome-ink-muted);
+}
+
+/* Auto-file rules */
+.autofile-section {
+  padding-top: 4px;
+}
+
+#autofile-rules {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#autofile-rules li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--chrome-hover);
+  border: 1px solid var(--chrome-line);
+}
+
+#autofile-rules input {
+  flex: 1;
+  min-width: 0;
+}
+
+#autofile-rules .autofile-patterns-input {
+  flex: 2.2;
+}
+
+@media (max-width: 700px) {
+  .clear-data-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Proxy Settings */
 .proxy-manual-wrap,
 .proxy-pac-wrap {

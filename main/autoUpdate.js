@@ -86,6 +86,7 @@ async function checkForUpdatesManually (window) {
     }
   } catch (e) {
     logUpdateEvent('manual check failed: ' + (e && (e.stack || e.message)))
+    showUpdateDialog(window, l('updateCheckFailed').replace('%s', (e && e.message) ? e.message : String(e)))
   }
 }
 
@@ -96,6 +97,10 @@ function handleUpdateMenuItem (window) {
     checkForUpdatesManually(window)
   }
 }
+
+ipc.on('installUpdateNow', function () {
+  quitAndInstallUpdate()
+})
 
 function initializeAutoUpdate () {
   if (!updateState.supported || autoUpdaterInstance) {
