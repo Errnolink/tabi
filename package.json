@@ -4,7 +4,7 @@
   "author": "Errnolink",
   "version": "1.35.7",
   "description": "A minimal, privacy-focused browser with containers, tab groups, and a sea glass UI",
-  "electronVersion": "43.4.1",
+  "electronVersion": "43.8.3",
   "main": "main.build.js",
   "standard": {
     "globals": [
@@ -61,7 +61,7 @@
     "browserify": "^16.5.1",
     "concurrently": "^5.2.0",
     "decomment": "^0.9.0",
-    "electron": "43.4.1",
+    "electron": "43.8.3",
     "electron-builder": "^24.13.3",
     "electron-installer-windows": "^3.0.0",
     "electron-renderify": "0.0.2",
