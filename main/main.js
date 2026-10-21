@@ -62,6 +62,37 @@ var mainMenu = null
 var isFocusMode = false
 var appIsReady = false
 
+var quitWatchdogArmed = false
+var quitCommitted = false
+
+app.on('before-quit', function () {
+  if (quitWatchdogArmed) {
+    return
+  }
+  quitWatchdogArmed = true
+  webContents.getAllWebContents().forEach(function (contents) {
+    try {
+      contents.stop()
+    } catch (e) { }
+  })
+  destroyAllViews()
+  setTimeout(function () {
+    if (!quitCommitted) {
+      console.warn('quit did not complete within 2500ms, forcing exit')
+      BrowserWindow.getAllWindows().forEach(function (win) {
+        try {
+          win.destroy()
+        } catch (e) { }
+      })
+    }
+    process.kill(process.pid, 'SIGKILL')
+  }, 2500)
+})
+
+app.on('quit', function () {
+  quitCommitted = true
+})
+
 const isFirstInstance = app.requestSingleInstanceLock()
 
 if (!isFirstInstance) {

@@ -42,7 +42,12 @@ app.on('before-quit', function (e) {
     return
   }
   var pendingWrite = settings.fileWritePromise || Promise.resolve()
-  pendingWrite.then(function () {
+  Promise.race([
+    pendingWrite,
+    new Promise(function (resolve) {
+      setTimeout(resolve, 1500)
+    })
+  ]).then(function () {
     app.quit()
   }).catch(function () {
     app.quit()

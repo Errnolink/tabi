@@ -495,7 +495,7 @@ app.on('before-quit', function (e) {
   Promise.race([
     Promise.allSettled(Array.from(containerSessions.values()).map(ses => ses.cookies.flushStore())),
     new Promise(function (resolve) {
-      setTimeout(resolve, 5000)
+      setTimeout(resolve, 1500)
     })
   ]).then(function () {
     app.quit()
