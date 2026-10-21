@@ -25,7 +25,12 @@
       "performance",
       "IntersectionObserver",
       "Node",
-      "Event"
+      "Event",
+      "Blob",
+      "AbortController",
+      "Response",
+      "URL",
+      "URLSearchParams"
     ]
   },
   "dependencies": {

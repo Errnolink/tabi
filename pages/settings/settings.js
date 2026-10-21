@@ -2,7 +2,6 @@ document.title = l('settingsPreferencesHeading') + ' | xb'
 
 var banner = document.getElementById('restart-required-banner')
 var siteThemeCheckbox = document.getElementById('checkbox-site-theme')
-var showDividerCheckbox = document.getElementById('checkbox-show-divider')
 var userscriptsCheckbox = document.getElementById('checkbox-userscripts')
 var showUserscriptsFolderBtn = document.getElementById('btn-show-userscripts-folder')
 var separateTitlebarCheckbox = document.getElementById('checkbox-separate-titlebar')
@@ -265,16 +264,6 @@ if (siteThemeCheckbox) {
 
   siteThemeCheckbox.addEventListener('change', function () {
     settings.set('siteTheme', this.checked)
-  })
-}
-
-if (showDividerCheckbox) {
-  settings.get('showDividerBetweenTabs', function (value) {
-    showDividerCheckbox.checked = (value === true)
-  })
-
-  showDividerCheckbox.addEventListener('change', function () {
-    settings.set('showDividerBetweenTabs', this.checked)
   })
 }
 

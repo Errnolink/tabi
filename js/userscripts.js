@@ -72,7 +72,7 @@ function urlMatchesPattern (url, pattern) {
 
 var GM_GRANT_ALIASES = {
   GM_getValue: 'getValue',
-  'GM.setValue': 'getValue',
+  'GM.getValue': 'getValue',
   GM_setValue: 'setValue',
   'GM.setValue': 'setValue',
   GM_deleteValue: 'deleteValue',

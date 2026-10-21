@@ -12,7 +12,7 @@ blocks window creation. Sessions where an extension with blocking webRequest
 main/filtering.js) nor the cosmetic-filter preload.
 */
 
-/* global fs, path, ipc, app, webContents, userDataPath, settings, enabledFilteringOptions, registeredFilteringSessions, sessionsWithExtensionBlocker, requestDomainIsException */
+/* global fs, path, ipc, app, webContents, userDataPath, enabledFilteringOptions, registeredFilteringSessions, sessionsWithExtensionBlocker, requestDomainIsException */
 
 const { ElectronBlocker, FiltersEngine, Request } = require('@ghostery/adblocker-electron')
 

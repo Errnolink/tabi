@@ -9,20 +9,6 @@ function bucketLabel (task, index) {
   return task.name || l('defaultTaskName').replace('%n', index + 1)
 }
 
-function createQuickContainer () {
-  const existing = containers.list()
-  const used = new Set(existing.map(c => c.color))
-  const palette = containers.colors()
-  const color = Object.values(palette).find(hex => !used.has(hex)) || Object.values(palette)[existing.length % Object.values(palette).length]
-  const icons = containers.icons()
-  let n = existing.length + 1
-  while (existing.some(c => c.name === l('quickContainerName').replace('%n', n))) {
-    n++
-  }
-  const name = l('quickContainerName').replace('%n', n)
-  return containers.add({ name, color, icon: icons[existing.length % icons.length] })
-}
-
 function containerItems (current, onPick) {
   const items = containers.list().map(container => ({
     label: container.name,
