@@ -1,58 +1,50 @@
 document.title = l('settingsPreferencesHeading') + ' | xb'
 
-var contentTypeBlockingContainer = document.getElementById('content-type-blocking')
 var banner = document.getElementById('restart-required-banner')
 var siteThemeCheckbox = document.getElementById('checkbox-site-theme')
 var showDividerCheckbox = document.getElementById('checkbox-show-divider')
 var userscriptsCheckbox = document.getElementById('checkbox-userscripts')
-var userscriptsShowDirectorySection = document.getElementById('userscripts-show-directory')
+var showUserscriptsFolderBtn = document.getElementById('btn-show-userscripts-folder')
 var separateTitlebarCheckbox = document.getElementById('checkbox-separate-titlebar')
 var openTabsInForegroundCheckbox = document.getElementById('checkbox-open-tabs-in-foreground')
 var autoPlayCheckbox = document.getElementById('checkbox-enable-autoplay')
 var userAgentCheckbox = document.getElementById('checkbox-user-agent')
 var userAgentInput = document.getElementById('input-user-agent')
+var urlCleaningCheckbox = document.getElementById('checkbox-url-cleaning')
+var scriptCheckbox = document.getElementById('checkbox-block-script')
+var imageCheckbox = document.getElementById('checkbox-block-image')
 
 function showRestartRequiredBanner () {
-  banner.hidden = false
+  if (banner) {
+    banner.hidden = false
+  }
   settings.set('restartNow', true)
 }
-settings.get('restartNow', (value) => {
+
+settings.get('restartNow', function (value) {
   if (value === true) {
     showRestartRequiredBanner()
   }
 })
 
-/* content blocking settings */
-
-var trackingLevelContainer = document.getElementById('tracking-level-container')
-var trackingLevelOptions = Array.from(trackingLevelContainer.querySelectorAll('input[name=blockingLevel]'))
+var trackingLevelOptions = [
+  document.getElementById('blocking-allow-all'),
+  document.getElementById('blocking-third-party'),
+  document.getElementById('blocking-block-all')
+]
 var blockingExceptionsContainer = document.getElementById('content-blocking-information')
 var blockingExceptionsInput = document.getElementById('content-blocking-exceptions')
-var blockedRequestCount = document.querySelector('#content-blocking-blocked-requests strong')
-
-settings.listen('filteringBlockedCount', function (value) {
-  var count = value || 0
-  var valueStr
-  if (count > 50000) {
-    valueStr = new Intl.NumberFormat(navigator.locale, { notation: 'compact', maximumSignificantDigits: 4 }).format(count)
-  } else {
-    valueStr = new Intl.NumberFormat().format(count)
-  }
-  blockedRequestCount.textContent = valueStr
-})
-
-/* show when an installed extension takes over request blocking */
 
 var extensionFilterNotice = document.getElementById('extension-filter-notice')
-
 if (extensionFilterNotice) {
-  var extensionFilterRequestId = 'extension-filter-' + Date.now()
+  var extensionFilterRequestId = 'settings-ext-filter-check'
   var extensionFilterListener = function (e) {
-    if (e.data && e.data.message === 'extensionsReply' && e.data.data && e.data.data.replyTo === extensionFilterRequestId) {
+    if (e.data && e.data.message === 'extensionsResponse' && e.data.requestId === extensionFilterRequestId) {
       window.removeEventListener('message', extensionFilterListener)
-      extensionFilterNotice.hidden = !(e.data.data.extensions || []).some(function (ext) {
-        return ext.blocksMinFilter
+      var hasBlockingExtension = (e.data.result || []).some(function (ext) {
+        return (ext.package?.permissions || []).includes('webRequestBlocking')
       })
+      extensionFilterNotice.hidden = !hasBlockingExtension
     }
   }
   window.addEventListener('message', extensionFilterListener)
@@ -60,429 +52,433 @@ if (extensionFilterNotice) {
 }
 
 function updateBlockingLevelUI (level) {
-  var radio = trackingLevelOptions[level]
-  radio.checked = true
-
-  if (level === 0) {
-    blockingExceptionsContainer.hidden = true
-  } else {
-    blockingExceptionsContainer.hidden = false
-    radio.parentNode.appendChild(blockingExceptionsContainer)
+  if (level === undefined || level === null) {
+    level = 1
   }
-
-  if (document.querySelector('#tracking-level-container .setting-option.selected')) {
-    document.querySelector('#tracking-level-container .setting-option.selected').classList.remove('selected')
+  trackingLevelOptions.forEach(function (radio, idx) {
+    if (radio) {
+      radio.checked = (idx === level)
+    }
+  })
+  if (blockingExceptionsContainer) {
+    blockingExceptionsContainer.hidden = (level === 0)
   }
-  radio.parentNode.classList.add('selected')
 }
 
 function changeBlockingLevelSetting (level) {
   settings.get('filtering', function (value) {
-    if (!value) {
-      value = {}
-    }
+    value = value || {}
     value.blockingLevel = level
     settings.set('filtering', value)
     updateBlockingLevelUI(level)
   })
 }
 
-function setExceptionInputSize () {
-  blockingExceptionsInput.style.height = (blockingExceptionsInput.scrollHeight + 2) + 'px'
+trackingLevelOptions.forEach(function (radio, idx) {
+  if (radio) {
+    radio.addEventListener('change', function () {
+      if (this.checked) {
+        changeBlockingLevelSetting(idx)
+      }
+    })
+  }
+})
+
+function updateContentTypesUI (filtering) {
+  var types = (filtering && filtering.contentTypes) || []
+  if (scriptCheckbox) {
+    scriptCheckbox.checked = types.includes('script')
+  }
+  if (imageCheckbox) {
+    imageCheckbox.checked = types.includes('image')
+  }
+}
+
+function toggleContentType (type, enabled) {
+  settings.get('filtering', function (value) {
+    value = value || {}
+    value.contentTypes = value.contentTypes || []
+    var idx = value.contentTypes.indexOf(type)
+    if (enabled && idx === -1) {
+      value.contentTypes.push(type)
+    } else if (!enabled && idx !== -1) {
+      value.contentTypes.splice(idx, 1)
+    }
+    settings.set('filtering', value)
+  })
+}
+
+if (scriptCheckbox) {
+  scriptCheckbox.addEventListener('change', function () {
+    toggleContentType('script', this.checked)
+  })
+}
+
+if (imageCheckbox) {
+  imageCheckbox.addEventListener('change', function () {
+    toggleContentType('image', this.checked)
+  })
 }
 
 settings.get('filtering', function (value) {
-  // migrate from old settings (<v1.9.0)
   if (value && typeof value.trackers === 'boolean') {
     if (value.trackers === true) {
-      value.blockingLevel = 2
-    } else if (value.trackers === false) {
+      value.blockingLevel = 1
+    } else {
       value.blockingLevel = 0
     }
     delete value.trackers
     settings.set('filtering', value)
   }
 
+  var level = 1
   if (value && value.blockingLevel !== undefined) {
-    updateBlockingLevelUI(value.blockingLevel)
-  } else {
-    updateBlockingLevelUI(1)
+    level = value.blockingLevel
+  }
+  updateBlockingLevelUI(level)
+
+  if (value && value.exceptionDomains && blockingExceptionsInput) {
+    blockingExceptionsInput.value = value.exceptionDomains.join(', ')
   }
 
-  if (value && value.exceptionDomains && value.exceptionDomains.length > 0) {
-    blockingExceptionsInput.value = value.exceptionDomains.join(', ') + ', '
-    setExceptionInputSize()
-  }
+  updateContentTypesUI(value)
 })
 
-trackingLevelOptions.forEach(function (item, idx) {
-  item.addEventListener('change', function () {
-    changeBlockingLevelSetting(idx)
-  })
-})
-
-blockingExceptionsInput.addEventListener('input', function () {
-  setExceptionInputSize()
-
-  // remove protocols because of https://github.com/minbrowser/min/issues/1428
-  var newValue = this.value.split(',').map(i => i.trim().replace('http://', '').replace('https://', '')).filter(i => !!i)
-
-  settings.get('filtering', function (value) {
-    if (!value) {
-      value = {}
-    }
-    value.exceptionDomains = newValue
-    settings.set('filtering', value)
-  })
-})
-
-/* content type settings */
-
-var contentTypes = {
-  // humanReadableName: contentType
-  scripts: 'script',
-  images: 'image'
-}
-
-// used for showing localized strings
-var contentTypeSettingNames = {
-  scripts: 'settingsBlockScriptsToggle',
-  images: 'settingsBlockImagesToggle'
-}
-
-for (var contentType in contentTypes) {
-  (function (contentType) {
-    settings.get('filtering', function (value) {
-      // create the settings section for blocking each content type
-
-      var section = document.createElement('div')
-      section.classList.add('setting-section')
-
-      var id = 'checkbox-block-' + contentTypes[contentType]
-
-      var checkbox = document.createElement('input')
-      checkbox.type = 'checkbox'
-      checkbox.id = id
-
-      if (value && value.contentTypes) {
-        checkbox.checked = value.contentTypes.indexOf(contentTypes[contentType]) != -1
-      }
-
-      var label = document.createElement('label')
-      label.setAttribute('for', id)
-      label.textContent = l(contentTypeSettingNames[contentType])
-
-      section.appendChild(checkbox)
-      section.appendChild(label)
-
-      contentTypeBlockingContainer.appendChild(section)
-
-      checkbox.addEventListener('change', function (e) {
-        settings.get('filtering', function (value) {
-          if (!value) {
-            value = {}
-          }
-          if (!value.contentTypes) {
-            value.contentTypes = []
-          }
-
-          if (e.target.checked) { // add the item to the array
-            value.contentTypes.push(contentTypes[contentType])
-          } else { // remove the item from the array
-            var idx = value.contentTypes.indexOf(contentTypes[contentType])
-            value.contentTypes.splice(idx, 1)
-          }
-
-          settings.set('filtering', value)
-        })
+var exceptionTimeout = null
+if (blockingExceptionsInput) {
+  blockingExceptionsInput.addEventListener('input', function () {
+    clearTimeout(exceptionTimeout)
+    var text = this.value
+    exceptionTimeout = setTimeout(function () {
+      var newValue = text.split(',').map(function (domain) {
+        return domain.trim()
+      }).filter(Boolean)
+      settings.get('filtering', function (value) {
+        value = value || {}
+        value.exceptionDomains = newValue
+        settings.set('filtering', value)
       })
-    })
-  })(contentType)
+    }, 400)
+  })
 }
 
-/* dark mode setting */
+settings.listen('filteringBlockedCount', function (value) {
+  var count = value || 0
+  var valueStr = count > 50000 ? '50,000+' : count.toLocaleString()
+  var blockedEl = document.querySelector('#content-blocking-blocked-requests strong')
+  if (blockedEl) {
+    blockedEl.textContent = valueStr
+  }
+})
+
+if (urlCleaningCheckbox) {
+  settings.get('urlCleaning', function (value) {
+    urlCleaningCheckbox.checked = (value !== false)
+  })
+
+  urlCleaningCheckbox.addEventListener('change', function () {
+    settings.set('urlCleaning', this.checked)
+  })
+}
+
+var dohModeSelect = document.getElementById('doh-mode')
+var dohProviderSelect = document.getElementById('doh-provider')
+var dohProviderRow = document.getElementById('doh-provider-row')
+var dohCustomRow = document.getElementById('doh-custom-row')
+var dohCustomTemplateInput = document.getElementById('doh-custom-template')
+
+function updateDnsUI (doh) {
+  doh = doh || { mode: 'automatic', provider: 'cloudflare' }
+  var mode = doh.mode || 'automatic'
+  var provider = doh.provider || 'cloudflare'
+  var customTemplate = doh.customTemplate || ''
+
+  if (dohModeSelect) dohModeSelect.value = mode
+  if (dohProviderSelect) dohProviderSelect.value = provider
+  if (dohCustomTemplateInput) dohCustomTemplateInput.value = customTemplate
+
+  if (dohProviderRow) dohProviderRow.hidden = (mode === 'off')
+  if (dohCustomRow) dohCustomRow.hidden = (mode === 'off' || provider !== 'custom')
+}
+
+function saveDnsSettings () {
+  var mode = dohModeSelect ? dohModeSelect.value : 'automatic'
+  var provider = dohProviderSelect ? dohProviderSelect.value : 'cloudflare'
+  var customTemplate = dohCustomTemplateInput ? dohCustomTemplateInput.value.trim() : ''
+  var doh = {
+    mode: mode,
+    provider: provider,
+    customTemplate: customTemplate
+  }
+  settings.set('dnsOverHttps', doh)
+  if (dohProviderRow) dohProviderRow.hidden = (mode === 'off')
+  if (dohCustomRow) dohCustomRow.hidden = (mode === 'off' || provider !== 'custom')
+}
+
+if (dohModeSelect) {
+  settings.get('dnsOverHttps', function (value) {
+    updateDnsUI(value)
+  })
+
+  dohModeSelect.addEventListener('change', saveDnsSettings)
+  if (dohProviderSelect) dohProviderSelect.addEventListener('change', saveDnsSettings)
+  if (dohCustomTemplateInput) dohCustomTemplateInput.addEventListener('input', saveDnsSettings)
+}
+
 var darkModeNever = document.getElementById('dark-mode-never')
 var darkModeNight = document.getElementById('dark-mode-night')
 var darkModeAlways = document.getElementById('dark-mode-always')
 var darkModeSystem = document.getElementById('dark-mode-system')
 
-// -1 - off ; 0 - auto ; 1 - on
 settings.get('darkMode', function (value) {
-  darkModeNever.checked = (value === -1)
-  darkModeNight.checked = (value === 0)
-  darkModeAlways.checked = (value === 1 || value === true)
-  darkModeSystem.checked = (value === 2 || value === undefined || value === false)
+  if (darkModeNever) darkModeNever.checked = (value === -1)
+  if (darkModeNight) darkModeNight.checked = (value === 0)
+  if (darkModeAlways) darkModeAlways.checked = (value === 1 || value === true)
+  if (darkModeSystem) darkModeSystem.checked = (value === 2 || value === undefined || value === false)
 })
 
-darkModeNever.addEventListener('change', function (e) {
-  if (this.checked) {
-    settings.set('darkMode', -1)
-  }
-})
-darkModeNight.addEventListener('change', function (e) {
-  if (this.checked) {
-    settings.set('darkMode', 0)
-  }
-})
-darkModeAlways.addEventListener('change', function (e) {
-  if (this.checked) {
-    settings.set('darkMode', 1)
-  }
-})
-darkModeSystem.addEventListener('change', function (e) {
-  if (this.checked) {
-    settings.set('darkMode', 2)
-  }
-})
-
-/* site theme setting */
-
-settings.get('siteTheme', function (value) {
-  if (value === true || value === undefined) {
-    siteThemeCheckbox.checked = true
-  } else {
-    siteThemeCheckbox.checked = false
-  }
-})
-
-siteThemeCheckbox.addEventListener('change', function (e) {
-  settings.set('siteTheme', this.checked)
-})
-
-/* startup settings */
-
-var startupSettingInput = document.getElementById('startup-options')
-
-settings.get('startupTabOption', function(value = 2) {
-  startupSettingInput.value = value
-})
-
-startupSettingInput.addEventListener('change', function() {
-  settings.set('startupTabOption', parseInt(this.value))
-})
-
-var tabSleepInput = document.getElementById('tab-sleep-options')
-
-settings.get('tabSleepMinutes', function (value = 60) {
-  tabSleepInput.value = value
-})
-
-tabSleepInput.addEventListener('change', function () {
-  settings.set('tabSleepMinutes', parseInt(this.value))
-})
-
-/* new window settings */
-
-var newWindowSettingInput = document.getElementById('new-window-options')
-
-settings.get('newWindowOption', function(value = 1) {
-  newWindowSettingInput.value = value
-})
-
-newWindowSettingInput.addEventListener('change', function() {
-  settings.set('newWindowOption', parseInt(this.value))
-})
-
-/* userscripts setting */
-
-settings.get('userscriptsEnabled', function (value) {
-  if (value === true) {
-    userscriptsCheckbox.checked = true
-    userscriptsShowDirectorySection.hidden = false
-  }
-})
-
-userscriptsCheckbox.addEventListener('change', function (e) {
-  settings.set('userscriptsEnabled', this.checked)
-  userscriptsShowDirectorySection.hidden = !this.checked
-})
-
-userscriptsShowDirectorySection.getElementsByTagName('a')[0].addEventListener('click', function() {
-  postMessage({ message: 'showUserscriptDirectory' })
-})
-
-/* show divider between tabs setting */
-
-settings.get('showDividerBetweenTabs', function (value) {
-  if (value === true) {
-    showDividerCheckbox.checked = true
-  }
-})
-
-showDividerCheckbox.addEventListener('change', function (e) {
-  settings.set('showDividerBetweenTabs', this.checked)
-})
-
-/* language setting*/
-
-var languagePicker = document.getElementById('setting-language-picker')
-
-for (var language in languages) { //from localization.build.js
-  var item = document.createElement('option')
-  item.textContent = languages[language].name
-  item.value = languages[language].identifier
-  languagePicker.appendChild(item)
+if (darkModeNever) {
+  darkModeNever.addEventListener('change', function () {
+    if (this.checked) settings.set('darkMode', -1)
+  })
+}
+if (darkModeNight) {
+  darkModeNight.addEventListener('change', function () {
+    if (this.checked) settings.set('darkMode', 0)
+  })
+}
+if (darkModeAlways) {
+  darkModeAlways.addEventListener('change', function () {
+    if (this.checked) settings.set('darkMode', 1)
+  })
+}
+if (darkModeSystem) {
+  darkModeSystem.addEventListener('change', function () {
+    if (this.checked) settings.set('darkMode', 2)
+  })
 }
 
-languagePicker.value = getCurrentLanguage()
+if (siteThemeCheckbox) {
+  settings.get('siteTheme', function (value) {
+    siteThemeCheckbox.checked = (value === true || value === undefined)
+  })
 
-languagePicker.addEventListener('change', function () {
-  settings.set('userSelectedLanguage', this.value)
-  showRestartRequiredBanner()
-})
+  siteThemeCheckbox.addEventListener('change', function () {
+    settings.set('siteTheme', this.checked)
+  })
+}
 
-/* separate titlebar setting */
+if (showDividerCheckbox) {
+  settings.get('showDividerBetweenTabs', function (value) {
+    showDividerCheckbox.checked = (value === true)
+  })
 
-settings.get('useSeparateTitlebar', function (value) {
-  if (value === true) {
-    separateTitlebarCheckbox.checked = true
+  showDividerCheckbox.addEventListener('change', function () {
+    settings.set('showDividerBetweenTabs', this.checked)
+  })
+}
+
+var startupSettingInput = document.getElementById('startup-options')
+if (startupSettingInput) {
+  settings.get('startupTabOption', function (value = 1) {
+    startupSettingInput.value = value
+  })
+
+  startupSettingInput.addEventListener('change', function () {
+    settings.set('startupTabOption', parseInt(this.value, 10))
+  })
+}
+
+var tabSleepInput = document.getElementById('tab-sleep-options')
+if (tabSleepInput) {
+  settings.get('tabSleepMinutes', function (value = 60) {
+    tabSleepInput.value = value
+  })
+
+  tabSleepInput.addEventListener('change', function () {
+    settings.set('tabSleepMinutes', parseInt(this.value, 10))
+  })
+}
+
+var newWindowSettingInput = document.getElementById('new-window-options')
+if (newWindowSettingInput) {
+  settings.get('newWindowOption', function (value = 1) {
+    newWindowSettingInput.value = value
+  })
+
+  newWindowSettingInput.addEventListener('change', function () {
+    settings.set('newWindowOption', parseInt(this.value, 10))
+  })
+}
+
+if (userscriptsCheckbox) {
+  settings.get('userscriptsEnabled', function (value) {
+    userscriptsCheckbox.checked = !!value
+  })
+
+  userscriptsCheckbox.addEventListener('change', function () {
+    settings.set('userscriptsEnabled', this.checked)
+  })
+}
+
+if (showUserscriptsFolderBtn) {
+  showUserscriptsFolderBtn.addEventListener('click', function () {
+    postMessage({ message: 'showUserscriptDirectory' })
+  })
+}
+
+var languagePicker = document.getElementById('setting-language-picker')
+if (languagePicker && typeof languages !== 'undefined') {
+  for (var language in languages) {
+    var option = document.createElement('option')
+    option.textContent = languages[language].name
+    option.value = language
+    languagePicker.appendChild(option)
   }
-})
 
-separateTitlebarCheckbox.addEventListener('change', function (e) {
-  settings.set('useSeparateTitlebar', this.checked)
-  showRestartRequiredBanner()
-})
+  settings.get('userSelectedLanguage', function (val) {
+    if (val) {
+      languagePicker.value = val
+    } else {
+      settings.get('language', function (fallback) {
+        languagePicker.value = fallback || getCurrentLanguage()
+      })
+    }
+  })
 
-/* tabs in foreground setting */
-
-settings.get('openTabsInForeground', function (value) {
-  if (value === true) {
-    openTabsInForegroundCheckbox.checked = true
-  }
-})
-
-openTabsInForegroundCheckbox.addEventListener('change', function (e) {
-  settings.set('openTabsInForeground', this.checked)
-})
-
-/* media autoplay setting */
-
-settings.get('enableAutoplay', function (value) {
-  autoPlayCheckbox.checked = value
-})
-
-autoPlayCheckbox.addEventListener('change', function (e) {
-  settings.set('enableAutoplay', this.checked)
-})
-
-/* user agent settting */
-
-settings.get('customUserAgent', function (value) {
-  if (value) {
-    userAgentCheckbox.checked = true
-    userAgentInput.style.visibility = 'visible'
-    userAgentInput.value = value
-  }
-})
-
-userAgentCheckbox.addEventListener('change', function (e) {
-  if (this.checked) {
-    userAgentInput.style.visibility = 'visible'
-  } else {
-    settings.set('customUserAgent', null)
-    userAgentInput.style.visibility = 'hidden'
+  languagePicker.addEventListener('change', function () {
     showRestartRequiredBanner()
-  }
-})
+    settings.set('userSelectedLanguage', this.value)
+    settings.set('language', this.value)
+  })
+}
 
-userAgentInput.addEventListener('input', function (e) {
-  const value = this.value.slice(0, 200)
-  if (value !== this.value) {
-    this.value = value
-  }
-  if (value) {
-    settings.set('customUserAgent', value)
-  } else {
-    settings.set('customUserAgent', null)
-  }
-  showRestartRequiredBanner()
-})
+if (separateTitlebarCheckbox) {
+  settings.get('useSeparateTitlebar', function (value) {
+    separateTitlebarCheckbox.checked = (value === true)
+  })
 
-/* update notifications setting */
+  separateTitlebarCheckbox.addEventListener('change', function () {
+    settings.set('useSeparateTitlebar', this.checked)
+    showRestartRequiredBanner()
+  })
+}
 
-var updateNotificationsCheckbox = document.getElementById('checkbox-update-notifications')
+if (openTabsInForegroundCheckbox) {
+  settings.get('openTabsInForeground', function (value) {
+    openTabsInForegroundCheckbox.checked = (value === true)
+  })
 
-settings.get('updateNotificationsEnabled', function (value) {
-  if (value === false) {
-    updateNotificationsCheckbox.checked = false
-  } else {
-    updateNotificationsCheckbox.checked = true
-  }
-})
+  openTabsInForegroundCheckbox.addEventListener('change', function () {
+    settings.set('openTabsInForeground', this.checked)
+  })
+}
 
-updateNotificationsCheckbox.addEventListener('change', function (e) {
-  settings.set('updateNotificationsEnabled', this.checked)
-})
+if (autoPlayCheckbox) {
+  settings.get('enableAutoplay', function (value) {
+    autoPlayCheckbox.checked = (value === true)
+  })
 
-/* usage statistics setting */
+  autoPlayCheckbox.addEventListener('change', function () {
+    settings.set('enableAutoplay', this.checked)
+  })
+}
 
-var usageStatisticsCheckbox = document.getElementById('checkbox-usage-statistics')
+if (userAgentCheckbox && userAgentInput) {
+  settings.get('customUserAgent', function (value) {
+    if (value) {
+      userAgentCheckbox.checked = true
+      userAgentInput.style.display = 'block'
+      userAgentInput.value = value
+    } else {
+      userAgentCheckbox.checked = false
+      userAgentInput.style.display = 'none'
+    }
+  })
 
-settings.get('collectUsageStats', function (value) {
-  if (value === false) {
-    usageStatisticsCheckbox.checked = false
-  } else {
-    usageStatisticsCheckbox.checked = true
-  }
-})
+  userAgentCheckbox.addEventListener('change', function () {
+    if (this.checked) {
+      userAgentInput.style.display = 'block'
+      userAgentInput.focus()
+    } else {
+      settings.set('customUserAgent', null)
+      userAgentInput.style.display = 'none'
+      userAgentInput.value = ''
+      showRestartRequiredBanner()
+    }
+  })
 
-usageStatisticsCheckbox.addEventListener('change', function (e) {
-  settings.set('collectUsageStats', this.checked)
-})
-
-/* default search engine setting */
+  var userAgentTimeout = null
+  userAgentInput.addEventListener('input', function () {
+    clearTimeout(userAgentTimeout)
+    var val = this.value
+    userAgentTimeout = setTimeout(function () {
+      if (val) {
+        settings.set('customUserAgent', val)
+      } else {
+        settings.set('customUserAgent', null)
+      }
+      showRestartRequiredBanner()
+    }, 500)
+  })
+}
 
 var searchEngineDropdown = document.getElementById('default-search-engine')
 var searchEngineInput = document.getElementById('custom-search-engine')
 
-searchEngineInput.setAttribute('placeholder', l('customSearchEngineDescription'))
+if (searchEngineInput) {
+  searchEngineInput.setAttribute('placeholder', l('customSearchEngineDescription'))
+}
 
-settings.onLoad(function () {
-  if (currentSearchEngine.custom) {
-    searchEngineInput.hidden = false
-    searchEngineInput.value = currentSearchEngine.searchURL
-  }
-
-  for (var searchEngine in searchEngines) {
-    var item = document.createElement('option')
-    item.textContent = searchEngines[searchEngine].name
-
-    if (searchEngines[searchEngine].name == currentSearchEngine.name) {
-      item.setAttribute('selected', 'true')
+if (searchEngineDropdown) {
+  settings.onLoad(function () {
+    for (var engine in searchEngines) {
+      var opt = document.createElement('option')
+      opt.textContent = searchEngines[engine].name
+      opt.value = engine
+      searchEngineDropdown.appendChild(opt)
     }
 
-    searchEngineDropdown.appendChild(item)
+    var customOpt = document.createElement('option')
+    customOpt.textContent = 'custom'
+    customOpt.value = 'custom'
+    searchEngineDropdown.appendChild(customOpt)
+
+    settings.get('searchEngine', function (value) {
+      if (value && value.name) {
+        searchEngineDropdown.value = value.name
+      } else if (value && value.url) {
+        searchEngineDropdown.value = 'custom'
+        if (searchEngineInput) {
+          searchEngineInput.value = value.url
+          searchEngineInput.hidden = false
+        }
+      } else {
+        searchEngineDropdown.value = 'DuckDuckGo'
+      }
+    })
+  })
+
+  searchEngineDropdown.addEventListener('change', function () {
+    if (this.value === 'custom') {
+      if (searchEngineInput) searchEngineInput.hidden = false
+    } else {
+      if (searchEngineInput) searchEngineInput.hidden = true
+      settings.set('searchEngine', { name: this.value })
+    }
+  })
+
+  if (searchEngineInput) {
+    searchEngineInput.addEventListener('input', function () {
+      settings.set('searchEngine', { url: this.value })
+    })
   }
-
-  // add custom option
-  item = document.createElement('option')
-  item.textContent = 'custom'
-  if (currentSearchEngine.custom) {
-    item.setAttribute('selected', 'true')
-  }
-  searchEngineDropdown.appendChild(item)
-})
-
-searchEngineDropdown.addEventListener('change', function (e) {
-  if (this.value === 'custom') {
-    searchEngineInput.hidden = false
-  } else {
-    searchEngineInput.hidden = true
-    settings.set('searchEngine', { name: this.value })
-  }
-})
-
-searchEngineInput.addEventListener('input', function (e) {
-  settings.set('searchEngine', { url: this.value })
-})
-
-/* key map settings */
+}
 
 settings.get('keyMap', function (keyMapSettings) {
   var keyMap = userKeyMap(keyMapSettings)
-
   var keyMapList = document.getElementById('key-map-list')
+  if (!keyMapList) return
 
   Object.keys(keyMap).forEach(function (action) {
     var li = createKeyMapListItem(action, keyMap)
@@ -491,22 +487,24 @@ settings.get('keyMap', function (keyMapSettings) {
 })
 
 function formatCamelCase (text) {
-  var result = text.replace(/([a-z])([A-Z])/g, '$1 $2')
-  return result.charAt(0).toUpperCase() + result.slice(1)
+  return text.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
 }
 
 function createKeyMapListItem (action, keyMap) {
   var li = document.createElement('li')
   var label = document.createElement('label')
   var input = document.createElement('input')
-  label.innerText = formatCamelCase(action)
-  label.htmlFor = action
-
-  input.type = 'text'
-  input.id = input.name = action
   input.className = 'key-chip-input'
+  input.autocomplete = 'off'
+  input.spellcheck = false
+
+  label.textContent = formatCamelCase(action)
+  label.setAttribute('for', action)
+  input.id = action
+  input.name = action
   input.value = formatKeyValue(keyMap[action])
-  input.addEventListener('input', onKeyMapChange)
+
+  input.addEventListener('change', onKeyMapChange)
 
   li.appendChild(label)
   li.appendChild(input)
@@ -515,16 +513,14 @@ function createKeyMapListItem (action, keyMap) {
 }
 
 function formatKeyValue (value) {
-  // multiple shortcuts should be separated by commas
-  if (value instanceof Array) {
+  if (!value) return ''
+  if (Array.isArray(value)) {
     value = value.join(', ')
   }
-  // use either command or ctrl depending on the platform
   if (navigator.platform === 'MacIntel') {
     value = value.replace(/\bmod\b/g, 'command')
   } else {
     value = value.replace(/\bmod\b/g, 'ctrl')
-    value = value.replace(/\boption\b/g, 'alt')
   }
   if (navigator.platform === 'Win32') {
     value = value.replace(/\bsuper\b/g, 'win')
@@ -533,23 +529,23 @@ function formatKeyValue (value) {
 }
 
 function parseKeyInput (input) {
-  // input may be a single mapping or multiple mappings comma separated.
-  var parsed = input.toLowerCase().split(',')
-  parsed = parsed.map(function (e) { return e.trim() })
-  // Remove empty
-  parsed = parsed.filter(Boolean)
-  // convert key names back to generic equivalents
+  if (!input) return null
+  var parsed = input.toLowerCase().split(',').map(function (k) { return k.trim() })
   parsed = parsed.map(function (e) {
     if (navigator.platform === 'MacIntel') {
       e = e.replace(/\b(command)|(cmd)\b/g, 'mod')
     } else {
       e = e.replace(/\b(control)|(ctrl)\b/g, 'mod')
-      e = e.replace(/\balt\b/g, 'option')
+    }
+    if (navigator.platform === 'Win32') {
       e = e.replace(/\bwin\b/g, 'super')
     }
     return e
   })
-  return parsed.length > 1 ? parsed : parsed[0]
+  if (parsed.length === 1) {
+    return parsed[0]
+  }
+  return parsed
 }
 
 function onKeyMapChange (e) {
@@ -557,177 +553,272 @@ function onKeyMapChange (e) {
   var newValue = this.value
 
   settings.get('keyMap', function (keyMapSettings) {
-    if (!keyMapSettings) {
-      keyMapSettings = {}
-    }
-
+    keyMapSettings = keyMapSettings || {}
     keyMapSettings[action] = parseKeyInput(newValue)
     settings.set('keyMap', keyMapSettings)
     showRestartRequiredBanner()
   })
 }
 
-/* Password auto-fill settings  */
-
 var passwordManagersDropdown = document.getElementById('selected-password-manager')
-for (var manager in passwordManagers) {
-  var item = document.createElement('option')
-  item.textContent = passwordManagers[manager].name
-  passwordManagersDropdown.appendChild(item)
+if (passwordManagersDropdown && typeof passwordManagers !== 'undefined') {
+  for (var mgr in passwordManagers) {
+    var pOption = document.createElement('option')
+    pOption.textContent = passwordManagers[mgr].name
+    pOption.value = passwordManagers[mgr].name
+    passwordManagersDropdown.appendChild(pOption)
+  }
+
+  settings.listen('passwordManager', function () {
+    if (typeof currentPasswordManager !== 'undefined' && currentPasswordManager) {
+      passwordManagersDropdown.value = currentPasswordManager.name
+    }
+  })
+
+  passwordManagersDropdown.addEventListener('change', function () {
+    if (this.value === 'none') {
+      settings.set('passwordManager', { name: 'none' })
+    } else {
+      settings.set('passwordManager', { name: this.value })
+    }
+  })
 }
 
-settings.listen('passwordManager', function (value) {
-  passwordManagersDropdown.value = currentPasswordManager.name
-})
+var keychainViewLink = document.getElementById('keychain-view-link')
+var viewPasswordsBtn = document.getElementById('btn-view-passwords')
 
-passwordManagersDropdown.addEventListener('change', function (e) {
-  if (this.value === 'none') {
-    settings.set('passwordManager', { name: 'none' })
-  } else {
-    settings.set('passwordManager', { name: this.value })
+function openCredentialList () {
+  postMessage({ message: 'showCredentialList' })
+}
+
+if (keychainViewLink) {
+  keychainViewLink.addEventListener('click', openCredentialList)
+}
+if (viewPasswordsBtn) {
+  viewPasswordsBtn.addEventListener('click', openCredentialList)
+}
+
+settings.listen('passwordManager', function () {
+  if (keychainViewLink) {
+    keychainViewLink.hidden = !(typeof currentPasswordManager !== 'undefined' && currentPasswordManager && currentPasswordManager.name === 'Built-in password manager')
   }
 })
 
-var keychainViewLink = document.getElementById('keychain-view-link')
+var proxyTypeInput = document.getElementById('selected-proxy-type')
+var proxyInputs = Array.from(document.querySelectorAll('#proxy-settings-container input'))
 
-keychainViewLink.addEventListener('click', function () {
-  postMessage({ message: 'showCredentialList' })
-})
-
-settings.listen('passwordManager', function (value) {
-  keychainViewLink.hidden = !(currentPasswordManager.name === 'Built-in password manager')
-})
-
-/* proxy settings */
-
-const proxyTypeInput = document.getElementById('selected-proxy-type')
-const proxyInputs = Array.from(document.querySelectorAll('#proxy-settings-container input'))
-
-const toggleProxyOptions = proxyType => {
-  document.getElementById('manual-proxy-section').hidden = proxyType != 1
-  document.getElementById('pac-option').hidden = proxyType != 2
+function toggleProxyOptions (proxyType) {
+  var manualSec = document.getElementById('manual-proxy-section')
+  var pacSec = document.getElementById('pac-option')
+  if (manualSec) manualSec.hidden = (proxyType !== 1)
+  if (pacSec) pacSec.hidden = (proxyType !== 2)
 }
 
-const setProxy = (key, value) => {
-  settings.get('proxy', (proxy = {}) => {
+function setProxy (key, value) {
+  settings.get('proxy', function (proxy = {}) {
     proxy[key] = value
     settings.set('proxy', proxy)
   })
 }
 
-settings.get('proxy', (proxy = {}) => {
-  toggleProxyOptions(proxy.type)
+if (proxyTypeInput) {
+  settings.get('proxy', function (proxy = {}) {
+    toggleProxyOptions(proxy.type)
+    proxyTypeInput.options.selectedIndex = proxy.type || 0
 
-  proxyTypeInput.options.selectedIndex = proxy.type || 0
-  proxyInputs.forEach(item => item.value = proxy[item.name] || '')
-})
+    proxyInputs.forEach(function (item) {
+      if (proxy[item.name]) {
+        item.value = proxy[item.name]
+      }
+    })
+  })
 
-proxyTypeInput.addEventListener('change', e => {
-  const proxyType = e.target.options.selectedIndex
-  setProxy('type', proxyType)
-  toggleProxyOptions(proxyType)
-})
+  proxyTypeInput.addEventListener('change', function (e) {
+    setProxy('type', e.target.selectedIndex)
+    toggleProxyOptions(e.target.selectedIndex)
+  })
 
-proxyInputs.forEach(item => item.addEventListener('change', e => setProxy(e.target.name, e.target.value)))
+  proxyInputs.forEach(function (item) {
+    item.addEventListener('change', function (e) {
+      setProxy(e.target.name, e.target.value)
+    })
+  })
+}
 
-settings.get('customBangs', (value) => {
-  const bangslist = document.getElementById('custom-bangs')
-
-  if (value) {
+settings.get('customBangs', function (value) {
+  var bangslist = document.getElementById('custom-bangs')
+  if (bangslist && value) {
     value.forEach(function (bang) {
-      bangslist.appendChild(createBang(bang.phrase, bang.snippet, bang.redirect))
+      createBang(bang.phrase, bang.snippet, bang.redirect)
     })
   }
 })
 
-document.getElementById('add-custom-bang').addEventListener('click', function () {
-  const bangslist = document.getElementById('custom-bangs')
-  const newListItem = createBang()
-  bangslist.appendChild(newListItem)
-  document.body.scrollBy(0, Math.round(newListItem.getBoundingClientRect().height))
-})
+var addCustomBangBtn = document.getElementById('add-custom-bang')
+if (addCustomBangBtn) {
+  addCustomBangBtn.addEventListener('click', function () {
+    createBang('', '', '')
+    showRestartRequiredBanner()
+  })
+}
 
 function createBang (bang, snippet, redirect) {
+  var current = { phrase: bang, snippet: snippet, redirect: redirect }
+  var bangslist = document.getElementById('custom-bangs')
+  if (!bangslist) return
+
   var li = document.createElement('li')
   var bangInput = document.createElement('input')
   var snippetInput = document.createElement('input')
   var redirectInput = document.createElement('input')
-  var xButton = document.createElement('button')
-  var current = { phrase: bang ?? '', snippet: snippet ?? '', redirect: redirect ?? '' }
+  var deleteButton = document.createElement('button')
+
+  bangInput.className = 'settings-text-input'
+  snippetInput.className = 'settings-text-input'
+  redirectInput.className = 'settings-text-input'
+  deleteButton.className = 'custom-bang-delete-button'
+
+  bangInput.value = bang
+  bangInput.placeholder = l('settingsCustomBangsPhrase')
+  bangInput.autocomplete = 'off'
+  bangInput.spellcheck = false
+
+  snippetInput.value = snippet
+  snippetInput.placeholder = l('settingsCustomBangsSnippet')
+  snippetInput.autocomplete = 'off'
+  snippetInput.spellcheck = false
+
+  redirectInput.value = redirect
+  redirectInput.placeholder = l('settingsCustomBangsRedirect')
+  redirectInput.autocomplete = 'off'
+  redirectInput.spellcheck = false
+
+  deleteButton.setAttribute('type', 'button')
+  deleteButton.innerHTML = '<i class="i carbon:trash-can"></i>'
+
   function update (key, input) {
     settings.get('customBangs', function (d) {
-      const filtered = d ? d.filter((bang) => bang.phrase !== current.phrase && (key !== 'phrase' || bang.phrase !== input.value)) : []
+      var filtered = d ? d.filter(function (b) {
+        return b.phrase !== current.phrase && (key !== 'phrase' || b.phrase !== input.value)
+      }) : []
       filtered.push({ phrase: bangInput.value, snippet: snippetInput.value, redirect: redirectInput.value })
       settings.set('customBangs', filtered)
       current[key] = input.value
     })
   }
 
-  bangInput.type = 'text'
-  snippetInput.type = 'text'
-  redirectInput.type = 'text'
-  bangInput.value = bang ?? ''
-  snippetInput.value = snippet ?? ''
-  redirectInput.value = redirect ?? ''
-  xButton.className = 'i carbon:close custom-bang-delete-button'
+  bangInput.addEventListener('input', function () { update('phrase', bangInput) })
+  snippetInput.addEventListener('input', function () { update('snippet', snippetInput) })
+  redirectInput.addEventListener('input', function () { update('redirect', redirectInput) })
 
-  bangInput.placeholder = l('settingsCustomBangsPhrase')
-  snippetInput.placeholder = l('settingsCustomBangsSnippet')
-  redirectInput.placeholder = l('settingsCustomBangsRedirect')
-  xButton.addEventListener('click', function () {
+  deleteButton.addEventListener('click', function () {
     li.remove()
-    settings.get('customBangs', (d) => {
-      settings.set('customBangs', d.filter((bang) => bang.phrase !== bangInput.value))
+    settings.get('customBangs', function (d) {
+      if (d) {
+        settings.set('customBangs', d.filter(function (b) { return b.phrase !== bangInput.value }))
+      }
     })
-    showRestartRequiredBanner()
-  })
-
-  bangInput.addEventListener('change', function () {
-    if (this.value.startsWith('!')) {
-      this.value = this.value.slice(1)
-    }
-    update('phrase', bangInput)
-    showRestartRequiredBanner()
-  })
-  snippetInput.addEventListener('change', function () {
-    update('snippet', snippetInput)
-    showRestartRequiredBanner()
-  })
-  redirectInput.addEventListener('change', function () {
-    update('redirect', redirectInput)
     showRestartRequiredBanner()
   })
 
   li.appendChild(bangInput)
   li.appendChild(snippetInput)
   li.appendChild(redirectInput)
-  li.appendChild(xButton)
-
-  return li
+  li.appendChild(deleteButton)
+  bangslist.appendChild(li)
 }
 
-/* scroll-spy and smooth scroll for settings nav */
+var searchInput = document.getElementById('settings-search')
+var searchClearBtn = document.getElementById('settings-search-clear')
+var noResultsState = document.getElementById('settings-search-no-results')
+
+function filterSettings (query) {
+  query = (query || '').trim().toLowerCase()
+  if (searchClearBtn) {
+    searchClearBtn.hidden = !query
+  }
+
+  var sections = document.querySelectorAll('.settings-container')
+  var anyVisible = false
+
+  sections.forEach(function (section) {
+    var sectionHeader = section.querySelector('.section-header h3')
+    var sectionSubtitle = section.querySelector('.section-subtitle')
+    var sectionTitleMatch = (sectionHeader && sectionHeader.textContent.toLowerCase().includes(query)) ||
+      (sectionSubtitle && sectionSubtitle.textContent.toLowerCase().includes(query))
+
+    var rows = section.querySelectorAll('.setting-row, .setting-section')
+    var sectionHasMatch = false
+
+    rows.forEach(function (row) {
+      if (!query || sectionTitleMatch) {
+        row.classList.remove('search-hidden')
+        sectionHasMatch = true
+      } else {
+        var rowText = (row.textContent || '').toLowerCase()
+        if (rowText.includes(query)) {
+          row.classList.remove('search-hidden')
+          sectionHasMatch = true
+        } else {
+          row.classList.add('search-hidden')
+        }
+      }
+    })
+
+    if (!query || sectionHasMatch) {
+      section.classList.remove('search-hidden')
+      anyVisible = true
+    } else {
+      section.classList.add('search-hidden')
+    }
+
+    var navItem = document.querySelector('#settings-nav a[href="#' + section.id + '"]')
+    if (navItem) {
+      if (!query || sectionHasMatch) {
+        navItem.classList.remove('search-hidden')
+      } else {
+        navItem.classList.add('search-hidden')
+      }
+    }
+  })
+
+  if (noResultsState) {
+    noResultsState.hidden = anyVisible
+  }
+}
+
+if (searchInput) {
+  searchInput.addEventListener('input', function () {
+    filterSettings(this.value)
+  })
+}
+
+if (searchClearBtn) {
+  searchClearBtn.addEventListener('click', function () {
+    searchInput.value = ''
+    filterSettings('')
+    searchInput.focus()
+  })
+}
+
 var navItems = Array.from(document.querySelectorAll('#settings-nav .nav-item'))
 var sectionIds = navItems.map(function (item) {
-  var href = item.getAttribute('href') || ''
-  return href.startsWith('#') ? href.slice(1) : ''
+  var href = item.getAttribute('href')
+  return href && href.startsWith('#') ? href.substring(1) : null
 }).filter(Boolean)
+
 var sections = sectionIds.map(function (id) {
   return document.getElementById(id)
 }).filter(Boolean)
 
 function onNavClick (e) {
-  var href = this.getAttribute('href')
-  if (href && href.startsWith('#')) {
-    var target = document.getElementById(href.slice(1))
-    if (target) {
-      e.preventDefault()
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      navItems.forEach(function (i) {
-        i.classList.remove('active')
-      })
-      this.classList.add('active')
-    }
+  e.preventDefault()
+  var targetId = this.getAttribute('href').substring(1)
+  var target = document.getElementById(targetId)
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    navItems.forEach(function (item) { item.classList.remove('active') })
+    this.classList.add('active')
   }
 }
 
@@ -754,7 +845,7 @@ if (typeof IntersectionObserver !== 'undefined') {
     threshold: 0
   })
 
-  sections.forEach(function (sec) {
-    observer.observe(sec)
+  sections.forEach(function (section) {
+    observer.observe(section)
   })
 }

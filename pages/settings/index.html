@@ -15,30 +15,46 @@
       <header class="page-hero">
         <div class="hero-badge">
           <i class="i carbon:settings"></i>
-          <span>Browser Preferences</span>
+          <span>xb Preferences</span>
         </div>
         <h1 class="page-title" data-string="settingsPreferencesHeading">Preferences</h1>
-        <p class="page-desc">Customize xb's appearance, content blocking, search engines, keyboard shortcuts and isolation settings.</p>
+        <p class="page-desc">Customize xb's appearance, privacy protection, search engines, tab groups, and isolation.</p>
       </header>
 
       <div class="settings-layout">
         <aside class="settings-sidebar">
+          <div class="settings-search-box">
+            <i class="i carbon:search"></i>
+            <input type="search" id="settings-search" placeholder="Search preferences…" autocomplete="off" spellcheck="false" data-string="settingsSearchPlaceholder" data-value="settingsSearchPlaceholder" />
+            <button id="settings-search-clear" class="search-clear-btn" type="button" aria-label="Clear search" hidden>
+              <i class="i carbon:close"></i>
+            </button>
+          </div>
+
           <nav class="settings-nav" id="settings-nav">
-            <a href="#privacy-settings-container" class="nav-item active">
-              <i class="i carbon:manage-protection"></i>
-              <span data-string="settingsPrivacyHeading">Privacy</span>
+            <a href="#general-settings-container" class="nav-item active">
+              <i class="i carbon:home"></i>
+              <span data-string="settingsGeneralHeading">General</span>
             </a>
             <a href="#appearance-settings-container" class="nav-item">
               <i class="i carbon:paint-brush"></i>
               <span data-string="settingsAppearanceHeading">Appearance</span>
             </a>
-            <a href="#additional-settings-container" class="nav-item">
-              <i class="i carbon:apps"></i>
-              <span data-string="settingsAdditionalFeaturesHeading">Additional Features</span>
+            <a href="#privacy-settings-container" class="nav-item">
+              <i class="i carbon:manage-protection"></i>
+              <span data-string="settingsPrivacyHeading">Privacy & Security</span>
             </a>
             <a href="#search-engine-settings-container" class="nav-item">
               <i class="i carbon:search"></i>
               <span data-string="settingsSearchEngineHeading">Search Engine</span>
+            </a>
+            <a href="#containers-settings-container" class="nav-item">
+              <i class="i carbon:folders"></i>
+              <span data-string="settingsContainersHeading">Tab Groups & Containers</span>
+            </a>
+            <a href="#extensions-settings-container" class="nav-item">
+              <i class="i carbon:extension"></i>
+              <span data-string="settingsExtensionsHeading">Extensions & Userscripts</span>
             </a>
             <a href="#password-autofill-container" class="nav-item">
               <i class="i carbon:password"></i>
@@ -56,78 +72,92 @@
               <i class="i carbon:tag"></i>
               <span data-string="settingsCustomBangs">Custom !bangs</span>
             </a>
+            <a href="#advanced-settings-container" class="nav-item">
+              <i class="i carbon:settings-adjust"></i>
+              <span data-string="settingsAdvancedHeading">Advanced</span>
+            </a>
           </nav>
         </aside>
 
         <main class="settings-content">
-          <!-- Privacy & Content Blocking -->
-          <section class="settings-container pebble-card" id="privacy-settings-container">
+          <div id="settings-search-no-results" class="pebble-card search-empty-state" hidden>
+            <i class="i carbon:search"></i>
+            <p data-string="settingsSearchNoResults">No preferences match your search.</p>
+          </div>
+
+          <!-- General -->
+          <section class="settings-container pebble-card" id="general-settings-container">
             <div class="section-header">
               <div class="section-icon-wrap">
-                <i class="i carbon:manage-protection"></i>
+                <i class="i carbon:home"></i>
               </div>
-              <h3 data-string="settingsPrivacyHeading">Privacy</h3>
-            </div>
-
-            <div class="settings-info-subheading content-stats-chip" id="content-blocking-statistics">
-              <i class="i carbon:manage-protection"></i>
-              <span
-                data-string="settingsBlockedRequestCount"
-                data-allowHTML
-                id="content-blocking-blocked-requests"
-              ></span>
-            </div>
-
-            <div class="setting-section" id="tracking-level-container">
-              <div class="setting-option">
-                <input type="radio" name="blockingLevel" id="blocking-allow-all" />
-                <label
-                  for="blocking-allow-all"
-                  data-string="settingsContentBlockingLevel0"
-                ></label>
-              </div>
-              <div class="setting-option">
-                <input type="radio" name="blockingLevel" id="blocking-third-party" />
-                <label
-                  for="blocking-third-party"
-                  data-string="settingsContentBlockingLevel1"
-                ></label>
-              </div>
-              <div class="setting-option">
-                <input type="radio" name="blockingLevel" id="blocking-block-all" />
-                <label
-                  for="blocking-block-all"
-                  data-string="settingsContentBlockingLevel2"
-                ></label>
-              </div>
-
-              <div id="content-blocking-information" hidden>
-                <div class="exceptions-wrap">
-                  <label
-                    for="content-blocking-exceptions"
-                    data-string="settingsContentBlockingExceptions"
-                  ></label>
-                  <textarea
-                    spellcheck="false"
-                    id="content-blocking-exceptions"
-                    rows="1"
-                    placeholder="example.com, tracker.org"
-                  ></textarea>
-                </div>
-                <a
-                  id="customize-filters-link"
-                  href="https://github.com/minbrowser/min/wiki/Content-blocking-settings"
-                  data-string="settingsCustomizeFiltersLink"
-                ></a>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsGeneralHeading">General</h3>
+                <p class="section-subtitle">Startup options, tab sleeping, and display language.</p>
               </div>
             </div>
 
-            <div class="settings-info-subheading extension-notice-card" id="extension-filter-notice" hidden>
-              <i class="i carbon:extension"></i>
-              <span>Min's built-in content blocking is off while an extension that blocks web requests itself (such as uBlock Origin) is installed.</span>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="startup-options" data-string="settingsStartupOptions">When xb starts</label>
+                <div class="setting-row-desc">Choose what opens when launching the browser.</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="startup-options" name="startupOptions">
+                  <option value="1" data-string="settingsStartupCreateTask">Reopen previous tabs</option>
+                  <option value="2" data-string="settingsStartupNewTaskandBackground">Move previous tabs to a background tab group</option>
+                  <option value="3" data-string="settingsStartupNewTaskOnly">Open a new blank tab group</option>
+                </select>
+              </div>
             </div>
 
-            <div id="content-type-blocking"></div>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="new-window-options" data-string="settingsNewWindowOptions">In new windows</label>
+                <div class="setting-row-desc">Choose what appears in newly opened windows.</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="new-window-options" name="newWindowOptions">
+                  <option value="1" data-string="settingsNewWindowCreateTask">Create a new tab group</option>
+                  <option value="2" data-string="settingsNewWindowPickTask">Show tab group list</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="tab-sleep-options" data-string="settingsTabSleep">Tab sleep</label>
+                <div class="setting-row-desc">Unload inactive tabs after an idle time to reduce RAM usage. Pinned, private and audio tabs stay awake.</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="tab-sleep-options" name="tabSleepMinutes">
+                  <option value="15" data-string="settingsTabSleep15">15 minutes</option>
+                  <option value="60" data-string="settingsTabSleep60">1 hour</option>
+                  <option value="240" data-string="settingsTabSleep240">4 hours</option>
+                  <option value="0" data-string="settingsTabSleepNever">Never</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-open-tabs-in-foreground" data-string="settingsOpenTabsInForegroundToggle">Open tabs in foreground</label>
+                <div class="setting-row-desc">Switch immediately to new tabs when clicking links.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-open-tabs-in-foreground" />
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="setting-language-picker" data-string="settingsLanguageSelection">Display language</label>
+                <div class="setting-row-desc">Choose the display language for the browser interface (requires restart).</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="setting-language-picker"></select>
+              </div>
+            </div>
           </section>
 
           <!-- Appearance -->
@@ -136,183 +166,183 @@
               <div class="section-icon-wrap">
                 <i class="i carbon:paint-brush"></i>
               </div>
-              <h3 data-string="settingsAppearanceHeading">Appearance</h3>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsAppearanceHeading">Appearance</h3>
+                <p class="section-subtitle">Customize theme colors, dark mode, and UI accents.</p>
+              </div>
             </div>
 
-            <div class="setting-group">
-              <label
-                class="group-label"
-                for="dark-mode-container"
-                data-string="settingsEnableDarkMode"
-              ></label>
-              <div class="setting-section radio-grid" id="dark-mode-container">
-                <div class="setting-option">
-                  <input type="radio" name="darkMode" id="dark-mode-never" />
-                  <label
-                    for="dark-mode-never"
-                    data-string="settingsDarkModeNever"
-                  ></label>
-                </div>
-                <div class="setting-option">
-                  <input type="radio" name="darkMode" id="dark-mode-night" />
-                  <label
-                    for="dark-mode-night"
-                    data-string="settingsDarkModeNight"
-                  ></label>
-                </div>
-                <div class="setting-option">
-                  <input type="radio" name="darkMode" id="dark-mode-always" />
-                  <label
-                    for="dark-mode-always"
-                    data-string="settingsDarkModeAlways"
-                  ></label>
-                </div>
-                <div class="setting-option">
-                  <input type="radio" name="darkMode" id="dark-mode-system" />
-                  <label
-                    for="dark-mode-system"
-                    data-string="settingsDarkModeSystem"
-                  ></label>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" data-string="settingsEnableDarkMode">Dark mode</label>
+                <div class="setting-row-desc">Choose when to use the night sea glass theme.</div>
+              </div>
+              <div class="setting-row-control">
+                <div class="segmented-control" id="dark-mode-container" role="radiogroup" aria-label="Dark mode">
+                  <label class="segmented-option">
+                    <input type="radio" name="darkMode" id="dark-mode-never" />
+                    <span data-string="settingsDarkModeNever">Never</span>
+                  </label>
+                  <label class="segmented-option">
+                    <input type="radio" name="darkMode" id="dark-mode-night" />
+                    <span data-string="settingsDarkModeNight">At night</span>
+                  </label>
+                  <label class="segmented-option">
+                    <input type="radio" name="darkMode" id="dark-mode-always" />
+                    <span data-string="settingsDarkModeAlways">Always</span>
+                  </label>
+                  <label class="segmented-option">
+                    <input type="radio" name="darkMode" id="dark-mode-system" />
+                    <span data-string="settingsDarkModeSystem">Follow system</span>
+                  </label>
                 </div>
               </div>
             </div>
 
-            <div class="setting-section switch-row">
-              <input type="checkbox" id="checkbox-site-theme" />
-              <label
-                for="checkbox-site-theme"
-                data-string="settingsSiteThemeToggle"
-              ></label>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-site-theme" data-string="settingsSiteThemeToggle">Site theme colors</label>
+                <div class="setting-row-desc">Tint the browser frame and tabs using colors from the current web page.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-site-theme" />
+              </div>
             </div>
 
-            <div class="setting-section switch-row">
-              <input type="checkbox" id="checkbox-show-divider" />
-              <label
-                for="checkbox-show-divider"
-                data-string="settingsShowDividerToggle"
-              ></label>
-            </div>
-
-            <div class="setting-section select-row">
-              <label for="setting-language-picker" data-string="settingsLanguageSelection"></label>
-              <select id="setting-language-picker"></select>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-show-divider" data-string="settingsShowDividerToggle">Tab dividers</label>
+                <div class="setting-row-desc">Show subtle separator lines between tabs in the sidebar.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-show-divider" />
+              </div>
             </div>
           </section>
 
-          <!-- Additional Features -->
-          <section class="settings-container pebble-card" id="additional-settings-container">
+          <!-- Privacy & Security -->
+          <section class="settings-container pebble-card" id="privacy-settings-container">
             <div class="section-header">
               <div class="section-icon-wrap">
-                <i class="i carbon:apps"></i>
+                <i class="i carbon:manage-protection"></i>
               </div>
-              <h3 data-string="settingsAdditionalFeaturesHeading">Additional Features</h3>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsPrivacyHeading">Privacy & Security</h3>
+                <p class="section-subtitle">Ad and tracker blocking, link sanitization, and encrypted DNS.</p>
+              </div>
             </div>
 
-            <div class="setting-section select-row">
-              <label for="startup-options" data-string="settingsStartupOptions"></label>
-              <select id="startup-options" name="startupOptions">
-                <option value="1" data-string="settingsStartupCreateTask"></option>
-                <option value="2" data-string="settingsStartupNewTaskandBackground"></option>
-                <option value="3" data-string="settingsStartupNewTaskOnly"></option>
-              </select>
+            <div class="settings-info-subheading content-stats-chip" id="content-blocking-statistics">
+              <i class="i carbon:shield-checkmark"></i>
+              <span data-string="settingsBlockedRequestCount" data-allowHTML id="content-blocking-blocked-requests">
+                So far, xb has blocked <strong>0</strong> ads and trackers.
+              </span>
             </div>
 
-            <div class="setting-section select-row">
-              <label for="new-window-options" data-string="settingsNewWindowOptions"></label>
-              <select id="new-window-options" name="newWindowOptions">
-                <option value="1" data-string="settingsNewWindowCreateTask"></option>
-                <option value="2" data-string="settingsNewWindowPickTask"></option>
-              </select>
-            </div>
-
-            <div class="setting-section select-row">
-              <label for="tab-sleep-options" data-string="settingsTabSleep"></label>
-              <select id="tab-sleep-options" name="tabSleepMinutes">
-                <option value="15" data-string="settingsTabSleep15"></option>
-                <option value="60" data-string="settingsTabSleep60"></option>
-                <option value="240" data-string="settingsTabSleep240"></option>
-                <option value="0" data-string="settingsTabSleepNever"></option>
-              </select>
-            </div>
-
-            <div class="setting-section switch-row">
-              <input type="checkbox" id="checkbox-userscripts" />
-              <div class="switch-label-group">
-                <label
-                  for="checkbox-userscripts"
-                  data-string="settingsUserscriptsToggle"
-                ></label>
-                <div
-                  class="settings-info-subheading setting-secondary-label"
-                  data-string="settingsUserscriptsExplanation"
-                  data-allowHTML
-                ></div>
-                <div class="setting-secondary-label" id="userscripts-show-directory" hidden>
-                  <a data-string="settingsUserscriptShowDirectory"></a>
+            <div class="setting-row" id="tracking-level-container">
+              <div class="setting-row-text">
+                <label class="setting-row-label" data-string="settingsContentBlockingHeading">Ad and tracker blocking</label>
+                <div class="setting-row-desc" data-string="settingsContentBlockingDesc">Block third-party tracking scripts, cookies, and invasive ads.</div>
+              </div>
+              <div class="setting-row-control">
+                <div class="segmented-control" role="radiogroup" aria-label="Content blocking level">
+                  <label class="segmented-option">
+                    <input type="radio" name="blockingLevel" id="blocking-allow-all" />
+                    <span data-string="settingsContentBlockingLevel0">Off</span>
+                  </label>
+                  <label class="segmented-option">
+                    <input type="radio" name="blockingLevel" id="blocking-third-party" />
+                    <span data-string="settingsContentBlockingLevel1">Block trackers</span>
+                  </label>
+                  <label class="segmented-option">
+                    <input type="radio" name="blockingLevel" id="blocking-block-all" />
+                    <span data-string="settingsContentBlockingLevel2">Block ads and trackers</span>
+                  </label>
                 </div>
               </div>
             </div>
 
-            <div class="setting-section link-chip-row" id="section-containers">
-              <a href="min://app/pages/containers/index.html" class="btn-tonal" data-string="settingsManageContainers">
-                <i class="i carbon:fingerprint-recognition"></i>
-                <span>Manage containers</span>
-              </a>
-            </div>
-
-            <div class="setting-section switch-row" id="section-separate-titlebar">
-              <input type="checkbox" id="checkbox-separate-titlebar" />
-              <label
-                for="checkbox-separate-titlebar"
-                data-string="settingsSeparateTitlebarToggle"
-              ></label>
-            </div>
-
-            <div class="setting-section switch-row" id="section-open-tabs-in-foreground">
-              <input type="checkbox" id="checkbox-open-tabs-in-foreground" />
-              <label
-                for="checkbox-open-tabs-in-foreground"
-                data-string="settingsOpenTabsInForegroundToggle"
-              ></label>
-            </div>
-
-            <div class="setting-section switch-row" id="section-user-agent">
-              <input type="checkbox" id="checkbox-user-agent" />
-              <div class="switch-label-group">
-                <label
-                  for="checkbox-user-agent"
-                  data-string="settingsUserAgentToggle"
-                ></label>
-                <input
-                  type="text"
-                  id="input-user-agent"
-                  maxlength="200"
-                  placeholder="Custom User-Agent"
-                  style="visibility: hidden;"
-                />
+            <div id="content-blocking-information" class="setting-subpanel" hidden>
+              <div class="exceptions-wrap">
+                <label for="content-blocking-exceptions" class="subpanel-label" data-string="settingsContentBlockingExceptions">Ads and trackers will still be allowed on these websites:</label>
+                <textarea spellcheck="false" id="content-blocking-exceptions" rows="2" placeholder="example.com, news-site.org"></textarea>
+                <div class="subpanel-help">Enter domain names separated by commas.</div>
               </div>
             </div>
 
-            <div class="setting-section switch-row">
-              <input type="checkbox" id="checkbox-enable-autoplay" />
-              <label for="checkbox-enable-autoplay" data-string="settingsAutoplayToggle"></label>
+            <div class="settings-info-subheading extension-notice-card" id="extension-filter-notice" hidden>
+              <i class="i carbon:extension"></i>
+              <span>Built-in content blocking is paused while an extension that blocks requests itself (such as uBlock Origin) is active.</span>
             </div>
 
-            <div class="setting-section switch-row">
-              <input type="checkbox" id="checkbox-update-notifications" />
-              <label
-                for="checkbox-update-notifications"
-                data-string="settingsUpdateNotificationsToggle"
-              ></label>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-url-cleaning" data-string="settingsUrlCleaning">Clean tracking from links</label>
+                <div class="setting-row-desc" data-string="settingsUrlCleaningDesc">Strip tracking tokens (utm_*, fbclid, etc.), skip tracking redirect bounce hops, and de-AMP web links.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-url-cleaning" />
+              </div>
             </div>
 
-            <div class="setting-section switch-row">
-              <input type="checkbox" id="checkbox-usage-statistics" />
-              <label
-                for="checkbox-usage-statistics"
-                data-string="settingsUsageStatisticsToggle"
-                data-allowHTML
-              ></label>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="doh-mode" data-string="settingsDnsOverHttps">Secure DNS (DNS over HTTPS)</label>
+                <div class="setting-row-desc" data-string="settingsDnsOverHttpsDesc">Encrypt DNS lookups so your internet service provider or network cannot inspect site visits.</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="doh-mode">
+                  <option value="off" data-string="settingsDnsModeOff">Off</option>
+                  <option value="automatic" data-string="settingsDnsModeAuto">Automatic (recommended)</option>
+                  <option value="secure" data-string="settingsDnsModeSecure">Secure</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-row" id="doh-provider-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="doh-provider" data-string="settingsDnsProvider">Secure DNS provider</label>
+                <div class="setting-row-desc">Select an encrypted DNS resolver or specify a custom URL template.</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="doh-provider">
+                  <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+                  <option value="quad9">Quad9 (9.9.9.9)</option>
+                  <option value="google">Google Public DNS</option>
+                  <option value="nextdns">NextDNS</option>
+                  <option value="custom">Custom provider</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-row" id="doh-custom-row" hidden>
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="doh-custom-template" data-string="settingsDnsCustomTemplate">Custom DoH template</label>
+                <div class="setting-row-desc">Enter an HTTPS DNS-over-HTTPS endpoint URL.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="text" id="doh-custom-template" placeholder="https://example.com/dns-query" class="settings-text-input" />
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-block-script" data-string="settingsBlockScriptsToggle">Block scripts (JavaScript)</label>
+                <div class="setting-row-desc" data-string="settingsBlockScriptsDesc">Disable JavaScript across all web pages for strict isolation (may cause many sites to break).</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-block-script" />
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-block-image" data-string="settingsBlockImagesToggle">Block images</label>
+                <div class="setting-row-desc" data-string="settingsBlockImagesDesc">Prevent images from downloading to conserve bandwidth and memory.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-block-image" />
+              </div>
             </div>
           </section>
 
@@ -322,27 +352,122 @@
               <div class="section-icon-wrap">
                 <i class="i carbon:search"></i>
               </div>
-              <h3 data-string="settingsSearchEngineHeading">Search Engine</h3>
-            </div>
-
-            <div class="setting-section select-row">
-              <label
-                for="default-search-engine"
-                data-string="settingsDefaultSearchEngine"
-              ></label>
-              <div class="search-engine-controls">
-                <select id="default-search-engine" name="defaultSearchEngine"></select>
-                <input
-                  id="custom-search-engine"
-                  placeholder="Search URL with %s for query"
-                  hidden
-                />
+              <div class="section-title-wrap">
+                <h3 data-string="settingsSearchEngineHeading">Search Engine</h3>
+                <p class="section-subtitle">Configure default search provider and instant search options.</p>
               </div>
             </div>
-            <div
-              class="settings-info-subheading ddg-explanation"
-              data-string="settingsDDGExplanation"
-            ></div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="default-search-engine" data-string="settingsDefaultSearchEngine">Default search engine</label>
+                <div class="setting-row-desc">Used when queries are typed directly into the address bar.</div>
+              </div>
+              <div class="setting-row-control search-engine-controls">
+                <select id="default-search-engine" name="defaultSearchEngine"></select>
+                <input id="custom-search-engine" placeholder="Search URL with %s for query" class="settings-text-input" hidden />
+              </div>
+            </div>
+
+            <div class="settings-info-subheading ddg-explanation" data-string="settingsDDGExplanation">
+              Set DuckDuckGo as the default search engine to see instant answers in the searchbar.
+            </div>
+          </section>
+
+          <!-- Tab groups & Containers -->
+          <section class="settings-container pebble-card" id="containers-settings-container">
+            <div class="section-header">
+              <div class="section-icon-wrap">
+                <i class="i carbon:folders"></i>
+              </div>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsContainersHeading">Tab Groups & Containers</h3>
+                <p class="section-subtitle">Workspace organization and multi-account identity management.</p>
+              </div>
+            </div>
+
+            <div class="settings-explainer-card">
+              <div class="explainer-item">
+                <i class="i carbon:folder"></i>
+                <div>
+                  <strong>Tab groups</strong>
+                  <span>Organize related tabs together into distinct workspaces that collapse when not in use.</span>
+                </div>
+              </div>
+              <div class="explainer-item">
+                <i class="i carbon:fingerprint-recognition"></i>
+                <div>
+                  <strong>Containers</strong>
+                  <span>Keep separate cookies and logins so you can be signed in to several accounts at once without switching profiles.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" data-string="settingsManageContainers">Containers</label>
+                <div class="setting-row-desc">Manage containers, assign colors, customize names, or wipe partition data.</div>
+              </div>
+              <div class="setting-row-control">
+                <a href="min://app/pages/containers/index.html" target="_blank" class="btn-tonal" id="link-manage-containers">
+                  <i class="i carbon:fingerprint-recognition"></i>
+                  <span data-string="settingsManageContainers">Manage containers</span>
+                </a>
+              </div>
+            </div>
+          </section>
+
+          <!-- Extensions & Userscripts -->
+          <section class="settings-container pebble-card" id="extensions-settings-container">
+            <div class="section-header">
+              <div class="section-icon-wrap">
+                <i class="i carbon:extension"></i>
+              </div>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsExtensionsHeading">Extensions & Userscripts</h3>
+                <p class="section-subtitle">Userscripts and Chrome Web Store extensions.</p>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-userscripts" data-string="settingsUserscriptsToggle">Enable userscripts</label>
+                <div class="setting-row-desc" data-string="settingsUserscriptsDesc">Run user scripts (such as Control Panel for Twitter) to customize website features.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-userscripts" />
+              </div>
+            </div>
+
+            <div class="setting-row" id="userscripts-manager-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" data-string="settingsManageUserscripts">Userscript manager</label>
+                <div class="setting-row-desc">Manage installed scripts, check for updates, or add new .user.js scripts.</div>
+              </div>
+              <div class="setting-row-control action-group">
+                <a href="min://app/pages/userscripts/index.html" target="_blank" class="btn-tonal" id="link-manage-userscripts">
+                  <i class="i carbon:script"></i>
+                  <span data-string="settingsManageUserscripts">Manage userscripts</span>
+                </a>
+                <button type="button" class="btn-tonal" id="btn-show-userscripts-folder" title="Open userscripts folder on your computer">
+                  <i class="i carbon:folder"></i>
+                  <span data-string="settingsShowUserscriptsFolder">Scripts folder</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" data-string="settingsManageExtensions">Chrome extensions</label>
+                <div class="setting-row-desc">Install extensions from the Chrome Web Store and configure options.</div>
+              </div>
+              <div class="setting-row-control">
+                <a href="min://app/pages/extensions/index.html" target="_blank" class="btn-tonal" id="link-manage-extensions">
+                  <i class="i carbon:store"></i>
+                  <span data-string="settingsManageExtensions">Manage extensions</span>
+                </a>
+              </div>
+            </div>
           </section>
 
           <!-- Passwords & Autofill -->
@@ -351,22 +476,33 @@
               <div class="section-icon-wrap">
                 <i class="i carbon:password"></i>
               </div>
-              <h3 data-string="settingsPasswordAutoFillHeadline">Passwords</h3>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsPasswordAutoFillHeadline">Passwords</h3>
+                <p class="section-subtitle">Autofill credentials using xb's built-in manager or third-party providers.</p>
+              </div>
             </div>
 
-            <div class="setting-section select-row">
-              <label
-                for="selected-password-manager"
-                data-string="settingsSelectPasswordManager"
-              ></label>
-              <select
-                id="selected-password-manager"
-                name="selectedPasswordManager"
-              ></select>
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="selected-password-manager" data-string="settingsSelectPasswordManager">Password manager</label>
+                <div class="setting-row-desc">Choose a password manager for saving and filling website logins.</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="selected-password-manager" name="selectedPasswordManager"></select>
+              </div>
             </div>
 
-            <div class="setting-section" id="keychain-view-link" hidden>
-              <a data-string="keychainViewPasswords" class="btn-tonal"></a>
+            <div class="setting-row" id="keychain-view-link" hidden>
+              <div class="setting-row-text">
+                <label class="setting-row-label">Saved credentials</label>
+                <div class="setting-row-desc">View and manage usernames and passwords saved in the built-in store.</div>
+              </div>
+              <div class="setting-row-control">
+                <button type="button" class="btn-tonal" id="btn-view-passwords">
+                  <i class="i carbon:view"></i>
+                  <span data-string="keychainViewPasswords">View saved passwords</span>
+                </button>
+              </div>
             </div>
           </section>
 
@@ -376,55 +512,58 @@
               <div class="section-icon-wrap">
                 <i class="i carbon:network-4"></i>
               </div>
-              <h3 data-string="settingsProxyHeading">Proxy</h3>
-            </div>
-
-            <div class="setting-section select-row" id="proxy-type-container">
-              <label for="selected-proxy-type">Proxy Mode</label>
-              <select id="selected-proxy-type">
-                <option data-string="settingsNoProxy"></option>
-                <option data-string="settingsManualProxy"></option>
-                <option data-string="settingsAutomaticProxy"></option>
-              </select>
-            </div>
-
-            <div class="setting-section proxy-manual-wrap" id="manual-proxy-section">
-              <div class="setting-option">
-                <label
-                  for="proxy-rules-input"
-                  data-string="settingsProxyRules"
-                ></label>
-                <input
-                  id="proxy-rules-input"
-                  type="text"
-                  name="proxyRules"
-                  placeholder="proxy.example.com:8080"
-                />
-              </div>
-
-              <div class="setting-option">
-                <label
-                  for="proxy-bypass-rules-input"
-                  data-string="settingsProxyBypassRules"
-                ></label>
-                <input
-                  name="proxyBypassRules"
-                  id="proxy-bypass-rules-input"
-                  placeholder="localhost, 127.0.0.1/8, ::1"
-                />
+              <div class="section-title-wrap">
+                <h3 data-string="settingsProxyHeading">Proxy</h3>
+                <p class="section-subtitle">Route network connections through HTTP, SOCKS, or PAC proxies.</p>
               </div>
             </div>
 
-            <div class="setting-option proxy-pac-wrap" id="pac-option">
-              <label
-                for="pac-url-input"
-                data-string="settingsProxyConfigurationURL"
-              ></label>
-              <input
-                type="text"
-                id="pac-url-input"
-                placeholder="https://example.com/proxy.pac"
-              />
+            <div class="setting-row" id="proxy-type-container">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="selected-proxy-type">Proxy mode</label>
+                <div class="setting-row-desc">Choose between direct connections, manual servers, or PAC script.</div>
+              </div>
+              <div class="setting-row-control">
+                <select id="selected-proxy-type">
+                  <option data-string="settingsNoProxy">No Proxy</option>
+                  <option data-string="settingsManualProxy">Manual Configuration</option>
+                  <option data-string="settingsAutomaticProxy">Automatic Configuration</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="proxy-manual-wrap" id="manual-proxy-section">
+              <div class="setting-row">
+                <div class="setting-row-text">
+                  <label class="setting-row-label" for="proxy-rules-input" data-string="settingsProxyRules">Proxy server rules</label>
+                  <div class="setting-row-desc">Specify proxy host and port (e.g. proxy.example.com:8080).</div>
+                </div>
+                <div class="setting-row-control">
+                  <input id="proxy-rules-input" type="text" name="proxyRules" placeholder="proxy.example.com:8080" class="settings-text-input" />
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <div class="setting-row-text">
+                  <label class="setting-row-label" for="proxy-bypass-rules-input" data-string="settingsProxyBypassRules">Bypass proxy for</label>
+                  <div class="setting-row-desc">Hosts that connect directly without using the proxy.</div>
+                </div>
+                <div class="setting-row-control">
+                  <input name="proxyBypassRules" id="proxy-bypass-rules-input" placeholder="localhost, 127.0.0.1/8, ::1" class="settings-text-input" />
+                </div>
+              </div>
+            </div>
+
+            <div class="proxy-pac-wrap" id="pac-option">
+              <div class="setting-row">
+                <div class="setting-row-text">
+                  <label class="setting-row-label" for="pac-url-input" data-string="settingsProxyConfigurationURL">PAC script URL</label>
+                  <div class="setting-row-desc">Location of the automatic proxy auto-config (.pac) file.</div>
+                </div>
+                <div class="setting-row-control">
+                  <input type="text" id="pac-url-input" placeholder="https://example.com/proxy.pac" class="settings-text-input" />
+                </div>
+              </div>
             </div>
           </section>
 
@@ -434,12 +573,15 @@
               <div class="section-icon-wrap">
                 <i class="i carbon:keyboard"></i>
               </div>
-              <h3 data-string="settingsKeyboardShortcutsHeading">Keyboard Shortcuts</h3>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsKeyboardShortcutsHeading">Keyboard Shortcuts</h3>
+                <p class="section-subtitle">Customize key combinations for common browser actions (requires restart).</p>
+              </div>
             </div>
-            <div
-              class="settings-info-subheading"
-              data-string="settingsKeyboardShortcutsHelp"
-            ></div>
+
+            <div class="settings-info-subheading" data-string="settingsKeyboardShortcutsHelp">
+              Use commas to separate multiple shortcuts.
+            </div>
 
             <div class="setting-section keymap-section">
               <ul id="key-map-list"></ul>
@@ -452,30 +594,74 @@
               <div class="section-icon-wrap">
                 <i class="i carbon:tag"></i>
               </div>
-              <h3 data-string="settingsCustomBangs">Custom !bangs</h3>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsCustomBangs">Custom Commands (!bangs)</h3>
+                <p class="section-subtitle">Quick shortcut commands starting with exclamation marks to jump to sites.</p>
+              </div>
             </div>
-            <div class="setting-section">
+
+            <div class="setting-section bangs-section">
               <ul id="custom-bangs"></ul>
-              <button
-                data-string="settingsCustomBangsAdd"
-                id="add-custom-bang"
-                class="btn-jewel"
-              ></button>
+              <div class="bangs-action-bar">
+                <button data-string="settingsCustomBangsAdd" id="add-custom-bang" type="button" class="btn-jewel">
+                  <i class="i carbon:add"></i>
+                  <span>Add command</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Advanced -->
+          <section class="settings-container pebble-card" id="advanced-settings-container">
+            <div class="section-header">
+              <div class="section-icon-wrap">
+                <i class="i carbon:settings-adjust"></i>
+              </div>
+              <div class="section-title-wrap">
+                <h3 data-string="settingsAdvancedHeading">Advanced</h3>
+                <p class="section-subtitle">User-Agent emulation, title bar appearance, and media autoplay policies.</p>
+              </div>
+            </div>
+
+            <div class="setting-row" id="section-user-agent">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-user-agent" data-string="settingsUserAgentToggle">Custom User-Agent</label>
+                <div class="setting-row-desc">Override the browser's User-Agent string sent to websites (requires restart).</div>
+              </div>
+              <div class="setting-row-control user-agent-controls">
+                <input type="checkbox" id="checkbox-user-agent" />
+                <input type="text" id="input-user-agent" maxlength="200" placeholder="Custom User-Agent string" class="settings-text-input" style="display: none;" />
+              </div>
+            </div>
+
+            <div class="setting-row" id="section-separate-titlebar">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-separate-titlebar" data-string="settingsSeparateTitlebarToggle">Separate title bar</label>
+                <div class="setting-row-desc">Use a native OS window title bar instead of integrated chrome (requires restart).</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-separate-titlebar" />
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-row-text">
+                <label class="setting-row-label" for="checkbox-enable-autoplay" data-string="settingsAutoplayToggle">Autoplay media</label>
+                <div class="setting-row-desc">Allow audio and video on web pages to play automatically without user interaction.</div>
+              </div>
+              <div class="setting-row-control">
+                <input type="checkbox" id="checkbox-enable-autoplay" />
+              </div>
             </div>
           </section>
         </main>
       </div>
 
       <!-- Sticky Restart Required Banner -->
-      <div
-        class="banner restart-banner pebble-card"
-        id="restart-required-banner"
-        role="alert"
-        hidden
-      >
+      <div class="banner restart-banner pebble-card" id="restart-required-banner" role="alert" hidden>
         <div class="banner-inner">
           <i class="i carbon:information"></i>
-          <span data-string="settingsRestartRequired"></span>
+          <span data-string="settingsRestartRequired">You need to restart to apply these changes.</span>
         </div>
       </div>
     </div>
