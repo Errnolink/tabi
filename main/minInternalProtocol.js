@@ -6,17 +6,17 @@ protocol.registerSchemesAsPrivileged([
     privileges: {
       standard: true,
       secure: true,
-      supportFetchAPI: true,
+      supportFetchAPI: true
     }
   }
 ])
 
 function registerBundleProtocol (ses) {
   ses.protocol.handle('min', (req) => {
-    let parsed = new URL(req.url)
-    let host = parsed.host
+    const parsed = new URL(req.url)
+    const host = parsed.host
     let pathname = parsed.pathname
-    let searchParams = parsed.searchParams
+    const searchParams = parsed.searchParams
 
     if (pathname.charAt(0) === '/') {
       pathname = pathname.substring(1)

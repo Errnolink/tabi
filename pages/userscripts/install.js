@@ -64,27 +64,27 @@ const GRANT_LABELS = {
 }
 
 const GRANT_ALIASES = {
-  'GM_getValue': 'getValue',
+  GM_getValue: 'getValue',
   'GM.setValue': 'getValue',
-  'GM_setValue': 'setValue',
+  GM_setValue: 'setValue',
   'GM.setValue': 'setValue',
-  'GM_deleteValue': 'deleteValue',
+  GM_deleteValue: 'deleteValue',
   'GM.deleteValue': 'deleteValue',
-  'GM_listValues': 'listValues',
+  GM_listValues: 'listValues',
   'GM.listValues': 'listValues',
-  'GM_addStyle': 'addStyle',
+  GM_addStyle: 'addStyle',
   'GM.addStyle': 'addStyle',
-  'GM_xmlhttpRequest': 'xmlhttpRequest',
+  GM_xmlhttpRequest: 'xmlhttpRequest',
   'GM.xmlHttpRequest': 'xmlhttpRequest',
-  'GM_openInTab': 'openInTab',
+  GM_openInTab: 'openInTab',
   'GM.openInTab': 'openInTab',
-  'GM_setClipboard': 'setClipboard',
+  GM_setClipboard: 'setClipboard',
   'GM.setClipboard': 'setClipboard',
-  'GM_registerMenuCommand': 'registerMenuCommand',
+  GM_registerMenuCommand: 'registerMenuCommand',
   'GM.registerMenuCommand': 'registerMenuCommand',
-  'GM_info': 'info',
+  GM_info: 'info',
   'GM.info': 'info',
-  'unsafeWindow': 'unsafeWindow'
+  unsafeWindow: 'unsafeWindow'
 }
 
 function grantedLabels (grants) {
