@@ -37,10 +37,14 @@ var settings = {
   runChangeCallbacks (key) {
     settings.onChangeCallbacks.forEach(function (listener) {
       if (!key || !listener.key || listener.key === key) {
-        if (listener.key) {
-          listener.cb(settings.list[listener.key])
-        } else {
-          listener.cb(key)
+        try {
+          if (listener.key) {
+            listener.cb(settings.list[listener.key])
+          } else {
+            listener.cb(key)
+          }
+        } catch (e) {
+          console.warn('error in settings change listener', e)
         }
       }
     })
@@ -64,6 +68,19 @@ var settings = {
 
     windows.getAll().forEach(function (win) {
       getWindowWebContents(win).send('settingChanged', key, value)
+    })
+  },
+  merge: function (key, patch) {
+    var base = settings.list[key]
+    if (typeof base !== 'object' || base === null) {
+      base = {}
+    }
+    settings.list[key] = Object.assign({}, base, patch)
+    settings.writeFile()
+    settings.runChangeCallbacks(key)
+
+    windows.getAll().forEach(function (win) {
+      getWindowWebContents(win).send('settingChanged', key, settings.list[key])
     })
   },
   initialize: function (userDataPath) {
@@ -90,6 +107,10 @@ var settings = {
           getWindowWebContents(win).send('settingChanged', key, value)
         }
       })
+    })
+
+    ipc.on('settingMerged', function (e, key, patch) {
+      settings.merge(key, patch)
     })
   }
 }

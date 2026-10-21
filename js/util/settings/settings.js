@@ -5,10 +5,14 @@ var settings = {
   runChangeCallbacks (key) {
     settings.onChangeCallbacks.forEach(function (listener) {
       if (!key || !listener.key || listener.key === key) {
-        if (listener.key) {
-          listener.cb(settings.list[listener.key])
-        } else {
-          listener.cb(key)
+        try {
+          if (listener.key) {
+            listener.cb(settings.list[listener.key])
+          } else {
+            listener.cb(key)
+          }
+        } catch (e) {
+          console.warn('error in settings change listener', e)
         }
       }
     })
@@ -28,6 +32,15 @@ var settings = {
   set: function (key, value) {
     settings.list[key] = value
     ipc.send('settingChanged', key, value)
+    settings.runChangeCallbacks(key)
+  },
+  merge: function (key, patch) {
+    var base = settings.list[key]
+    if (typeof base !== 'object' || base === null) {
+      base = {}
+    }
+    settings.list[key] = Object.assign({}, base, patch)
+    ipc.send('settingMerged', key, patch)
     settings.runChangeCallbacks(key)
   },
   initialize: function () {

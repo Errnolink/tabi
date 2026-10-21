@@ -65,12 +65,8 @@ function updateBlockingLevelUI (level) {
 }
 
 function changeBlockingLevelSetting (level) {
-  settings.get('filtering', function (value) {
-    value = value || {}
-    value.blockingLevel = level
-    settings.set('filtering', value)
-    updateBlockingLevelUI(level)
-  })
+  settings.merge('filtering', { blockingLevel: level })
+  updateBlockingLevelUI(level)
 }
 
 trackingLevelOptions.forEach(function (radio, idx) {
@@ -95,15 +91,14 @@ function updateContentTypesUI (filtering) {
 
 function toggleContentType (type, enabled) {
   settings.get('filtering', function (value) {
-    value = value || {}
-    value.contentTypes = value.contentTypes || []
-    var idx = value.contentTypes.indexOf(type)
+    var types = ((value && value.contentTypes) || []).slice()
+    var idx = types.indexOf(type)
     if (enabled && idx === -1) {
-      value.contentTypes.push(type)
+      types.push(type)
     } else if (!enabled && idx !== -1) {
-      value.contentTypes.splice(idx, 1)
+      types.splice(idx, 1)
     }
-    settings.set('filtering', value)
+    settings.merge('filtering', { contentTypes: types })
   })
 }
 
@@ -152,11 +147,7 @@ if (blockingExceptionsInput) {
       var newValue = text.split(',').map(function (domain) {
         return domain.trim()
       }).filter(Boolean)
-      settings.get('filtering', function (value) {
-        value = value || {}
-        value.exceptionDomains = newValue
-        settings.set('filtering', value)
-      })
+      settings.merge('filtering', { exceptionDomains: newValue })
     }, 400)
   })
 }
