@@ -5,7 +5,17 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function loadStore () {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'main', 'userscriptStore.js'), 'utf8')
+  const files = [
+    'userscriptStoreData.js',
+    'userscriptStoreAssets.js',
+    'userscriptStoreRelay.js',
+    'userscriptStoreInstall.js',
+    'userscriptStoreInject.js',
+    'userscriptStoreIntercept.js'
+  ]
+  const source = files.map(function (file) {
+    return fs.readFileSync(path.join(__dirname, '..', 'main', file), 'utf8')
+  }).join(';\n')
   const sandbox = {
     URL: URL,
     console: console,

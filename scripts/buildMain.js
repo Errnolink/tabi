@@ -32,7 +32,12 @@ const modules = [
   'js/util/proxy.js',
   'main/themeMain.js',
   'js/util/userscriptMeta.js',
-  'main/userscriptStore.js',
+  'main/userscriptStoreData.js',
+  'main/userscriptStoreAssets.js',
+  'main/userscriptStoreRelay.js',
+  'main/userscriptStoreInstall.js',
+  'main/userscriptStoreInject.js',
+  'main/userscriptStoreIntercept.js',
   'main/autoUpdate.js'
 ]
 
