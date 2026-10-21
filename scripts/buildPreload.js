@@ -13,10 +13,10 @@ const modules = [
   'js/preload/importPage.js',
   'js/preload/userscriptsPage.js',
   'js/preload/passwordFill.js',
-  'js/preload/translate.js',
+  'js/preload/translate.js'
 ]
 
-function buildPreload() {
+function buildPreload () {
   /* concatenate modules */
   let output = ''
   modules.forEach(function (script) {

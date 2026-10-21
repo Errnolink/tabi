@@ -164,7 +164,7 @@ const webviews = {
   },
   events: [],
   IPCEvents: [],
-  hasViewForTab: function(tabId) {
+  hasViewForTab: function (tabId) {
     return tabId && tasks.getTaskContainingTab(tabId) && tasks.getTaskContainingTab(tabId).tabs.get(tabId).hasWebContents
   },
   bindEvent: function (event, fn) {
@@ -317,7 +317,7 @@ const webviews = {
         hasWebContents: false
       })
     }
-    //we may be destroying a view for which the tab object no longer exists, so this message should be sent unconditionally
+    // we may be destroying a view for which the tab object no longer exists, so this message should be sent unconditionally
     ipc.send('destroyView', id)
 
     delete webviews.viewFullscreenMap[id]

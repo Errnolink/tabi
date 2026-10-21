@@ -41,7 +41,7 @@ function toPath (platform, arch) {
 }
 
 module.exports = function (platform, extraOptions) {
-  //https://github.com/electron-userland/electron-builder/issues/6365#issuecomment-1186038034
+  // https://github.com/electron-userland/electron-builder/issues/6365#issuecomment-1186038034
   const afterPack = async context => {
     const ext = {
       darwin: '.app',

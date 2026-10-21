@@ -12,7 +12,6 @@ const version = packageFile.version
 const tag = 'v' + version
 const distDir = 'dist/app'
 const installerName = 'Tabi-Setup-' + version + '.exe'
-const zipName = 'tabi-v' + version + '-windows-x64.zip'
 const notesName = 'tabi-v' + version + '-notes.md'
 
 function quoteArg (arg) {

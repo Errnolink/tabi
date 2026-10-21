@@ -1,5 +1,3 @@
-var searchEngine = require('js/util/searchEngine.js')
-var urlParser = require('js/util/urlParser.js')
 var containers = require('containers.js')
 
 /* common actions that affect different parts of the UI (webviews, tabstrip, etc) */
