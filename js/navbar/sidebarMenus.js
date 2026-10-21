@@ -93,6 +93,17 @@ function tabMenu (tabId) {
 function bucketMenu (taskId) {
   const task = tasks.get(taskId)
   const sidebar = require('navbar/tabBar.js')
+  const shellLayout = require('shellLayout.js')
+  const otherTasks = []
+  tasks.forEach(function (other, index) {
+    if (other.id !== taskId) {
+      otherTasks.push({
+        label: bucketLabel(other, index),
+        swatch: `hsl(${shellLayout.bucketHue(index)} 70% 72%)`,
+        click: () => tabActions.mergeTasks(taskId, other.id)
+      })
+    }
+  })
   remoteMenu.open([
     [
       { label: l('newTabAction'), icon: 'carbon:add', click: () => tabActions.newTab(taskId) },
@@ -106,7 +117,13 @@ function bucketMenu (taskId) {
         submenu: containerItems(containers.sanitizeContainerId(task.defaultContainerId), containerId => containers.setBucketDefault(taskId, containerId))
       },
       { label: task.collapsed ? l('bucketMenuExpand') : l('bucketMenuCollapse'), icon: task.collapsed ? 'carbon:chevron-down' : 'carbon:chevron-up', click: () => sidebar.toggleBucket(taskId) },
-      { label: l('bucketMenuReloadAll'), icon: 'carbon:renew', click: () => tabActions.reloadTask(taskId) }
+      { label: l('bucketMenuReloadAll'), icon: 'carbon:renew', click: () => tabActions.reloadTask(taskId) },
+      {
+        label: l('bucketMenuMergeInto'),
+        icon: 'carbon:folder-move-to',
+        enabled: otherTasks.length > 0,
+        submenu: otherTasks.length > 0 ? otherTasks : undefined
+      }
     ],
     [
       { label: l('bucketMenuClose'), icon: 'carbon:trash-can', click: () => browserUI.closeTask(taskId) }

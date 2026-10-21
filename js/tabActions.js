@@ -135,6 +135,32 @@ const tabActions = {
     tasks.get(taskId).tabs.get().forEach(t => tabActions.reload(t.id))
   },
 
+  mergeTasks: function (sourceTaskId, targetTaskId) {
+    const source = tasks.get(sourceTaskId)
+    const target = tasks.get(targetTaskId)
+    if (!source || !target || source.id === target.id) {
+      return
+    }
+    const wasSelected = tasks.getSelected().id === source.id
+    if (wasSelected) {
+      browserUI.switchToTask(target.id)
+    }
+    const sourceTabs = source.tabs.get().slice()
+    sourceTabs.forEach(function (tab) {
+      tabActions.moveToTask(tab.id, target.id)
+    })
+    if (tasks.get(source.id)) {
+      browserUI.closeTask(source.id)
+    }
+    if (wasSelected && tasks.getSelected().id !== target.id) {
+      browserUI.switchToTask(target.id)
+    }
+  },
+
+  merge: function (sourceTaskId, targetTaskId) {
+    tabActions.mergeTasks(sourceTaskId, targetTaskId)
+  },
+
   copyLink: function (tabId) {
     const tab = ownerOf(tabId).tabs.get(tabId)
     if (tab.url) {

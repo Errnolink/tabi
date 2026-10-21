@@ -9,6 +9,7 @@ const modules = [
   'css/windowControls.css',
   'css/modal.css',
   'css/tabBar.css',
+  'css/tabHoverCard.css',
   'css/tabEditor.css',
   'css/overview.css',
   'css/webviews.css',

@@ -6,7 +6,7 @@ const tabEditor = require('navbar/tabEditor.js')
 const permissionRequests = require('navbar/permissionRequests.js')
 const containers = require('containers.js')
 const shellLayout = require('shellLayout.js')
-
+const tabHoverCard = require('navbar/tabHoverCard.js')
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 function cssVar (name) {
@@ -116,6 +116,7 @@ const tabBar = {
     close.title = l('closeTab') || 'Close'
     close.addEventListener('click', function (e) {
       e.stopPropagation()
+      tabHoverCard.hide()
       tabBar.events.emit('tab-closed', tabId)
     })
 
@@ -124,7 +125,16 @@ const tabBar = {
 
     el.append(stripe, icon, permissions, title, audio, pin, close)
 
+    el.addEventListener('mouseenter', function () {
+      tabHoverCard.onRowMouseEnter(tabId, el)
+    })
+
+    el.addEventListener('mouseleave', function () {
+      tabHoverCard.onRowMouseLeave(tabId, el)
+    })
+
     el.addEventListener('click', function () {
+      tabHoverCard.hide()
       const found = findTab(tabId)
       if (!found) {
         return
@@ -142,6 +152,7 @@ const tabBar = {
     el.addEventListener('auxclick', function (e) {
       if (e.button === 1) {
         e.preventDefault()
+        tabHoverCard.hide()
         tabBar.events.emit('tab-closed', tabId)
       }
     })
@@ -168,9 +179,10 @@ const tabBar = {
     const text = tabTitle(tab)
     if (row.title.textContent !== text) {
       row.title.textContent = text
-      row.el.title = text
     }
-
+    if (row.el.hasAttribute('title')) {
+      row.el.removeAttribute('title')
+    }
     const faviconUrl = tab.favicon && tab.favicon.url ? tab.favicon.url : null
     if (faviconUrl !== row.faviconUrl) {
       row.faviconUrl = faviconUrl
@@ -302,6 +314,7 @@ const tabBar = {
       filter: '.tab-close, .tab-audio',
       preventOnFilter: false,
       onStart: function () {
+        tabHoverCard.hide()
         dragging = true
         document.body.classList.add('sidebar-dragging')
       },
@@ -311,7 +324,6 @@ const tabBar = {
         tabBar.commitDrop(e)
       }
     })
-
     const bucket = { el, head, chevron, dot, name, count, add, body, list, sortable }
     buckets.set(taskId, bucket)
     return bucket
@@ -637,10 +649,18 @@ const tabBar = {
   initialize: function () {
     motion.load()
 
+    tabHoverCard.initialize()
+
+    tabBar.container.addEventListener('mouseleave', function () {
+      tabHoverCard.hide()
+    })
+    tabBar.containerInner.addEventListener('scroll', function () {
+      tabHoverCard.hide()
+    }, { passive: true })
+
     tabBar.indicator = document.createElement('div')
     tabBar.indicator.className = 'sidebar-indicator hidden'
     tabBar.containerInner.prepend(tabBar.indicator)
-
     tabBar.initializeResizer()
 
     document.getElementById('sidebar-collapse-button').addEventListener('click', function () {
@@ -690,6 +710,7 @@ const tabBar = {
     })
     tabBar.container.addEventListener('drop', function (e) {
       e.preventDefault()
+      tabHoverCard.hide()
       const data = e.dataTransfer
       const path = data && data.files && data.files.length > 0 ? data.files[0].path : (data ? data.getData('text') : '')
       if (!path) {

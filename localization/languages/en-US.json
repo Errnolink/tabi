@@ -328,6 +328,7 @@
     "bucketMenuCollapse": "Collapse",
     "bucketMenuExpand": "Expand",
     "bucketMenuReloadAll": "Reload All Tabs",
+    "bucketMenuMergeInto": "Merge into…",
     "bucketMenuClose": "Close Bucket",
     /* Containers */
     "openInContainer": "Open Link in Container",
