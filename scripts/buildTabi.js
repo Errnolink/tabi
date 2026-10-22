@@ -24,9 +24,15 @@ async function zipPackage (packagePath) {
   const archive = archiver('zip', {
     zlib: { level: 9 }
   })
+  const written = new Promise(function (resolve, reject) {
+    output.on('close', resolve)
+    output.on('error', reject)
+    archive.on('error', reject)
+  })
   archive.directory(packagePath, outName)
   archive.pipe(output)
   await archive.finalize()
+  await written
 
   return 'dist/app/' + outName + '.zip'
 }
