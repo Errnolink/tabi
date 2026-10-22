@@ -12,7 +12,7 @@ Tabi (formerly "xb") is Chef's general-purpose browser: a Min (28k LOC plain-JS 
 
 ## Fork base
 
-- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\xb` (moved from `C:\xb` on 2026-10-20; node_modules moved with it — the repo directory is still named `xb`; the product is Tabi). Active branch `feat/seaglass` (from `feat/buckets`).
+- Min 1.35.7 (c92079c, 2026-08-23), shallow clone at `C:\Users\Chef\Documents\Projects\tabi` (was `Projects\xb` until 2026-10-22; the verification worktree is `Projects\tabi-verify`, `node_modules` junctioned). Active branch `feat/seaglass` (from `feat/buckets`).
 - Installed runtime (Chef's daily browser): NSIS install of Tabi at `%LOCALAPPDATA%\Programs\Tabi\Tabi.exe` (installed 2026-10-22 from the v2.0.0 release; Desktop, Start Menu and taskbar shortcuts point there). It updates itself from GitHub Releases. Profile `%APPDATA%\xb` is unchanged and must stay unchanged — it is pinned in `main/main.js` (`app.setPath('userData', …)`), dev mode appends `-development`. Pre-install backup of the state files: `%APPDATA%\xb\pre-tabi-2.0.0-backup\`. The old portable xb (`Apps\xb`), its shortcuts, the Desktop zips and `C:\Users\Public\xb-deploy.ps1` were removed on Chef's OK. Shipping an update = bump `version`, `npm run releaseTabi -- --publish`.
 - 2026-10-21 16:14: runtime rebuilt from `feat/seaglass` (`17e46ea`), dev profile migrated (119 tabs incl. Chrome 83 and Helium · Errno 20 imports; X login in the Alt container verified live). The two profiles diverge from here: the dev profile is for testing only.
 - Upstream: maintenance mode since 2025-10 but Chromium bumps continue (v1.35.7 = Electron 43.4.1). Engine updates = bump `electronVersion` in package.json; do this monthly-ish.
