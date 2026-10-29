@@ -199,7 +199,7 @@ function listenForDownloadHeaders (ses) {
   })
 }
 
-app.once('ready', function () {
+app.whenReady().then(function () {
   session.defaultSession.on('will-download', downloadHandler)
   listenForDownloadHeaders(session.defaultSession)
 })

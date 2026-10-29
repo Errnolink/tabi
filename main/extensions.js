@@ -299,7 +299,7 @@ ipc.handle('getExtensionTabWebContentsID', function (e, tabId) {
   return view ? view.webContents.id : null
 })
 
-app.once('ready', function () {
+app.whenReady().then(function () {
   ElectronChromeExtensions.handleCRXProtocol(session.defaultSession)
   onContainerPartitionAdded(function (partition) {
     if (partition === DEFAULT_CONTAINER.partition) {

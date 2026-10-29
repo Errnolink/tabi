@@ -218,7 +218,7 @@ function registerFiltering (ses) {
   adblockApplyCosmeticsToSession(ses)
 }
 
-app.once('ready', function () {
+app.whenReady().then(function () {
   registerFiltering(session.defaultSession)
 })
 

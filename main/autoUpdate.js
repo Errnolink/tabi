@@ -147,6 +147,6 @@ function initializeAutoUpdate () {
   }, 6 * 60 * 60 * 1000)
 }
 
-app.on('ready', function () {
+app.whenReady().then(function () {
   initializeAutoUpdate()
 })

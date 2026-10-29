@@ -474,7 +474,7 @@ ipc.handle('containers:page', function (e, payload) {
   return null
 })
 
-app.on('ready', function () {
+app.whenReady().then(function () {
   retryPendingContainerRemovals()
 
   // materialize every container session now so that the session-created

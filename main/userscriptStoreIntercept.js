@@ -96,7 +96,7 @@ app.on('web-contents-created', function (e, contents) {
   })
 })
 
-app.once('ready', function () {
+app.whenReady().then(function () {
   try {
     fs.mkdirSync(userscriptStoreDir, { recursive: true })
   } catch (e) { }

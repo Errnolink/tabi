@@ -54,7 +54,7 @@ function secureDnsApply () {
   }
 }
 
-app.once('ready', secureDnsApply)
+app.whenReady().then(secureDnsApply)
 
 settings.listen('dnsOverHttps', function () {
   if (app.isReady()) {

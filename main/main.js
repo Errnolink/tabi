@@ -563,7 +563,7 @@ const placesPage = 'file://' + __dirname + '/js/places/placesService.html'
 let placesWindow = null
 let placesWindowReady = false
 
-app.once('ready', function() {
+app.whenReady().then(function () {
   placesWindow = new BrowserWindow({
     width: 300,
     height: 300,
@@ -615,7 +615,7 @@ function lowerUIView (win) {
 const translatePage = 'min://app/pages/translateService/index.html'
 const translatePreload = __dirname + '/pages/translateService/translateServicePreload.js'
 
-app.on('ready', function() {
+app.whenReady().then(function() {
   ipc.on('page-translation-session-create', function(e) {
     let translateWindow = new BrowserWindow({
       width: 300,

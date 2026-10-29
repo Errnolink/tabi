@@ -47,7 +47,7 @@ function themeSettingsChanged (value) {
   }
 }
 
-app.on('ready', function () {
+app.whenReady().then(function () {
   settings.listen('darkMode', themeSettingsChanged)
 
   if (settings.get('darkThemeIsActive') !== nativeTheme.shouldUseDarkColors) {

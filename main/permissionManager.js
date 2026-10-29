@@ -203,7 +203,7 @@ function pagePermissionCheckHandler (webContents, permission, requestingOrigin, 
   return isPermissionGrantedForOrigin(requestHostname, permission, details)
 }
 
-app.once('ready', function () {
+app.whenReady().then(function () {
   session.defaultSession.setPermissionRequestHandler(pagePermissionRequestHandler)
   session.defaultSession.setPermissionCheckHandler(pagePermissionCheckHandler)
 })

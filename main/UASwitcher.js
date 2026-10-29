@@ -126,7 +126,7 @@ if (!hasCustomUserAgent) {
   })
 }
 
-app.once('ready', function () {
+app.whenReady().then(function () {
   enableGoogleUASwitcher(session.defaultSession)
   registerUAPersonaPreload(session.defaultSession)
 })

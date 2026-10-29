@@ -82,7 +82,7 @@ function adblockScheduleBootStart () {
   if (app.isReady()) {
     begin()
   } else {
-    app.once('ready', begin)
+    app.whenReady().then(begin)
   }
 }
 
@@ -249,7 +249,7 @@ function adblockEnsureEngines () {
   if (!app.isReady()) {
     if (!adblockEnginesWaitReady) {
       adblockEnginesWaitReady = true
-      app.once('ready', function () {
+      app.whenReady().then(function () {
         adblockEnginesWaitReady = false
         adblockEnsureEngines()
       })
