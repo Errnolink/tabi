@@ -12,7 +12,7 @@ blocks window creation. Sessions where an extension with blocking webRequest
 main/filtering.js) nor the cosmetic-filter preload.
 */
 
-/* global fs, path, ipc, app, webContents, windows, userDataPath, enabledFilteringOptions, registeredFilteringSessions, sessionsWithExtensionBlocker, requestDomainIsException */
+/* global fs, path, ipc, app, webContents, windows, userDataPath, enabledFilteringOptions, registeredFilteringSessions, requestDomainIsException */
 
 const { ElectronBlocker, FiltersEngine, Request } = require('@ghostery/adblocker-electron')
 
@@ -344,7 +344,7 @@ function adblockShowPhishingPage (webContentsId, blockedURL, listId) {
 }
 
 function adblockCosmeticsShouldRun (ses) {
-  return enabledFilteringOptions.blockingLevel >= 2 && !sessionsWithExtensionBlocker.has(ses)
+  return enabledFilteringOptions.blockingLevel >= 2
 }
 
 function adblockApplyCosmeticsToSession (ses) {
@@ -367,7 +367,6 @@ function adblockApplyCosmeticsToSession (ses) {
 
 function adblockSyncCosmetics () {
   registeredFilteringSessions.forEach(adblockApplyCosmeticsToSession)
-  sessionsWithExtensionBlocker.forEach(adblockApplyCosmeticsToSession)
 }
 
 function adblockOnFilteringLevelChanged () {

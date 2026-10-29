@@ -210,92 +210,9 @@ function setFilteringSettings (value) {
   adblockOnFilteringLevelChanged()
 }
 
-/*
-sessions where an extension with blocking webRequest (e.g. uBlock Origin) is
-loaded; Electron's session.webRequest listeners take precedence over
-extension webRequest handlers, so the built-in network filter and the
-cosmetic-filter preload must stay unregistered there
-*/
-var sessionsWithExtensionBlocker = new Set()
 var registeredFilteringSessions = new Set()
 
-function setExtensionWebRequestBlocker (ses, hasBlocker) {
-  if (hasBlocker) {
-    sessionsWithExtensionBlocker.add(ses)
-    registeredFilteringSessions.delete(ses)
-    ses.webRequest.onBeforeRequest(null)
-    adblockApplyCosmeticsToSession(ses)
-  } else if (sessionsWithExtensionBlocker.has(ses)) {
-    sessionsWithExtensionBlocker.delete(ses)
-    registerFiltering(ses)
-  }
-}
-
-global.setExtensionWebRequestBlocker = setExtensionWebRequestBlocker
-
-function filteringSessionHasExtensionBlocker (contents) {
-  try {
-    return sessionsWithExtensionBlocker.has(contents.session)
-  } catch (e) {
-    return false
-  }
-}
-
-function filteringNavigationThreat (urlString) {
-  if (enabledFilteringOptions.blockingLevel === 0 || !/^https?:\/\//i.test(urlString)) {
-    return null
-  }
-  var navDomain = navigationDomain(urlString)
-  if (requestDomainIsWhitelistedFromPhishing(navDomain) || requestDomainIsException(navDomain)) {
-    return null
-  }
-  return adblockMatchMalwareNavigation(urlString)
-}
-
-function filteringProtectNavigation (contents, details) {
-  if (!details.isMainFrame || contents.isDestroyed() || !filteringSessionHasExtensionBlocker(contents)) {
-    return
-  }
-  var threat = filteringNavigationThreat(details.url)
-  if (threat) {
-    details.preventDefault()
-    adblockShowPhishingPage(contents.id, details.url, threat)
-    return
-  }
-  if (urlCleaningEnabled()) {
-    var cleaned = urlCleanNavigationURL(details.url, true)
-    if (cleaned && cleaned !== details.url) {
-      details.preventDefault()
-      contents.loadURL(cleaned).catch(function () { })
-    }
-  }
-}
-
-app.on('web-contents-created', function (e, contents) {
-  contents.on('will-frame-navigate', function (details) {
-    filteringProtectNavigation(contents, details)
-  })
-  contents.on('will-redirect', function (details) {
-    filteringProtectNavigation(contents, details)
-  })
-  contents.on('did-start-navigation', function (details) {
-    if (!details.isMainFrame || details.isSameDocument) {
-      return
-    }
-    if (contents.isDestroyed() || !filteringSessionHasExtensionBlocker(contents)) {
-      return
-    }
-    var threat = filteringNavigationThreat(details.url)
-    if (threat) {
-      adblockShowPhishingPage(contents.id, details.url, threat)
-    }
-  })
-})
-
 function registerFiltering (ses) {
-  if (sessionsWithExtensionBlocker.has(ses)) {
-    return
-  }
   registeredFilteringSessions.add(ses)
   ses.webRequest.onBeforeRequest(handleRequest)
   adblockApplyCosmeticsToSession(ses)

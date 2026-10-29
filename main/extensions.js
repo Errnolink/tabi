@@ -1,4 +1,4 @@
-/* global path, userDataPath, session, ipc, app, windows, createWindow, sendIPCToWindow, getView, getWindowFromViewContents, getTabIDFromWebContents, onContainerPartitionAdded, setExtensionWebRequestBlocker, DEFAULT_CONTAINER */
+/* global path, userDataPath, session, ipc, app, windows, createWindow, sendIPCToWindow, getView, getWindowFromViewContents, getTabIDFromWebContents, onContainerPartitionAdded, DEFAULT_CONTAINER */
 var ElectronChromeExtensions = require('electron-chrome-extensions').ElectronChromeExtensions
 var installChromeWebStore = require('electron-chrome-web-store').installChromeWebStore
 var uninstallExtension = require('electron-chrome-web-store').uninstallExtension
@@ -19,22 +19,6 @@ function extensionManifestBlocksWebRequest (manifest) {
     return false
   }
   return (manifest.permissions || []).includes('webRequestBlocking')
-}
-
-function extensionsSessionHasBlocker (ses) {
-  var sessionExtensions = ses.extensions || ses
-  return sessionExtensions.getAllExtensions().some(function (ext) {
-    return extensionManifestBlocksWebRequest(ext.manifest)
-  })
-}
-
-/*
-Electron's session.webRequest listeners take precedence over extension
-webRequest handlers, so Min's built-in content filter must be unregistered
-while an extension with blocking webRequest (e.g. uBlock Origin) is loaded
-*/
-function extensionsApplyFiltering (ses) {
-  setExtensionWebRequestBlocker(ses, extensionsSessionHasBlocker(ses))
 }
 
 function extensionsInitForPartition (partition) {
@@ -60,21 +44,11 @@ function extensionsInitForPartition (partition) {
 
   ElectronChromeExtensions.handleCRXProtocol(ses)
 
-  var sessionExtensions = ses.extensions || ses
-  sessionExtensions.on('extension-loaded', function () {
-    extensionsApplyFiltering(ses)
-  })
-  sessionExtensions.on('extension-unloaded', function () {
-    extensionsApplyFiltering(ses)
-  })
-
   installChromeWebStore({
     session: ses,
     extensionsPath: extensionsPath,
     minimumManifestVersion: 2,
     autoUpdate: false
-  }).then(function () {
-    extensionsApplyFiltering(ses)
   }).catch(function (err) {
     console.warn('extension setup failed for ' + partition, err)
   })
@@ -294,11 +268,7 @@ function extensionsUninstall (id) {
     return chain.then(function () {
       return uninstallExtension(id, { session: session.fromPartition(partition), extensionsPath: extensionsPath })
     })
-  }, Promise.resolve()).then(function () {
-    Object.keys(extensionInstances).forEach(function (partition) {
-      extensionsApplyFiltering(session.fromPartition(partition))
-    })
-  })
+  }, Promise.resolve())
 }
 
 function extensionsCheckUpdates () {
