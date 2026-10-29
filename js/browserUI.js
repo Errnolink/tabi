@@ -132,6 +132,20 @@ function closeTab (tabId) {
     return
   }
 
+  const owner = tasks.getTaskContainingTab(tabId)
+  if (!owner) {
+    return
+  }
+
+  if (owner.id !== tasks.getSelected().id) {
+    owner.tabs.destroy(tabId)
+    webviews.destroy(tabId)
+    if (owner.tabs.count() === 0) {
+      closeTask(owner.id)
+    }
+    return
+  }
+
   if (tabId === tabs.getSelected()) {
     var currentIndex = tabs.getIndex(tabs.getSelected())
     var nextTab =

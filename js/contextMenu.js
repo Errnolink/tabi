@@ -9,34 +9,16 @@ module.exports = {
 
       var inputMenu = [
         [
-          {
-            label: l('undo'),
-            role: 'undo'
-          },
-          {
-            label: l('redo'),
-            role: 'redo'
-          }
+          { label: l('undo'), accelerator: 'Ctrl+Z', role: 'undo', target: 'ui' },
+          { label: l('redo'), accelerator: 'Ctrl+Shift+Z', role: 'redo', target: 'ui' }
         ],
         [
-          {
-            label: l('cut'),
-            role: 'cut'
-          },
-          {
-            label: l('copy'),
-            role: 'copy'
-          },
-          {
-            label: l('paste'),
-            role: 'paste'
-          }
+          { label: l('cut'), accelerator: 'Ctrl+X', role: 'cut', target: 'ui' },
+          { label: l('copy'), accelerator: 'Ctrl+C', role: 'copy', target: 'ui' },
+          { label: l('paste'), accelerator: 'Ctrl+V', role: 'paste', target: 'ui' }
         ],
         [
-          {
-            label: l('selectAll'),
-            role: 'selectall'
-          }
+          { label: l('selectAll'), accelerator: 'Ctrl+A', role: 'selectall', target: 'ui' }
         ]
       ]
 
@@ -52,7 +34,11 @@ module.exports = {
               }
             })
           }
-          remoteMenu.open(inputMenu)
+          const input = node
+          remoteMenu.open(inputMenu, undefined, undefined, {
+            keepFocus: true,
+            onClose: () => input.focus()
+          })
           break
         }
         node = node.parentNode

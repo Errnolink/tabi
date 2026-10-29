@@ -120,16 +120,7 @@ const tabActions = {
   },
 
   close: function (tabId) {
-    const task = ownerOf(tabId)
-    if (task.id === tasks.getSelected().id) {
-      browserUI.closeTab(tabId)
-      return
-    }
-    task.tabs.destroy(tabId)
-    webviews.destroy(tabId)
-    if (task.tabs.count() === 0) {
-      browserUI.closeTask(task.id)
-    }
+    browserUI.closeTab(tabId)
   },
 
   reloadTask: function (taskId) {

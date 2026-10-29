@@ -142,15 +142,18 @@ function listenForExtensionCommands () {
   })
 
   ipc.on('extension-select-tab', function (e, data) {
-    if (tabs.get(data.tabId)) {
-      browserUI.switchToTab(data.tabId)
+    const owner = tasks.getTaskContainingTab(data.tabId)
+    if (!owner) {
+      return
     }
+    if (owner.id !== tasks.getSelected().id) {
+      browserUI.switchToTask(owner.id)
+    }
+    browserUI.switchToTab(data.tabId)
   })
 
   ipc.on('extension-close-tab', function (e, data) {
-    if (tabs.get(data.tabId)) {
-      browserUI.closeTab(data.tabId)
-    }
+    browserUI.closeTab(data.tabId)
   })
 }
 

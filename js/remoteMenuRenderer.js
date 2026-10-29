@@ -38,7 +38,9 @@ function open (menuTemplate, x, y, extraData) {
       if (extraData && typeof extraData.onClose === 'function') {
         extraData.onClose()
       }
-      refocusPage()
+      if (!extraData || !extraData.keepFocus) {
+        refocusPage()
+      }
     }
   }
   if (fromPage && extraData.contextMenuParams) {

@@ -101,11 +101,11 @@ ipc.on('menu-native-click', function (e, nativeId) {
 
 const menuRoleMethods = { undo: 'undo', redo: 'redo', cut: 'cut', copy: 'copy', paste: 'paste', pasteandmatchstyle: 'pasteAndMatchStyle', selectall: 'selectAll', delete: 'delete' }
 
-ipc.on('menu-role', function (e, role) {
+ipc.on('menu-role', function (e, role, target) {
   const method = menuRoleMethods[role]
   if (method) {
     const entry = windows.windowFromContents(e.sender)
-    const selectedViewId = entry && windows.getState(entry.win) && windows.getState(entry.win).selectedView
+    const selectedViewId = target !== 'ui' && entry && windows.getState(entry.win) && windows.getState(entry.win).selectedView
     const selectedView = selectedViewId ? getView(selectedViewId) : null
     const targetContents = (selectedView && selectedView.webContents) ? selectedView.webContents : e.sender
     if (typeof targetContents[method] === 'function') {

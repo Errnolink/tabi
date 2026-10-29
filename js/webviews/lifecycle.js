@@ -120,6 +120,10 @@ function setSelected (id, options) { // options.focus - whether to focus the vie
 }
 
 function update (id, url) {
+  if (!webviews.hasViewForTab(id)) {
+    tabState.updateTabAnywhere(id, { url: urlParser.parse(url) })
+    return
+  }
   ipc.send('loadURLInView', { id: id, url: urlParser.parse(url) })
 }
 

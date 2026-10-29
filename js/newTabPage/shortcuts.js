@@ -14,7 +14,7 @@ const DEFAULT_SHORTCUTS = [
 module.exports = function (newTabPage) {
   function getShortcuts () {
     const saved = settings.get('newTabShortcuts')
-    if (Array.isArray(saved) && saved.length > 0) {
+    if (Array.isArray(saved)) {
       return saved
     }
     return DEFAULT_SHORTCUTS.slice()

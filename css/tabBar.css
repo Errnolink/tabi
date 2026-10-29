@@ -177,6 +177,65 @@ body.dark-mode #menu-button.update-ready::after {
   box-shadow: 0 0 0 2px rgb(28 26 41 / 0.85);
 }
 
+#update-toast {
+  -webkit-app-region: no-drag;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin: 0 6px;
+  padding: 0 4px 0 12px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, #2fa574 16%, var(--chrome-hover));
+  color: var(--chrome-ink);
+  font-size: 12.5px;
+  white-space: nowrap;
+  animation: update-toast-in var(--dur-spatial) var(--spring-spatial) both;
+}
+
+#update-toast button {
+  border: none;
+}
+
+.update-toast-restart {
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: #2fa574;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.dark-mode .update-toast-restart {
+  background: #4fd3a0;
+  color: #0c1a14;
+}
+
+.update-toast-close {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--chrome-ink-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.update-toast-close:hover {
+  background: var(--chrome-hover);
+  color: var(--chrome-ink);
+}
+
+@keyframes update-toast-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
 #switch-task-button {
   display: none;
 }

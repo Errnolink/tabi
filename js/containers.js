@@ -117,38 +117,51 @@ function remove (id, newDefaultId) {
   return ipc.invoke('containers:remove', id, newDefaultId)
 }
 
-/* moves tabs referencing containers that no longer exist to Default and
-   recreates their views, since a view can never switch sessions */
-function rehomeTabsOfRemovedContainers () {
+function resolvePartition (list, defaultContainerId, id) {
+  var container = list.find(c => c.id === id) || list.find(c => c.id === defaultContainerId) || list[0]
+  return container ? container.partition : 'persist:webcontent'
+}
+
+/* rewrites tabs and tab groups that reference containers which no longer exist,
+   and recreates a view only when its session actually changed, since a view can never switch sessions */
+function rehomeTabsOfRemovedContainers (previousList, previousDefaultId) {
   var browserUI = require('browserUI.js')
   var webviews = require('webviews.js')
 
-  var affectedTabIds = []
+  var rehomed = []
+  var moved = []
   tasks.forEach(function (task) {
+    if (task.defaultContainerId && !currentList.some(c => c.id === task.defaultContainerId)) {
+      tasks.update(task.id, { defaultContainerId: null })
+    }
     task.tabs.forEach(function (tab) {
-      if (tab.containerId && !currentList.some(c => c.id === tab.containerId)) {
-        affectedTabIds.push(tab.id)
+      if (tab.private || !tab.containerId || currentList.some(c => c.id === tab.containerId)) {
+        return
+      }
+      rehomed.push(tab.id)
+      if (resolvePartition(previousList, previousDefaultId, tab.containerId) !== resolvePartition(currentList, currentDefaultId, tab.containerId)) {
+        moved.push(tab.id)
       }
     })
   })
 
-  if (affectedTabIds.length === 0) {
-    return
-  }
-
-  affectedTabIds.forEach(function (tabId) {
+  rehomed.forEach(function (tabId) {
     tasks.getTaskContainingTab(tabId).tabs.update(tabId, {
       containerId: defaultId()
     })
   })
 
+  if (moved.length === 0) {
+    return
+  }
+
   var selectedTabId = tabs.getSelected()
-  affectedTabIds.forEach(function (tabId) {
+  moved.forEach(function (tabId) {
     if (webviews.hasViewForTab(tabId)) {
       webviews.destroy(tabId)
     }
   })
-  if (affectedTabIds.includes(selectedTabId)) {
+  if (moved.includes(selectedTabId)) {
     browserUI.switchToTab(selectedTabId)
   }
 }
@@ -376,9 +389,11 @@ function sendTabCounts () {
 
 ipc.on('containers-changed', function (e, state) {
   var normalized = normalizeRegistryState(state)
+  var previousList = currentList
+  var previousDefaultId = currentDefaultId
   currentList = normalized.containers
   currentDefaultId = normalized.defaultId
-  rehomeTabsOfRemovedContainers()
+  rehomeTabsOfRemovedContainers(previousList, previousDefaultId)
   emitChanged()
 })
 

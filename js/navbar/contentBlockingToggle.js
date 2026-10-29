@@ -77,15 +77,6 @@ const contentBlockingToggle = {
             contentBlockingToggle.update(tabs.getSelected(), button)
           }
         }
-      ],
-      [
-        {
-          label: l('appMenuReportBug'),
-          click: function () {
-            var newTab = tabs.add({ url: 'https://github.com/minbrowser/min/issues/new?title=Content%20blocking%20issue%20on%20' + encodeURIComponent(url) })
-            require('browserUI.js').addTab(newTab, { enterEditMode: false })
-          }
-        }
       ]
     ]
     remoteMenu.open(menu)

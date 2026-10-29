@@ -218,7 +218,7 @@ function buildRow (container) {
       deleteButton.textContent = l('containersDeleteConfirm')
     } else {
       deleteButton.textContent = l('containersDelete')
-      deleteButton.title = l('containersDeleteWarning').replace('%s', container.name)
+      deleteButton.title = deleteWarningText(container)
     }
     deleteButton.addEventListener('click', function () {
       if (state.armedDeleteId === container.id) {
@@ -243,10 +243,15 @@ function buildRow (container) {
   if (state.armedDeleteId === container.id) {
     var deleteWarn = document.createElement('div')
     deleteWarn.className = 'container-consequence-banner'
-    deleteWarn.textContent = l('containersDeleteWarning').replace('%s', container.name)
+    deleteWarn.textContent = deleteWarningText(container)
     row.appendChild(deleteWarn)
   }
   return row
+}
+
+function deleteWarningText (container) {
+  var defaultContainer = state.containers.find(c => c.id === state.defaultId)
+  return l('containersDeleteWarning').replace('%s', container.name).replace('%d', defaultContainer ? defaultContainer.name : l('containersDefaultLabel'))
 }
 /* delete-default picker: choose which container inherits the tabs and the default role */
 

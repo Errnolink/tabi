@@ -35,8 +35,8 @@ function normalize (sections) {
   return sections.map(section => section.filter(item => item && item.type !== 'separator' && item.visible !== false)).filter(section => section.length)
 }
 
-function runRole (role) {
-  ipc.send('menu-role', role.toLowerCase())
+function runRole (role, target) {
+  ipc.send('menu-role', role.toLowerCase(), target)
 }
 
 function ensureLayer () {
@@ -301,7 +301,7 @@ const glassMenu = {
   activate: function (item) {
     glassMenu.close()
     if (item.role) {
-      runRole(item.role)
+      runRole(item.role, item.target)
     } else if (typeof item.click === 'function') {
       item.click()
     }

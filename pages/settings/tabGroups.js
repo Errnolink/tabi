@@ -48,19 +48,27 @@ function createAutoFileRule (rule) {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(function () {
       settings.get('autoFileRules', function (stored) {
-        var filtered = (stored || []).filter(function (r) {
-          return r.name !== current.name
+        var rules = (stored || []).slice()
+        var index = rules.findIndex(function (r) {
+          return r.name === current.name.trim()
         })
         current[key] = value
         var name = current.name.trim()
         var patterns = current.patterns.map(function (p) {
           return p.trim()
         }).filter(Boolean)
-        if (name && patterns.length > 0) {
-          filtered.push({ name: name, patterns: patterns })
+        var rule = (name && patterns.length > 0) ? { name: name, patterns: patterns } : null
+        if (index >= 0) {
+          if (rule) {
+            rules.splice(index, 1, rule)
+          } else {
+            rules.splice(index, 1)
+          }
+        } else if (rule) {
+          rules.push(rule)
         }
-        settings.set('autoFileRules', filtered)
-        updateAutoFilePresetButton(filtered)
+        settings.set('autoFileRules', rules)
+        updateAutoFilePresetButton(rules)
       })
     }, 350)
   }

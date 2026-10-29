@@ -118,7 +118,7 @@ const omniboxActions = {
     content.appendChild(head)
 
     if (state !== 'internal') {
-      const container = containers.get(tab.containerId)
+      const container = tab.private ? null : containers.get(tab.containerId)
       const rows = document.createElement('div')
       rows.className = 'site-rows'
 
@@ -131,11 +131,13 @@ const omniboxActions = {
         rows.appendChild(r)
       }
 
-      const chip = document.createElement('span')
-      chip.className = 'site-chip'
-      chip.style.setProperty('--chip-color', container.color)
-      chip.textContent = container.name
-      row(l('siteContainer'), chip)
+      if (container) {
+        const chip = document.createElement('span')
+        chip.className = 'site-chip'
+        chip.style.setProperty('--chip-color', container.color)
+        chip.textContent = container.name
+        row(l('siteContainer'), chip)
+      }
 
       const blocking = document.createElement('input')
       blocking.type = 'checkbox'
@@ -167,21 +169,23 @@ const omniboxActions = {
 
       content.appendChild(rows)
 
-      const clear = document.createElement('button')
-      clear.className = 'site-clear'
-      clear.textContent = l('siteClearData')
-      clear.addEventListener('click', function () {
-        if (!clear.classList.contains('armed')) {
-          clear.classList.add('armed')
-          clear.textContent = l('siteClearDataConfirm')
-          return
-        }
-        ipc.invoke('clearSiteData', { url: tab.url, partition: containers.partitionFor(tab.containerId) }).then(function () {
-          glassMenu.close()
-          webviews.callAsync(tab.id, 'reload')
+      if (container) {
+        const clear = document.createElement('button')
+        clear.className = 'site-clear'
+        clear.textContent = l('siteClearData')
+        clear.addEventListener('click', function () {
+          if (!clear.classList.contains('armed')) {
+            clear.classList.add('armed')
+            clear.textContent = l('siteClearDataConfirm')
+            return
+          }
+          ipc.invoke('clearSiteData', { url: tab.url, partition: containers.partitionFor(tab.containerId) }).then(function () {
+            glassMenu.close()
+            webviews.callAsync(tab.id, 'reload')
+          })
         })
-      })
-      content.appendChild(clear)
+        content.appendChild(clear)
+      }
     }
 
     const pos = anchor(siteButton)

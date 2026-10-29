@@ -159,6 +159,7 @@ const downloadManager = {
       action('carbon:folder', l('downloadShowInFolder'), () => ipc.invoke('showItemInFolder', item.path))
       action('carbon:close', l('downloadRemove'), function () {
         downloadManager.items.delete(item.path)
+        downloadManager.persist()
         downloadManager.refresh()
       })
     }

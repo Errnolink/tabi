@@ -147,7 +147,14 @@ const overview = {
     tasks.on('tab-destroyed', function (tabId) {
       overview.cardCache.delete(tabId)
     })
+    const staleKeys = ['thumbAspect', 'thumbVersion', 'url', 'favicon', 'containerId']
     tasks.on('tab-updated', function (id, key) {
+      if (!staleKeys.includes(key)) {
+        return
+      }
+      if (!overview.isShown) {
+        overview.cardCache.delete(id)
+      }
       if (key !== 'thumbAspect' && key !== 'thumbVersion') {
         return
       }
