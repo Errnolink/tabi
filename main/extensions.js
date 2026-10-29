@@ -1,4 +1,4 @@
-/* global path, userDataPath, session, ipc, app, windows, createWindow, sendIPCToWindow, getView, getWindowFromViewContents, getTabIDFromWebContents, onContainerPartitionAdded, DEFAULT_CONTAINER */
+/* global path, userDataPath, session, ipc, app, windows, createWindow, sendIPCToWindow, getView, getWindowFromViewContents, getTabIDFromWebContents, onContainerPartitionAdded, containerPartitions, DEFAULT_CONTAINER */
 var ElectronChromeExtensions = require('electron-chrome-extensions').ElectronChromeExtensions
 var installChromeWebStore = require('electron-chrome-web-store').installChromeWebStore
 var uninstallExtension = require('electron-chrome-web-store').uninstallExtension
@@ -162,6 +162,9 @@ function extensionsNotify (fn) {
 }
 
 function extensionsRegisterView (view, partition) {
+  if (!containerPartitions().includes(partition)) {
+    return
+  }
   extensionsInitForPartition(partition)
   var instance = extensionInstances[partition]
   var win = windows.getCurrent()
