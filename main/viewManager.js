@@ -461,14 +461,17 @@ ipc.on('loadURLInView', function (e, args) {
   loadURLInView(args.id, args.url, win)
 })
 
+const navigationHistoryMethods = new Set(['canGoBack', 'canGoForward', 'canGoToOffset', 'goBack', 'goForward', 'goToIndex', 'goToOffset'])
+
 ipc.on('callViewMethod', function (e, data) {
   var error, result
   try {
     var webContents = viewMap[data.id].webContents
-    var methodOrProp = webContents[data.method]
+    var target = navigationHistoryMethods.has(data.method) ? webContents.navigationHistory : webContents
+    var methodOrProp = target[data.method]
     if (methodOrProp instanceof Function) {
       // call function
-      result = methodOrProp.apply(webContents, data.args)
+      result = methodOrProp.apply(target, data.args)
     } else {
       // set property
       if (data.args && data.args.length > 0) {

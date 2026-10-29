@@ -43,6 +43,9 @@ function render () {
 
     bucket.el.style.setProperty('--bucket-hue', shellLayout.bucketHue(index))
     bucket.el.classList.toggle('is-current', task.id === selectedTask.id)
+    if (task.id === selectedTask.id) {
+      setAmbientHue(bucket.el)
+    }
     bucket.el.classList.toggle('collapsed', !!task.collapsed)
     if (state.flags.renamingTaskId !== task.id) {
       const name = util.bucketName(task, index)
@@ -193,6 +196,13 @@ function removeTab (tabId) {
   }
 }
 
+function setAmbientHue (bucketEl) {
+  const hue = bucketEl.style.getPropertyValue('--bucket-hue')
+  if (hue && document.body.style.getPropertyValue('--ambient-hue') !== hue) {
+    document.body.style.setProperty('--ambient-hue', hue)
+  }
+}
+
 function updateAll () {
   tabBar.render()
 }
@@ -211,6 +221,7 @@ function taskSwitched (taskId) {
     state.buckets.forEach(function (b) {
       b.el.classList.toggle('is-current', b === bucket)
     })
+    setAmbientHue(bucket.el)
   }
   if (currentTaskId && currentTaskId !== taskId) {
     const previous = state.buckets.get(currentTaskId)

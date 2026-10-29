@@ -5,7 +5,15 @@ const passiveHolders = new Set()
 let generation = 0
 
 function afterPaint (fn) {
-  requestAnimationFrame(() => requestAnimationFrame(fn))
+  let done = false
+  const run = function () {
+    if (!done) {
+      done = true
+      fn()
+    }
+  }
+  requestAnimationFrame(() => requestAnimationFrame(run))
+  setTimeout(run, 50)
 }
 
 const uiLayer = {

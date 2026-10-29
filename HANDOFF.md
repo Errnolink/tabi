@@ -108,10 +108,28 @@ Also in round 2:
 - X layout split-brain (`ca2e8881`): interrupting Electron's animated `setBounds` with a view swap wedged the renderer's size, so X laid out for the wrong width. `main/viewManager.js` runs its own cancelable tween now.
 - Audit (`local audit.md`, 62 findings) fixed in slices A–F + consolidation: permission chip (camera/mic/notifications prompts were never shown), tabAudio re-wired (mute, PiP, audio exemption), view events for tabs in other groups, focus no longer stolen by hover/menus, Clear browsing data (Ctrl+Shift+Delete), default-browser row, Chrome shortcuts, persistent downloads (Ctrl+J), auto-file rules editor with X preset, bounded quit (`e6413c22`), unit tests `npm run test:unit` (node:test, 56 tests), large files split into modules.
 
-### Open after round 2
+### Round 3 (2026-10-29, branch `fix/round3`): beta polish, scope left to Ciel by Chef
 
-- Containers: extension instances for a deleted default partition are not torn down. `containersDefaultLabel` is stale in non-English locales.
+1. Page flicker on right-click (a friend's report on Reddit). Fixed in `d2ca1f56`. Root cause: `uiLayer.raise()` added `body.ui-raised` (which makes the UI transparent over the page) and sent `menu-raise` in the same tick. So main stacked the UI view above the page before the renderer painted the transparent frame, and the opaque backdrop plus blurred placeholder covered the page for a frame or two. `lower()` did the reverse. The same race hit every context menu, omnibox focus and tab hover card. Now: raise paints transparent first (two rAFs), then adds `ui-on-top` and raises. Lower awaits `ipc.invoke('menu-lower')` and only then repaints opaque. `#menu-layer` stays hidden until `ui-on-top`.
+2. Page context menu is context-aware like Chrome (`d2ca1f56`). Page items (Back/Forward with real enabled state, Reload, Save/Print/Copy Link, Translate, View Source) only on empty page. Links get Copy Link Address. Images get Copy Image and Copy Image Address. Text fields get Undo/Redo/Cut/Copy/Paste/Paste and Match Style/Select All from `editFlags`. Selection shows "Search with X “…”". The duplicate Copy Link is gone.
+3. Bug sweep (`local bug-sweep.md`, 15 findings), fixed in `9f976004` (renderer) and `138c827d`…`efc573d4` (main):
+   - uBlock Origin used to disable all network blocking in its container: Electron only proxies extension webRequest when a session has zero listeners, and download/UA listeners always exist. Ghostery now always stays on; the extension-blocker handoff path is deleted. Supersedes the 2026-10-20 decision that Min's filter turns off with uBO.
+   - Closing a tab in a non-current group (sidebar ×, middle-click, `window.close()`, extensions) did nothing: `browserUI.closeTab` only searched the current group. It now closes in any group, and `tabActions.close` delegates to it.
+   - Site-info popover on a private tab cleared the Default container's data; private tabs no longer show the container row or Clear site data.
+   - Reload/Reader view on a sleeping tab threw a main-process error dialog: `webviews.update` now writes the URL to the model when there is no view, and main's `loadURLInView` ignores unknown ids.
+   - Address bar right-click Cut/Copy/Paste acted on the page: UI-input menu roles carry `target: 'ui'` and keep focus in the input.
+   - Private tabs no longer load every extension into their own session; deleting a container tears down its extension instance (`extensionsTeardownPartition`; HANDOFF open item 1).
+   - Editing an auto-file rule kept moving it to the end (first-match order broke the X preset); edits now happen in place.
+   - Container changes reloaded private tabs and dangling-`'default'` tabs; rehome now only recreates views whose resolved partition changed, skips private tabs, and clears dangling group default containers (auto-file into that group works again).
+   - Overview cards kept first-seen thumbnails; the cache evicts on thumb/url/favicon/container changes while hidden.
+   - Low: an empty shortcut list stays empty, removing a download persists, the update toast is a toolbar pill (UI DOM over the page is invisible), the blank shield menu item is removed, missing locale keys are added, and the container delete warning names the real default (HANDOFF open item 2: the label was untranslated, not stale).
+   - Boot `MaxListenersExceededWarning`: single-shot `ready` hooks use `app.whenReady()`.
+4. Design: ambient group light. The active tab group's hue (`--ambient-hue`, `@property`, 900 ms glide) tints a frosted glow behind the chrome, the page card rim and shadow, and the menu highlight.
+
+### Open
+
 - Installer is unsigned (Chef declined paid signing): first install shows SmartScreen "More info → Run anyway"; update trust rests on the GitHub account.
+- `crx-msg-remote: undefined is not a registered handler` from the extension toolbar once per UI load (electron-chrome-extensions `browser-action-list` `getState`); not root-caused.
 
 ## Dev instance notes
 

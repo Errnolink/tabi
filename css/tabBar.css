@@ -1,5 +1,11 @@
 /* Tabi shell: one continuous glass surface (toolbar + sidebar) around an inset page card */
 
+@property --ambient-hue {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 278;
+}
+
 body {
   --chrome-tint: linear-gradient(165deg, rgb(246 243 252 / 0.72), rgb(238 236 246 / 0.82));
   --chrome-ink: #1c1b22;
@@ -15,7 +21,9 @@ body {
   --indicator-sat: 70%;
   --indicator-alpha: 0.58;
   --indicator-shadow-alpha: 0.32;
-  --card-shadow: 0 1px 0 rgb(255 255 255 / 0.6), 0 12px 32px -12px rgb(40 30 80 / 0.28);
+  --ambient-glow: hsl(var(--ambient-hue) 85% 72% / 0.34);
+  --ambient-glow-far: hsl(var(--ambient-hue) 70% 80% / 0.2);
+  --card-shadow: 0 1px 0 rgb(255 255 255 / 0.6), 0 0 0 1px hsl(var(--ambient-hue) 50% 50% / 0.08), 0 14px 34px -14px hsl(var(--ambient-hue) 60% 40% / 0.34);
 }
 
 body.dark-mode {
@@ -33,7 +41,9 @@ body.dark-mode {
   --indicator-sat: 60%;
   --indicator-alpha: 0.2;
   --indicator-shadow-alpha: 0.42;
-  --card-shadow: 0 0 0 1px rgb(255 255 255 / 0.05), 0 18px 40px -16px rgb(0 0 0 / 0.7);
+  --ambient-glow: hsl(var(--ambient-hue) 70% 52% / 0.2);
+  --ambient-glow-far: hsl(var(--ambient-hue) 60% 45% / 0.1);
+  --card-shadow: 0 0 0 1px hsl(var(--ambient-hue) 60% 75% / 0.09), 0 18px 44px -16px hsl(var(--ambient-hue) 80% 30% / 0.55), 0 18px 40px -16px rgb(0 0 0 / 0.6);
 }
 
 html,
@@ -44,13 +54,23 @@ body {
 body {
   color: var(--chrome-ink);
   font-family: var(--font-sans);
+  transition: --ambient-hue 900ms var(--spring-effects, ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
 }
 
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: var(--chrome-tint);
+  background:
+    radial-gradient(70% 55% at 0% 0%, var(--ambient-glow), transparent 70%),
+    radial-gradient(60% 50% at 100% 100%, var(--ambient-glow-far), transparent 75%),
+    var(--chrome-tint);
   pointer-events: none;
   z-index: -2;
 }

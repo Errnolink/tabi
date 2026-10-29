@@ -2,13 +2,13 @@
 
 body {
   --menu-fill: rgb(250 248 254 / 0.97);
-  --menu-highlight: hsl(278 70% 72% / 0.22);
+  --menu-highlight: hsl(var(--ambient-hue, 278) 70% 72% / 0.24);
   --menu-shadow: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 0 0 1px rgb(30 20 60 / 0.08), 0 24px 48px -16px rgb(40 30 80 / 0.38), 0 6px 14px -6px rgb(40 30 80 / 0.2);
 }
 
 body.dark-mode {
   --menu-fill: rgb(28 26 41 / 0.97);
-  --menu-highlight: hsl(278 70% 72% / 0.18);
+  --menu-highlight: hsl(var(--ambient-hue, 278) 70% 72% / 0.18);
   --menu-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset, 0 0 0 1px rgb(255 255 255 / 0.06), 0 28px 56px -18px rgb(0 0 0 / 0.8), 0 8px 18px -8px rgb(0 0 0 / 0.6);
 }
 
