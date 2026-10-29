@@ -434,8 +434,11 @@ ipc.on('hideCurrentView', function (e) {
 })
 
 function loadURLInView (id, url, win) {
+  if (!viewMap[id] || !viewStateMap[id]) {
+    return
+  }
   const personaUA = getPersonaUserAgentForUrl(url)
-  if (personaUA && viewMap[id]) {
+  if (personaUA) {
     viewMap[id].webContents.setUserAgent(personaUA)
   }
   // wait until the first URL is loaded to set the background color so that new tabs can use a custom background
