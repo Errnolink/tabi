@@ -54,6 +54,18 @@ function extensionsInitForPartition (partition) {
   })
 }
 
+function extensionsTeardownPartition (partition) {
+  if (!extensionInstances[partition]) {
+    return
+  }
+  delete extensionInstances[partition]
+  var ses = session.fromPartition(partition)
+  var sessionExtensions = ses.extensions || ses
+  sessionExtensions.getAllExtensions().forEach(function (ext) {
+    sessionExtensions.removeExtension(ext.id)
+  })
+}
+
 /*
 chrome.tabs.create: the tab model lives in the UI renderer, so ask it to
 create the tab (in the calling instance's container) and wait for the view
@@ -301,3 +313,4 @@ global.extensionsRegisterView = extensionsRegisterView
 global.extensionsUnregisterView = extensionsUnregisterView
 global.extensionsNotifyViewSelected = extensionsNotifyViewSelected
 global.getExtensionContextMenuItems = getExtensionContextMenuItems
+global.extensionsTeardownPartition = extensionsTeardownPartition

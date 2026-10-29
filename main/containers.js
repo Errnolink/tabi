@@ -9,7 +9,7 @@ pointing at the id-'default' container and can be moved to any other container
 ids and partitions never change; only the role does.
 */
 
-/* global fs, path, ipc, app, session, windows, webContents, getWindowWebContents, userDataPath */
+/* global fs, path, ipc, app, session, windows, webContents, getWindowWebContents, userDataPath, extensionsTeardownPartition */
 
 const containersPath = path.join(userDataPath, 'containers.json')
 const pendingContainerRemovalsPath = path.join(userDataPath, 'pending-container-removals.json')
@@ -363,6 +363,8 @@ function removeContainer (id, newDefaultId) {
   containerRegistry.containers = containerRegistry.containers.filter(c => c.id !== id)
   saveContainersRegistry()
   broadcastContainersChanged()
+
+  extensionsTeardownPartition(container.partition)
 
   var ses = containerSessions.get(container.partition)
   containerSessions.delete(container.partition)
