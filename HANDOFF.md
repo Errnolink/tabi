@@ -2,6 +2,14 @@
 
 Tabi (formerly "xb") is Chef's general-purpose browser: a Min (28k LOC plain-JS Electron browser) fork with a sea glass UI, tab groups ("buckets") in a vertical sidebar, containers for multiple logins, a masonry tab overview, built-in content blocking, URL cleaning, DoH, a userscript manager and Chrome Web Store extensions. It began 2026-10-20 as an X-only browser and was refocused to general-purpose on 2026-10-21 (Chef's decision); X lives on as an optional paste-in auto-file rule set, not a default.
 
+## Next session (from 2026-10-29)
+
+State: branch `fix/round3` (pushed, `b6e879ef`), 10 commits on top of `feat/seaglass`: round 3 below. Not merged, not released. Chef checks the Reddit right-click first; release (2.0.1 via `npm run releaseTabi -- --publish`) only after his OK.
+
+1. Redesign, agreed order: sidebar + toolbar → new tab page → overview → settings. Before/after screenshots of the REAL window each step (the CDP capture of the UI target has no acrylic behind it and looks brighter than reality). Needs the Tabi window visible. Done so far: ambient group light (`9690f186`).
+2. Tab-opening pass: Chef sees "minor bugs when opening tabs here and there". He logs specifics in `issues.md`. Audit the paths: new tab, Ctrl/middle-click, `window.open` popups, external links, auto-file. Add regression tests there.
+3. Live E2E still never run: containers (two X logins), extensions (store install of uBO + CPfT), plus the round 3 items listed as "Not exercised live".
+
 ## Why this shape
 
 (2026-10-20 rationale for the original X-only "xb" shape; superseded for product scope by the 2026-10-21 refocus, still true for the build-lane choices.)
