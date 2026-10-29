@@ -125,6 +125,25 @@ Also in round 2:
    - Low: an empty shortcut list stays empty, removing a download persists, the update toast is a toolbar pill (UI DOM over the page is invisible), the blank shield menu item is removed, missing locale keys are added, and the container delete warning names the real default (HANDOFF open item 2: the label was untranslated, not stale).
    - Boot `MaxListenersExceededWarning`: single-shot `ready` hooks use `app.whenReady()`.
 4. Design: ambient group light. The active tab group's hue (`--ambient-hue`, `@property`, 900 ms glide) tints a frosted glow behind the chrome, the page card rim and shadow, and the menu highlight.
+5. Follow-ups found in live testing (`9690f186`): Chromium pauses rAF in occluded windows, so the raise never fired and menus stayed invisible; `afterPaint` now also fires after a 50 ms timer (about 1 s when the window is hidden, because of timer throttling). History calls in `callViewMethod` go through `webContents.navigationHistory` (deprecation warnings gone).
+
+Live-verified 2026-10-29 in the dev instance over CDP:
+- Raise/lower ordering on every menu cycle: `#webviews` is transparent before `menu-raise`, and `ui-raised` is removed only after `menu-lower` resolves.
+- Menus per context: page, image-in-link, selection, text field.
+- Page text-field roles: Select All → Cut → Paste.
+- Omnibox roles edit the omnibox and leave the page field untouched.
+- Closing a tab in a non-current group: the row and page target are gone.
+- Hue glide from 150 to 278 on a group switch.
+- No boot warning and no deprecation lines.
+
+Not exercised live:
+- uBO + Ghostery (no extension installed).
+- Container delete/teardown and rehome.
+- Private-tab site info and extensions.
+- The sleeping error-page reload (Reload All on a normal sleeping group ran clean).
+- Rule edit order, overview cache, shortcuts/downloads persistence, the update pill.
+
+There is still no visual proof that the flicker is gone, only the ordering proof. Chef's eye on Reddit is the check.
 
 ### Open
 
