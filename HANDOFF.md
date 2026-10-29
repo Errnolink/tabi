@@ -166,6 +166,8 @@ There is still no visual proof that the flicker is gone, only the ordering proof
 - Open an internal page from the UI context with `ipc.emit('addTab', {}, {url: 'min://app/pages/…'})`.
 - `main/*.js` is concatenated into one scope (`scripts/buildMain.js`): run `node --check main.build.js` after a build; top-level names must not collide.
 - Never reload the UI or restart xb while an agent has uncommitted or broken code.
+- The UI bundle is browserify: `require('x.js')` from CDP fails. Drive tests through DOM + CDP input on the UI and page targets, and wrap the global `ipc.send`/`ipc.invoke` for ordering logs. Read hidden menu text with `textContent`, not `innerText`.
+- When the Tabi window is occluded or minimized, Chromium pauses rAF and throttles timers to about 1 s. Menus then open slowly, and window screenshots fail; `Page.captureScreenshot` on the UI target still works, but without the acrylic behind it.
 
 ## Decisions log
 
