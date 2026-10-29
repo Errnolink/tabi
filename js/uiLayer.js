@@ -2,6 +2,11 @@
 
 const holders = new Set()
 const passiveHolders = new Set()
+let generation = 0
+
+function afterPaint (fn) {
+  requestAnimationFrame(() => requestAnimationFrame(fn))
+}
 
 const uiLayer = {
   raise: function (reason, options) {
@@ -13,11 +18,18 @@ const uiLayer = {
     } else {
       passiveHolders.delete(reason)
     }
-    const shouldFocus = holders.size > passiveHolders.size
-    if (wasEmpty) {
-      document.body.classList.add('ui-raised')
-      ipc.send('menu-raise', { focus: shouldFocus })
+    if (!wasEmpty) {
+      return
     }
+    const current = ++generation
+    document.body.classList.add('ui-raised')
+    afterPaint(function () {
+      if (current !== generation || holders.size === 0) {
+        return
+      }
+      document.body.classList.add('ui-on-top')
+      ipc.send('menu-raise', { focus: holders.size > passiveHolders.size })
+    })
   },
   lower: function (reason) {
     const wasPassive = passiveHolders.has(reason)
@@ -25,8 +37,15 @@ const uiLayer = {
     if (!holders.delete(reason) || holders.size > 0) {
       return
     }
-    document.body.classList.remove('ui-raised')
-    ipc.send('menu-lower', { refocus: wasPassive })
+    const current = ++generation
+    document.body.classList.remove('ui-on-top')
+    ipc.invoke('menu-lower', { refocus: wasPassive }).then(function () {
+      afterPaint(function () {
+        if (current === generation && holders.size === 0) {
+          document.body.classList.remove('ui-raised')
+        }
+      })
+    })
   },
   isRaised: function () {
     return holders.size > 0

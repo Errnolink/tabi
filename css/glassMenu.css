@@ -35,6 +35,10 @@ body.ui-raised #webview-placeholder {
   z-index: 1000;
 }
 
+body.ui-raised:not(.ui-on-top) #menu-layer {
+  visibility: hidden;
+}
+
 .gm {
   position: fixed;
   min-width: 228px;

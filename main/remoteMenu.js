@@ -52,7 +52,7 @@ ipc.on('menu-raise', function (e, options) {
   }
 })
 
-ipc.on('menu-lower', function (e, options) {
+ipc.handle('menu-lower', function (e, options) {
   const entry = windows.windowFromContents(e.sender)
   if (entry) {
     lowerUIView(entry.win)

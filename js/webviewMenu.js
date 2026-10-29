@@ -118,6 +118,23 @@ const webviewMenu = {
         }
       })
 
+      var emailMatch = link.startsWith('mailto:') && link.match(/(?<=mailto:)[^?]+/)
+      if (emailMatch) {
+        linkActions.push({
+          label: l('copyEmailAddress'),
+          click: function () {
+            clipboard.writeText(emailMatch[0])
+          }
+        })
+      } else {
+        linkActions.push({
+          label: l('copyLinkAddress'),
+          click: function () {
+            clipboard.writeText(link)
+          }
+        })
+      }
+
       menuSections.push(linkActions)
     }
 
@@ -163,17 +180,61 @@ const webviewMenu = {
         }
       })
 
+      imageActions.push({
+        label: l('copyImage'),
+        click: function () {
+          webviews.callAsync(tabs.getSelected(), 'copyImageAt', [data.x, data.y])
+        }
+      })
+
+      if (!mediaURL.startsWith('blob:') && !mediaURL.startsWith('data:')) {
+        imageActions.push({
+          label: l('copyImageAddress'),
+          click: function () {
+            clipboard.writeText(mediaURL)
+          }
+        })
+      }
+
       menuSections.push(imageActions)
     }
 
-    /* selected text */
-
+    var editFlags = data.editFlags || {}
+    var isEditable = !!data.isEditable
     var selection = data.selectionText
 
-    if (selection) {
-      var textActions = [
+    if (isEditable) {
+      menuSections.push([
+        { label: l('undo'), accelerator: 'Ctrl+Z', enabled: !!editFlags.canUndo, role: 'undo' },
+        { label: l('redo'), accelerator: 'Ctrl+Shift+Z', enabled: !!editFlags.canRedo, role: 'redo' }
+      ])
+      menuSections.push([
+        { label: l('cut'), accelerator: 'Ctrl+X', enabled: !!editFlags.canCut, role: 'cut' },
+        { label: l('copy'), accelerator: 'Ctrl+C', enabled: !!editFlags.canCopy, role: 'copy' },
+        { label: l('paste'), accelerator: 'Ctrl+V', enabled: !!editFlags.canPaste, role: 'paste' },
+        { label: l('pasteAndMatchStyle'), accelerator: 'Ctrl+Shift+V', enabled: !!editFlags.canPaste, role: 'pasteAndMatchStyle' },
+        { label: l('selectAll'), accelerator: 'Ctrl+A', enabled: !!editFlags.canSelectAll, role: 'selectAll' }
+      ])
+    } else if (selection) {
+      menuSections.push([
         {
-          label: l('searchWith').replace('%s', searchEngine.getCurrent().name),
+          label: l('copy'),
+          accelerator: 'Ctrl+C',
+          click: function () {
+            webviews.callAsync(tabs.getSelected(), 'copy')
+          }
+        }
+      ])
+    }
+
+    if (selection) {
+      var shortSelection = selection.trim().replace(/\s+/g, ' ')
+      if (shortSelection.length > 24) {
+        shortSelection = shortSelection.substring(0, 24) + '…'
+      }
+      menuSections.push([
+        {
+          label: l('searchWith').replace('%s', searchEngine.getCurrent().name) + ' “' + shortSelection + '”',
           click: function () {
             var newTab = tabs.add({
               url: searchEngine.getCurrent().searchURL.replace('%s', encodeURIComponent(selection)),
@@ -186,69 +247,7 @@ const webviewMenu = {
             })
           }
         }
-      ]
-      menuSections.push(textActions)
-    }
-
-    var clipboardActions = []
-
-    if (mediaURL && data.mediaType === 'image') {
-      clipboardActions.push({
-        label: l('copy'),
-        click: function () {
-          webviews.callAsync(tabs.getSelected(), 'copyImageAt', [data.x, data.y])
-        }
-      })
-    } else if (selection) {
-      clipboardActions.push({
-        label: l('copy'),
-        click: function () {
-          webviews.callAsync(tabs.getSelected(), 'copy')
-        }
-      })
-    }
-
-    if (data.editFlags && data.editFlags.canPaste) {
-      clipboardActions.push({
-        label: l('paste'),
-        click: function () {
-          webviews.callAsync(tabs.getSelected(), 'paste')
-        }
-      })
-    }
-
-    if (data.editFlags && data.editFlags.canPaste) {
-      clipboardActions.push({
-        label: l('pasteAndMatchStyle'),
-        click: function () {
-          webviews.callAsync(tabs.getSelected(), 'pasteAndMatchStyle')
-        }
-      })
-    }
-
-    if (link || (mediaURL && !mediaURL.startsWith('blob:'))) {
-      if (link && link.startsWith('mailto:')) {
-        var ematch = link.match(/(?<=mailto:)[^\?]+/)
-        if (ematch) {
-          clipboardActions.push({
-            label: l('copyEmailAddress'),
-            click: function () {
-              clipboard.writeText(ematch[0])
-            }
-          })
-        }
-      } else {
-        clipboardActions.push({
-          label: l('copyLink'),
-          click: function () {
-            clipboard.writeText(link || mediaURL)
-          }
-        })
-      }
-    }
-
-    if (clipboardActions.length !== 0) {
-      menuSections.push(clipboardActions)
+      ])
     }
 
     if (data.formControlType === 'input-password' && PasswordManagers.getActivePasswordManager()?.saveCredential) {
@@ -262,68 +261,71 @@ const webviewMenu = {
       ])
     }
 
-    var navigationActions = [
-      {
-        label: l('goBack'),
-        click: function () {
-          try {
-            webviews.goBackIgnoringRedirects(tabs.getSelected())
-          } catch (e) { }
-        }
-      },
-      {
-        label: l('goForward'),
-        click: function () {
-          try {
-            webviews.callAsync(tabs.getSelected(), 'goForward')
-          } catch (e) { }
-        }
-      }
-    ]
-
-    navigationActions.push({
-      label: l('tabMenuReload'),
-      accelerator: 'Ctrl+R',
-      click: () => require('tabActions.js').reload(tabs.getSelected())
-    })
-    menuSections.push(navigationActions)
-
-    const pageURL = tabs.get(tabs.getSelected()).url
+    const pageURL = currentTab.url
     const isWebPage = /^https?:/.test(pageURL)
-    menuSections.push([
-      {
-        label: l('appMenuSavePageAs'),
-        accelerator: 'Ctrl+S',
-        click: () => ipc.emit('saveCurrentPage', {})
-      },
-      {
-        label: l('appMenuPrint'),
-        accelerator: 'Ctrl+P',
-        click: () => ipc.emit('print', {})
-      },
-      {
-        label: l('tabMenuCopyLink'),
-        enabled: isWebPage,
-        click: () => clipboard.writeText(pageURL)
-      }
-    ])
+    const isPageContext = !link && !(mediaURL && data.mediaType === 'image') && !selection && !isEditable
 
-    menuSections.push([
-      {
+    if (isPageContext) {
+      const navigationButtons = require('navbar/navigationButtons.js')
+      menuSections.push([
+        {
+          label: l('goBack'),
+          accelerator: 'Alt+Left',
+          enabled: !navigationButtons.backButton.disabled,
+          click: function () {
+            webviews.goBackIgnoringRedirects(tabs.getSelected())
+          }
+        },
+        {
+          label: l('goForward'),
+          accelerator: 'Alt+Right',
+          enabled: !navigationButtons.forwardButton.disabled,
+          click: function () {
+            webviews.callAsync(tabs.getSelected(), 'goForward')
+          }
+        },
+        {
+          label: l('tabMenuReload'),
+          accelerator: 'Ctrl+R',
+          click: () => require('tabActions.js').reload(tabs.getSelected())
+        }
+      ])
+
+      menuSections.push([
+        {
+          label: l('appMenuSavePageAs'),
+          accelerator: 'Ctrl+S',
+          click: () => ipc.emit('saveCurrentPage', {})
+        },
+        {
+          label: l('appMenuPrint'),
+          accelerator: 'Ctrl+P',
+          click: () => ipc.emit('print', {})
+        },
+        {
+          label: l('tabMenuCopyLink'),
+          enabled: isWebPage,
+          click: () => clipboard.writeText(pageURL)
+        }
+      ])
+    }
+
+    var devActions = []
+    if (isPageContext) {
+      devActions.push({
         label: l('viewPageSource'),
         enabled: isWebPage,
         click: () => {
-          const currentTab = tabs.get(tabs.getSelected())
           browserUI.addTab(tabs.add({ url: 'view-source:' + pageURL, containerId: currentTab.containerId, private: currentTab.private }), { enterEditMode: false })
         }
-      },
-      {
-        label: l('inspectElement'),
-        click: function () {
-          webviews.callAsync(tabs.getSelected(), 'inspectElement', [data.x || 0, data.y || 0])
-        }
+      })
+    }
+    devActions.push({
+      label: l('inspectElement'),
+      click: function () {
+        webviews.callAsync(tabs.getSelected(), 'inspectElement', [data.x || 0, data.y || 0])
       }
-    ])
+    })
 
     /* Userscripts */
 
@@ -392,7 +394,10 @@ const webviewMenu = {
       }
     })
 
-    menuSections.push([translateMenu])
+    if (isPageContext) {
+      menuSections.push([translateMenu])
+    }
+    menuSections.push(devActions)
 
     // Electron's default menu position is sometimes wrong on Windows with a touchscreen
     // https://github.com/minbrowser/min/issues/903

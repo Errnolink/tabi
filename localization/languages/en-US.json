@@ -16,6 +16,9 @@
     "saveImageAs": "Save Image As",
     "searchWith": "Search with %s", //%s will be replaced with the name of the current search engine
     "copyLink": "Copy Link",
+    "copyLinkAddress": "Copy Link Address",
+    "copyImage": "Copy Image",
+    "copyImageAddress": "Copy Image Address",
     "copyEmailAddress": "Copy Email Address",
     "selectAll": "Select All",
     "undo": "Undo",
@@ -24,8 +27,8 @@
     "copy": "Copy", //this is a verb (as in "copy the currently-selected text")
     "paste": "Paste",
     "pasteAndMatchStyle": "Paste and Match Style",
-    "goBack": "Back (Ctrl+Left)",
-    "goForward": "Forward (Ctrl+Right)",
+    "goBack": "Back",
+    "goForward": "Forward",
     "inspectElement": "Inspect Element",
     "translatePage": "Translate Page",
     /* searchbar */
